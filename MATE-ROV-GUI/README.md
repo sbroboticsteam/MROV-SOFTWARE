@@ -6,6 +6,23 @@
     pip install PyQt5
     ```
 
+## Project Structure
+```
+.
+├── Components
+│   ├── __init__.py
+│   └── component.py
+├── README.md
+└── app.py
+```
+`app.py` will be the primary driver of our program; it is where the main application window will be called and executed. 
+
+The `Components` folder will store all of our individual components/widgets, which will be called in `app.py`. 
+
+A sample component, called `component.py` has been created in order to help you understand how a PyQt5 widget works.
+
+Each component will be its own class; they do not necessarily have to be contained within their own Python file.
+
 ## How to contribute
 
 ### Working from your local machine
