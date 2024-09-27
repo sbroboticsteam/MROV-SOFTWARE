@@ -1,5 +1,8 @@
 # MATE ROV 2025 Dashboard
 
+## Contributors
+- Giovanni Terefi
+
 ## Requirements
 - PyQt5
     ```bash
