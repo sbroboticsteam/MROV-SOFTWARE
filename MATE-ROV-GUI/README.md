@@ -2,6 +2,7 @@
 
 ## Contributors
 - Giovanni Terefi
+- Brian Cao
 
 ## Requirements
 - PyQt5
