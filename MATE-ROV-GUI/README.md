@@ -76,3 +76,5 @@ Once your feature branch is pushed to GitHub, follow these steps to create a pul
 6. In the description, include details about the changes you made.
 
 7. Submit the pull request by clicking **Create pull request**.
+
+8. Once approved, the changes in your branch will be merged into the main branch.
