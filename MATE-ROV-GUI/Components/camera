@@ -1,0 +1,31 @@
+from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QVBoxLayout, QHBoxLayout, QLabel 
+from PyQt5.QtCore import Qt
+
+class Camera(QWidget):
+    def __init__(self):
+        super().__init__()
+        #Did part of camera :)
+        layout = QVBoxLayout()
+        label = QLabel("Camera Feeds")
+        label.setMaximumWidth(250)
+        label.setMaximumHeight(15)
+        layout.addWidget(label)
+
+        layout_1 = QHBoxLayout()
+        label_1 = QLabel("Camera #1")
+        label_1.setAlignment(Qt.AlignRight)
+        layout_1.addWidget(label_1)
+        layout.addLayout(layout_1)
+
+        layout_2 = QVBoxLayout()
+        label_2 = QLabel("Camera #1")
+        label_2.setAlignment(Qt.AlignRight)
+        layout_2.addWidget(label_2)
+
+        label_3 = QLabel("Camera #1")
+        label_3.setAlignment(Qt.AlignRight)
+        layout_2.addWidget(label_3)
+
+        layout_1.addLayout(layout_2)
+
+        self.setLayout(layout)
