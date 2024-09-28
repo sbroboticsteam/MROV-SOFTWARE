@@ -8,17 +8,25 @@ class Camera(QWidget):
         
         layout = QVBoxLayout()
         label = QLabel("Camera Feeds")
-        label.setMaximumHeight(15)
+        label.setMaximumHeight(25)
 
         pal = QPalette();
         pal.setColor(QPalette.Window, QColor("#555555"));
         pal.setColor(QPalette.WindowText, QColor("#ffffff"))
         label.setAutoFillBackground(True); 
         label.setPalette(pal);
-
         layout.addWidget(label)
 
+        background = QWidget();
+        b = QPalette();
+        b.setColor(QPalette.Window, QColor("#D9D9D9"));
+        background.setAutoFillBackground(True);
+        background.setPalette(b)
+        layout.addWidget(background)
+
         layout_1 = QHBoxLayout()
+        background.setLayout(layout_1)
+
         label_1 = QLabel("Camera #1")
         label_1.setAlignment(Qt.AlignRight)
 
@@ -28,7 +36,6 @@ class Camera(QWidget):
         label_1.setPalette(pal_1);
 
         layout_1.addWidget(label_1)
-        layout.addLayout(layout_1)
 
         layout_2 = QVBoxLayout()
         label_2 = QLabel("Camera #1")
