@@ -1,5 +1,6 @@
 from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QPushButton, QVBoxLayout
 from Components.component import Component
+from Components.speedpanel import SpeedPanel
 
 import sys
 
@@ -14,6 +15,9 @@ class MainWindow(QMainWindow): # MainWindow class extends QMainWindow
 
         component = Component() # declaring a new instance of Component()
         layout.addWidget(component) # adding component to widget (this will appear below the button we declared earlier)
+
+        speed_panel = SpeedPanel() # declaring a new instance of SpeedPanel()
+        layout.addWidget(speed_panel)
 
         central = QWidget() # create separate widget to act as a central widget (container) for the rest of the widgets
         central.setLayout(layout) # set the layout for this central widget to the layout we previously defined
