@@ -53,4 +53,3 @@ class Connectivity(QWidget):
 
         # Set the layout to the main window
         self.setLayout(layout)
-
