@@ -12,12 +12,7 @@ class MainWindow(QMainWindow): # MainWindow class extends QMainWindow
         label = QLabel()
         joystick_label = QSlider
 
-        
-
-
         name = QLabel("Controller Sensitivity")
-
-        
 
         # Create labels and sliders
         joystick_label = QLabel("Joystick")
