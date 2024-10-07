@@ -28,4 +28,6 @@ We are programing a vertical profiling float to do the following:
 
 
 ##Learning resources
-1. 
+1. How to send HTTP request from an ESP32: https://www.youtube.com/watch?app=desktop&v=LiQaPJ9UrSM&t=19s
+2. How to set up a HTTP server (to receive and process the request) in python: https://youtu.be/DeFST8tvtuI?si=belyx59lG6xcFqGZ&t=383 
+
