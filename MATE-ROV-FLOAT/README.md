@@ -2,7 +2,7 @@
 
 This the repository for the Vertical Profiling Float Team for SBRT 2024 MATE ROV. 
 
-#Project Requirements 
+##Project Requirements 
 We are programing a vertical profiling float to do the following:
 1. Listen for a START signal at the surface of the water then start an automated process to detect the depth of the water.
 2. Steps of the automated depth detection process
@@ -12,17 +12,20 @@ We are programing a vertical profiling float to do the following:
 3. Repeat Step 2 TWO TIMES exactly
 4. The surface laptop should gather all the (time, depth) tuple data receoved and plot a Depth vs Time graph
 
-#Important Notes: 
+##Important Notes: 
 - We will write the program for the float in an ESP32, a microcontroller or a tiny computer, using C++
 - We will write the program for the surface laptop in python
+- To enable data transmission between the float and the laptop, we will use the HTTP communication protocal and use HTTP timeout to decide if a data has been received by the surface laptop 
+- We will use a queue to store all the (time, depth) tuple data awaiting to be transmitted in the float
 - After receving the START signal, all the following actions on the float should be automated (not controlled by the surface laptop, the program is written on the float
 - The float need to program to resent a (time, depth) tuple data if the surface laptop failed to receive the data due to poor network signal underwater
 
-#Q & A
+##Q & A
 1. Where do we get the real time depth date from?
    - Electrical Team will attach a sensor on the float and provide us with a getCurrentDepth() func as the sensor's API
 2. How do we controll the float's movement (sinking and ascending)? 
    - Most likely there will be servo(s) attached on the float where we need to controll the speed and directin of the servo(s) for the float to move 
 
-#Learning resources
+
+##Learning resources
 1. 
