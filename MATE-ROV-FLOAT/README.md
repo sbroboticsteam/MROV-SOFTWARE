@@ -29,13 +29,17 @@ We are programming a vertical profiling float to do the following:
 
 ##Learning resources
 1. How to send HTTP request from an ESP32: 
+
    https://www.youtube.com/watch?app=desktop&v=LiQaPJ9UrSM&t=19s
 2. How to set up an HTTP server (to receive and process the request) in Python: 
+
    https://www.youtube.com/watch?v=kogOfxg1c_g
+
    https://youtu.be/DeFST8tvtuI?si=belyx59lG6xcFqGZ&t=383 
 
 
 ##Task Assignment 
+
 ESP32 Programming Team 
 - Connect the ESP32 to the SBRT WIFI 
 - Set up a GET /start_signal to receive the START signal from a surface laptop (most likely an HTTP GET request) and start the automated process. 
