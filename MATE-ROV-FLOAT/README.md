@@ -38,14 +38,15 @@ We are programing a vertical profiling float to do the following:
 ##Task Assignment 
 ESP32 Programming Team 
 - Connect the ESP32 to the SBRT WIFI 
-- Detect the START signal send by the surface laptop (most likely a HTTP GET request) and start the automated process. Reply to the laptop with a 200 status code after successfully start the automated process. 
+- Set up a GET /start_signal to receive the START signal from surface laptop (most likely a HTTP GET request) and start the automated process. 
+  - Reply to the laptop with a 200 status code after successfully start the automated process. 
 - Send HTTP POST request to the surface laptop containing a (time, depth) tuple and validate if the laptop has successfully receive the request or not by catching either a HTTP timeout (indicate failure) or a HTTP response with 200 status code (indicate success)
 - Program the servo(s) to sink and ascend the float at a proper time 
 
 Surface Laptop Team 
 - Set up a python server with the following route
 - GET /start
-  - Send a HTTP GET request to ESP32 to start the automated process
+  - Send a HTTP GET request to ESP32's /start_signal to start the automated process
 - POST /depth
   - Store the received (time, depth) data to an array and reply with a 200 status code
 - GET /display_graph
