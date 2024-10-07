@@ -2,7 +2,7 @@
 
 This is the repository for the Vertical Profiling Float Team for SBRT 2024 MATE ROV. 
 
-##Project Requirements 
+## Project Requirements 
 We are programming a vertical profiling float to do the following:
 1. Listen for a START signal at the surface of the water then start an automated process to detect the depth of the water.
 2. Steps of the automated depth detection process
@@ -12,7 +12,7 @@ We are programming a vertical profiling float to do the following:
 3. Repeat Step 2 TWO TIMES exactly
 4. The surface laptop should gather all the (time, depth) tuple data received and plot a Depth vs Time graph
 
-##Important Notes: 
+## Important Notes: 
 - We will write the program for the float in an ESP32, a microcontroller, or a tiny computer, using C++
 - We will write the program for the surface laptop in Python
 - To enable data transmission between the float and the laptop, we will use the HTTP communication protocol and use HTTP timeout to decide if data has been received by the surface laptop 
@@ -20,14 +20,14 @@ We are programming a vertical profiling float to do the following:
 - After receiving the START signal, all the following actions on the float should be automated (not controlled by the surface laptop, the program is written on the float
 - The float needs to program to resent a (time, depth) tuple data if the surface laptop fails to receive the data due to poor network signal underwater
 
-##Q & A
+## Q & A
 1. Where do we get the real-time depth date from?
    - Electrical Team will attach a sensor on the float and provide us with a getCurrentDepth() func as the sensor's API
 2. How do we control the float's movement (sinking and ascending)? 
    - Most likely there will be servo(s) attached to the float where we need to control the speed and direction of the servo(s) for the float to move 
 
 
-##Learning resources
+## Learning resources
 1. How to send HTTP request from an ESP32: 
 
    https://www.youtube.com/watch?app=desktop&v=LiQaPJ9UrSM&t=19s
@@ -38,7 +38,7 @@ We are programming a vertical profiling float to do the following:
    https://youtu.be/DeFST8tvtuI?si=belyx59lG6xcFqGZ&t=383 
 
 
-##Task Assignment 
+## Task Assignment 
 
 ESP32 Programming Team 
 - Connect the ESP32 to the SBRT WIFI 
