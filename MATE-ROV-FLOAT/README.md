@@ -28,10 +28,29 @@ We are programing a vertical profiling float to do the following:
 
 
 ##Learning resources
-1. How to send HTTP request from an ESP32: https://www.youtube.com/watch?app=desktop&v=LiQaPJ9UrSM&t=19s
-2. How to set up a HTTP server (to receive and process the request) in python: https://youtu.be/DeFST8tvtuI?si=belyx59lG6xcFqGZ&t=383 
+1. How to send HTTP request from an ESP32: 
+   https://www.youtube.com/watch?app=desktop&v=LiQaPJ9UrSM&t=19s
+2. How to set up a HTTP server (to receive and process the request) in python: 
+   https://www.youtube.com/watch?v=kogOfxg1c_g
+   https://youtu.be/DeFST8tvtuI?si=belyx59lG6xcFqGZ&t=383 
 
 
 ##Task Assignment 
+ESP32 Programming Team 
+- Connect the ESP32 to the SBRT WIFI 
+- Detect the START signal send by the surface laptop (most likely a HTTP GET request) and start the automated process. Reply to the laptop with a 200 status code after successfully start the automated process. 
+- Send HTTP POST request to the surface laptop containing a (time, depth) tuple and validate if the laptop has successfully receive the request or not by catching either a HTTP timeout (indicate failure) or a HTTP response with 200 status code (indicate success)
+- Program the servo(s) to sink and ascend the float at a proper time 
+
+Surface Laptop Team 
+- Set up a python server with the following route
+- GET /start
+  - Send a HTTP GET request to ESP32 to start the automated process
+- POST /depth
+  - Store the received (time, depth) data to an array and reply with a 200 status code
+- GET /display_graph
+  - Display a time vs depth graph using the avaliable data
+
+
 
 
