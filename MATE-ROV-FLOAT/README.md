@@ -1,3 +1,28 @@
 # VPF
 
-This the repository for the Vertical Pilot Float Team for MATE ROV. 
+This the repository for the Vertical Profiling Float Team for SBRT 2024 MATE ROV. 
+
+#Project Requirements 
+We are programing a vertical profiling float to do the following:
+1. Listen for a START signal at the surface of the water then start an automated process to detect the depth of the water.
+2. Steps of the automated depth detection process
+   2.1 sink into the water until it reaches the depth of 2.5 meters
+   2.2 stay at the depth for 2 minutes then start ascending to the surface
+   2.3 during the whole process, attemp to send a (time, depth) tuple data point to the surface laptop every 5 seconds
+3. Repeat Step 2 TWO TIMES exactly
+4. The surface laptop should gather all the (time, depth) tuple data receoved and plot a Depth vs Time graph
+
+#Important Notes: 
+- We will write the program for the float in an ESP32, a microcontroller or a tiny computer, using C++
+- We will write the program for the surface laptop in python
+- After receving the START signal, all the following actions on the float should be automated (not controlled by the surface laptop, the program is written on the float
+- The float need to program to resent a (time, depth) tuple data if the surface laptop failed to receive the data due to poor network signal underwater
+
+#Q & A
+1. Where do we get the real time depth date from?
+   - Electrical Team will attach a sensor on the float and provide us with a getCurrentDepth() func as the sensor's API
+2. How do we controll the float's movement (sinking and ascending)? 
+   - Most likely there will be servo(s) attached on the float where we need to controll the speed and directin of the servo(s) for the float to move 
+
+#Learning resources
+1. 
