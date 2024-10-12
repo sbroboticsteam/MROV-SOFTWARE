@@ -10,13 +10,9 @@ class MainWindow(QMainWindow): # MainWindow class extends QMainWindow
         super().__init__() # initialize class
         self.setWindowTitle("MATE ROV Dashboard") # setting the window title (what appears at the top of the window)
         layout = QVBoxLayout() # QVBoxLayout is used to construct vertical components (i.e. elements are stacked on top of each other)
-        button = QPushButton("Underwater robot go brrr") # QPushButton creates a button that can be clicked
-        layout.addWidget(button) # layout.addWidget adds a widget to the layout
 
-        component = Component() # declaring a new instance of Component()
-        layout.addWidget(component) # adding component to widget (this will appear below the button we declared earlier)
-
-        speed_panel = SpeedPanel() # declaring a new instance of SpeedPanel()
+        speed_panel = SpeedPanel()
+        speed_panel.update_speeds(50, 75, 100)
         layout.addWidget(speed_panel)
 
         central = QWidget() # create separate widget to act as a central widget (container) for the rest of the widgets
