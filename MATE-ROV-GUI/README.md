@@ -3,6 +3,11 @@
 ## Contributors
 - Giovanni Terefi
 - Brian Cao
+- Ada Lin
+- Derrick Ma
+- Vincent Tan
+- Saad Ismail
+- Randy Sim
 
 ## Requirements
 - PyQt5
