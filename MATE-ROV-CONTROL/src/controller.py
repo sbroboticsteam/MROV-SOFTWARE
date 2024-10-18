@@ -72,7 +72,7 @@ while True or KeyboardInterrupt:
                 print("Y position", y + yVel)
                 
         
-        if event.type == pygame.JOYHATMOTION:
+        if event.type == pygame.JOYHATMOTION:   
             # print(pygame.joystick.Joystick(0).get_hat(0)[0])
             if pygame.joystick.Joystick(0).get_hat(0)[0] == 1:
                 print("MOVING LEFT")
