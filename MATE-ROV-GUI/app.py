@@ -1,5 +1,6 @@
 from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QPushButton, QVBoxLayout
-from Components.component import Component
+from Components.camera import Webcam
+from Components.temp_camera import Camera
 
 import sys
 
@@ -12,7 +13,7 @@ class MainWindow(QMainWindow): # MainWindow class extends QMainWindow
         button = QPushButton("Underwater robot go brrr") # QPushButton creates a button that can be clicked
         layout.addWidget(button) # layout.addWidget adds a widget to the layout
 
-        component = Component() # declaring a new instance of Component()
+        component = Camera() # declaring a new instance of Component()
         layout.addWidget(component) # adding component to widget (this will appear below the button we declared earlier)
 
         central = QWidget() # create separate widget to act as a central widget (container) for the rest of the widgets
