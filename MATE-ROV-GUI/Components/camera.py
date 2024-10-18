@@ -1,8 +1,9 @@
-from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QPushButton, QVBoxLayout, QLabel 
-from PyQt5.QtCore import QUrl, QThread, pyqtSignal
+from PyQt5.QtWidgets import QWidget, QPushButton, QVBoxLayout, QLabel 
+from PyQt5.QtCore import QThread, pyqtSignal
 from PyQt5.QtGui import QPixmap, QImage
 import cv2
 import os
+
 
 class Webcam(QWidget):
     def __init__(self):
@@ -13,6 +14,10 @@ class Webcam(QWidget):
         self.feedLabel = QLabel()
         self.layout.addWidget(self.feedLabel)
         
+        self.startBtn = QPushButton("Yes")
+        self.startBtn.clicked.connect(self.start)
+        self.layout.addWidget(self.startBtn)
+
         self.cancelBtn = QPushButton("No")
         self.cancelBtn.clicked.connect(self.cancel)
         self.layout.addWidget(self.cancelBtn)
@@ -24,9 +29,12 @@ class Webcam(QWidget):
         self.setLayout(self.layout)
     def imageUpdateSlot(self, img):
         self.feedLabel.setPixmap(QPixmap.fromImage(img))
-
+    def start(self):
+        if (not self.worker1.isRunning()):
+            self.worker1.start()
     def cancel(self):
-        self.worker1.stop()
+        if (self.worker1.isRunning()):
+            self.worker1.stop()
 class Worker1(QThread):
     imageUpdate = pyqtSignal(QImage)
     def run(self):
