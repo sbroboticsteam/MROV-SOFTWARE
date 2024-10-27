@@ -10,6 +10,38 @@ joysticks = [pygame.joystick.Joystick(x) for x in range(pygame.joystick.get_coun
 
 
 # print(joysticks[0].get_numhats())
+def arcadeDrive(x,y) -> list[float]:
+    """
+    turns stick axes into appropriate motor values
+    - the motor values are returned as an array of floats (details on the order below)
+    """
+
+    maximum = max(abs(x), abs(y))
+    total, difference = x + y, x - y
+    out = []
+    # set speed according to the quadrant that the values are in
+    if x >= 0:
+        if y >= 0:  # I quadrant
+            out = [maximum, difference, difference, maximum]
+        else:            # II quadrant
+            out = [total, maximum, maximum, total]
+    else:
+        if y >= 0:  # IV quadrant
+            out = [total, -maximum, -maximum, total]
+        else:            # III quadrant
+            out = [-maximum, difference, difference, -maximum]
+    return out
+
+    """
+    robot motors:
+    - h is the heading / direction of the robot
+     _______
+    |4     1|
+    |  h->  |
+    |3_____2|
+
+    """
+
 class Player(object):
 
     def __init__(self):
@@ -172,3 +204,5 @@ while True or KeyboardInterrupt:
     clock.tick(180)
 
 # print(joysticks)
+
+
