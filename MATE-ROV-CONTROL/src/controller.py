@@ -1,4 +1,5 @@
 import pygame
+import math
 
 mapping_dict = {
     "UP":
@@ -80,18 +81,34 @@ while True or KeyboardInterrupt:
             break
 
         if event.type == pygame.JOYAXISMOTION:
-            y = round(pygame.joystick.Joystick(0).get_axis(1))
-            x = round(pygame.joystick.Joystick(0).get_axis(0))
-            # print("Y", round(pygame.joystick.Joystick(0).get_axis(1)))
-            # print("X", round(pygame.joystick.Joystick(0).get_axis(0)))
-            if pygame.joystick.Joystick(0).get_axis(4) == 0.999969482421875:
-                if speed < 5:
-                    speed += 1
-                print(event)
-            elif pygame.joystick.Joystick(0).get_axis(5) == 0.999969482421875:
-                if speed > 0:
-                    speed -= 1
-                print(event)
+            y = pygame.joystick.Joystick(0).get_axis(1)
+            x = pygame.joystick.Joystick(0).get_axis(0)
+            threshold = 0.1
+            
+
+            # Check and print the direction based on the axis values
+            if x < -threshold:  # Left movement
+                print(f"LEFT JOY Moving Left: {math.trunc(x* 100) / 100}")
+            elif x > threshold:  # Right movement
+                print(f"LEFT JOY Moving Right: {math.trunc(x* 100) / 100}")
+            
+            if y < -threshold:  # Up movement
+                print(f"LEFT JOY Moving Up: {math.trunc(y* 100) / 100}")
+            elif y > threshold:  # Down movement
+                print(f"LEFT JOY Moving Down: {math.trunc(y* 100) / 100}")
+            # print("Y", math.trunc(x* 100) / 100)
+            # print("X", math.trunc(y* 100) / 100)
+            
+            lefttrigger = pygame.joystick.Joystick(0).get_axis(4)
+                # if speed < 5:
+                #     speed += 1
+            if lefttrigger > 0.1:
+                print('leftTrigger', {math.trunc(lefttrigger * 100) / 100})
+            righttrigger = pygame.joystick.Joystick(0).get_axis(5)
+                # if speed > 0:
+                #     speed -= 1
+            if righttrigger > 0.1:
+                print('rightTrigger', {math.trunc(righttrigger * 100) / 100})
             # elif round(pygame.joystick.Joystick(0).get_axis(1) * 1000) == 1:
             # elif round(pygame.joystick.Joystick(0).get_axis(0) * 1000) == 1:
             # xVel = speed * abs(round(pygame.joystick.Joystick(0).get_axis(0))) -- Left trigger speed
@@ -110,19 +127,21 @@ while True or KeyboardInterrupt:
         if event.type == pygame.JOYAXISMOTION:
             ry = pygame.joystick.Joystick(0).get_axis(3)
             rx = pygame.joystick.Joystick(0).get_axis(2)
+            # print(ry)
+            # print(rx)
 
             if (rx) > 0.05:
                  # print(event)
-                 print ("Moved right :" + str(rx))
+                 print ("RIGHT JOY Moved right :", (math.trunc(rx * 100)/100))
             elif (rx) < -0.05:
                 # print(event)
-                 print("Moved left :" + str(rx))
+                 print("RIGHT JOY Moved left :", (math.trunc(rx * 100)/100))
             if (ry) > 0.05:  # Issue calculating y axis
                 # print(event)
-              print ("Moved Down :" + str(ry))
+              print ("RIGHT JOY Moved Down :", (math.trunc(ry * 100)/100))
             elif (ry) < -0.05:
                 # print(event)
-                print("Moved Up :" + str(ry))
+                print("RIGHT JOY Moved Up :", (math.trunc(ry * 100)/100))
 
 
         # End of New code
