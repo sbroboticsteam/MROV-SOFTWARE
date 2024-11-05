@@ -1,57 +1,53 @@
-#include <WiFi.h>
-#include <HTTPClient.h>
-  
-const char* ssid = "yourNetworkName";
-const char* password =  "yourNetworkPassword";
-  
-void setup() {
+#include <WiFi.h> 
+#include <HTTPClient.h> 
 
-  Serial.begin(115200);
-  delay(4000);   //Delay needed before calling the WiFi.begin
-  
-  WiFi.begin(ssid, password); 
-  
-  while (WiFi.status() != WL_CONNECTED) { //Check for the connection
-    delay(1000);
-    Serial.println("Connecting to WiFi..");
+
+const char* WIFI_name = "SBRT";
+const char* password = "Robotic$3";
+
+const char* server_name= "192.168.1.117"; 
+
+void setup() {
+  Serial.begin(115200); 
+  WiFi.begin(WIFI_name, password); 
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    delay (15000); 
+    
+    Serial.println("Connecting to WiFI..."); 
   }
-  
-  Serial.println("Connected to the WiFi network");
+  Serial.println ("WIFI connected"); 
+  // put your setup code here, to run once:
+
 }
-  
+
 void loop() {
-  
- if(WiFi.status()== WL_CONNECTED){   //Check WiFi connection status
-  
-   HTTPClient http;   
-  
-   http.begin("http://jsonplaceholder.typicode.com/posts");  //Specify destination for HTTP request
-   http.addHeader("Content-Type", "text/plain");             //Specify content-type header
-  
-   int httpResponseCode = http.POST("POSTING from ESP32");   //Send the actual POST request
-  
-   if(httpResponseCode>0){
-  
-    String response = http.getString();                       //Get the response to the request
-  
-    Serial.println(httpResponseCode);   //Print return code
-    Serial.println(response);           //Print request answer
-  
-   }else{
-  
-    Serial.print("Error on sending POST: ");
-    Serial.println(httpResponseCode);
-  
-   }
-  
-   http.end();  //Free resources
-  
- }else{
-  
-    Serial.println("Error in WiFi connection");   
-  
- }
-  
-  delay(10000);  //Send a request every 10 seconds
-  
+  if (WiFi.status() == WL_CONNECTED)
+  {
+    HTTPClient http; 
+    http.begin(server_name); 
+    http.addHeader("Try-post", "text/plain"); 
+
+    int httpResponse= http.POST ("post from ESP32"); 
+
+
+    if (httpResponse<=0)
+    {
+      delay(1500); 
+      Serial.println("Server post response below 0. Not posted"); 
+    }
+    else 
+    {
+      String response= http.getString();  //get the string from http 
+      Serial.println(response);
+    }
+  }
+  else 
+  {
+    Serial.println("WiFi Connection lost."); 
+  }
+
+
+  // put your main code here, to run repeatedly:
+
 }
