@@ -17,6 +17,8 @@ void setup() {
     Serial.println("Connecting to WiFI..."); 
   }
   Serial.println ("WIFI connected"); 
+  Serial.print("IP address is: "); 
+  Serial.print(WiFi.localIP()); 
   // put your setup code here, to run once:
 
 }
