@@ -7,6 +7,13 @@ const char* password = "";
 const char* server_name= "http://192.168.0.96:8000/depth"; 
 char result[50]; 
 
+// Create a WebServer object on port 80
+WebServer server(80);
+
+//Testing data 
+void handleRoot() {
+  server.send(200, "text/html", "<html><body><h1>Hello from ESP32!</h1></body></html>");
+}
 int dep1 = 10; 
 int dep2= 30; 
 
@@ -21,6 +28,11 @@ void setup() {
   Serial.println ("WIFI connected"); 
   Serial.print("IP address is: "); 
   Serial.print(WiFi.localIP()); 
+
+  // Define endpoint for GET request
+  server.on("/start_signal", HTTP_GET, handleRoot);
+  // Start the server
+  server.begin();
 }
 
 void loop() {
@@ -43,6 +55,8 @@ void loop() {
       String response= http.getString();  //get the string from http 
       Serial.println(response);
     }
+    // Handle client requests
+    server.handleClient();
   }
   else 
   {
