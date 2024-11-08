@@ -15,13 +15,12 @@ void setup() {
   WiFi.begin(WIFI_name, password); 
   while (WiFi.status() != WL_CONNECTED)
   {
-    delay (15000); 
-    
     Serial.println("Connecting to WiFI..."); 
+    delay (15000); 
   }
   Serial.println ("WIFI connected"); 
-  // put your setup code here, to run once:
-
+  Serial.print("IP address is: "); 
+  Serial.print(WiFi.localIP()); 
 }
 
 void loop() {
@@ -33,7 +32,6 @@ void loop() {
     
     sprintf(result, "First depth: %d, sec: %d", dep1,dep2 ); 
     int httpResponse = http.POST (String(result)); 
-
 
     if (httpResponse<=0)
     {
@@ -50,8 +48,4 @@ void loop() {
   {
     Serial.println("WiFi Connection lost."); 
   }
-
-
-  // put your main code here, to run repeatedly:
-
 }
