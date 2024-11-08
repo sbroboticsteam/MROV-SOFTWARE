@@ -1,11 +1,14 @@
 #include <WiFi.h> 
 #include <HTTPClient.h> 
 
+const char* WIFI_name = "";
+const char* password = "";
 
-const char* WIFI_name = "SBRT";
-const char* password = "Robotic$3";
+const char* server_name= "http://192.168.0.96:8000/depth"; 
+char result[50]; 
 
-const char* server_name= "192.168.1.117"; 
+int dep1 = 10; 
+int dep2= 30; 
 
 void setup() {
   Serial.begin(115200); 
@@ -17,8 +20,6 @@ void setup() {
     Serial.println("Connecting to WiFI..."); 
   }
   Serial.println ("WIFI connected"); 
-  Serial.print("IP address is: "); 
-  Serial.print(WiFi.localIP()); 
   // put your setup code here, to run once:
 
 }
@@ -28,9 +29,10 @@ void loop() {
   {
     HTTPClient http; 
     http.begin(server_name); 
-    http.addHeader("Try-post", "text/plain"); 
-
-    int httpResponse= http.POST ("post from ESP32"); 
+    http.addHeader("Content-Type", "text/plain"); 
+    
+    sprintf(result, "First depth: %d, sec: %d", dep1,dep2 ); 
+    int httpResponse = http.POST (String(result)); 
 
 
     if (httpResponse<=0)
