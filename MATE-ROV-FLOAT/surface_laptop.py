@@ -20,6 +20,30 @@ class helloHandler(BaseHTTPRequestHandler):
         else:
             print("Failed")
 
+    def do_POST(self):
+        if self.path == '/depth':
+            content_length = int(self.headers['Content-Length'])  # Get the size of data
+            print(content_length)
+            post_data = self.rfile.read(content_length)  # Read the data
+            decoded_data = post_data.decode('utf-8')
+            #data = json.loads(post_data)  # Decode JSON data
+            print(decoded_data)
+            # Here you can process `data` as needed; for example:
+            depth_value = post_data
+            
+            # Respond to the client
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            response = {"message": f"Depth received: {depth_value}"}
+            self.wfile.write(json.dumps(response).encode())
+
+        else:
+            # If the POST request isn't to `/depth`, send a 404 response
+            self.send_response(404)
+            self.end_headers()
+            self.wfile.write(b"Not Found")
+
 def main():
     PORT = 8000
     Server = HTTPServer(('', PORT), helloHandler)
