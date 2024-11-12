@@ -1,16 +1,12 @@
-from http.server import HTTPServer, BaseHTTPRequestHandler
-import requests
-import sysconfig
+from http.server import BaseHTTPRequestHandler, HTTPServer
+import json
 
-# Printing sysconfig paths for debugging
-print(sysconfig.get_paths())
-
-ESP32_base_url = "http://192.168.1.35:port/route_name"
+ESP32_base_url = "http://192.168.1.35:/route_name"
 server_route_url = "http://192.168.1.44:8000/"
 
 class helloHandler(BaseHTTPRequestHandler):
     def do_GET(self):
-        #response = requests.get(ESP32_base_url)  # Get request to the base URL
+        response = requests.get(ESP32_base_url)  # Get request to the base URL
         self.send_response(200)
         self.send_header('content-type', 'text/html')
         self.end_headers()
@@ -22,21 +18,19 @@ class helloHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         if self.path == '/depth':
-            content_length = int(self.headers['Content-Length'])  # Get the size of data
-            print(content_length)
-            post_data = self.rfile.read(content_length)  # Read the data
+            content_length = int(self.headers['Content-Length'])
+            post_data = self.rfile.read(content_length)
             decoded_data = post_data.decode('utf-8')
-            #data = json.loads(post_data)  # Decode JSON data
+            
             print(decoded_data)
-            # Here you can process `data` as needed; for example:
-            depth_value = post_data
+            depth_value = decoded_data  # Processed as string here for simplicity
             
             # Respond to the client
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
             response = {"message": f"Depth received: {depth_value}"}
-            self.wfile.write(json.dumps(response).encode())
+            self.wfile.write(json.dumps(response).encode('utf-8'))
 
         else:
             # If the POST request isn't to `/depth`, send a 404 response
@@ -46,9 +40,10 @@ class helloHandler(BaseHTTPRequestHandler):
 
 def main():
     PORT = 8000
-    Server = HTTPServer(('', PORT), helloHandler)
+    server = HTTPServer(('', PORT), helloHandler)
     print('Server running on port %s' % PORT)
-    Server.serve_forever()
+    server.serve_forever()
 
 if __name__ == '__main__':
     main()
+
