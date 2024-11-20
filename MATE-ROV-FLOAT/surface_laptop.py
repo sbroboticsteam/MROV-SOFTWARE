@@ -1,20 +1,21 @@
 from http.server import BaseHTTPRequestHandler, HTTPServer
+import requests
 import json
 
-ESP32_base_url = "http://192.168.1.35:/route_name"
-server_route_url = "http://192.168.1.44:8000/"
+ESP32_base_url = "http://192.168.0.12:80/"
 
 class helloHandler(BaseHTTPRequestHandler):
     def do_GET(self):
-        response = requests.get(ESP32_base_url)  # Get request to the base URL
+        response = requests.get(ESP32_base_url + "start_signal")  # Get request to the base URL
         self.send_response(200)
         self.send_header('content-type', 'text/html')
         self.end_headers()
-        self.wfile.write("world".encode())
+        
         if response.status_code == 200:
-            print("pass")
+            print("Status code 200")
+            print(response.text)
         else:
-            print("Failed")
+            print(f"Failed with status code: {response.status_code} - {response.reason}")
 
     def do_POST(self):
         if self.path == '/depth':
@@ -25,7 +26,7 @@ class helloHandler(BaseHTTPRequestHandler):
             print(decoded_data)
             depth_value = decoded_data  # Processed as string here for simplicity
             
-            # Respond to the client
+            #Respond to the client
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
@@ -46,4 +47,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

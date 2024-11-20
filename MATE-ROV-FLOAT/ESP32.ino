@@ -1,65 +1,48 @@
-#include <WiFi.h> 
-#include <HTTPClient.h> 
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include <WebServer.h>
+  
+const char* ssid = "SBRT";
+const char* password =  "Robotic$3";
+int hasStarted = 0; 
 
-const char* WIFI_name = "";
-const char* password = "";
-
-const char* server_name= "http://192.168.0.96:8000/depth"; 
-char result[50]; 
-
-// Create a WebServer object on port 80
 WebServer server(80);
 
-//Testing data 
-void handleRoot() {
-  server.send(200, "text/html", "<html><body><h1>Hello from ESP32!</h1></body></html>");
+void handleToStartSignal() {
+  hasStarted = 1; 
+  server.send(200, "text/plain", "Float Starts");
 }
-int dep1 = 10; 
-int dep2= 30; 
 
 void setup() {
-  Serial.begin(115200); 
-  WiFi.begin(WIFI_name, password); 
-  while (WiFi.status() != WL_CONNECTED)
-  {
-    Serial.println("Connecting to WiFI..."); 
-    delay (15000); 
+  Serial.begin(115200);  
+  WiFi.begin(ssid, password); 
+  
+  while (WiFi.status() != WL_CONNECTED) { //Check for the connection
+    delay(5000);
+    Serial.println("Connecting to WiFi..");
   }
-  Serial.println ("WIFI connected"); 
+  
+  Serial.println("Connected to the WiFi network");
   Serial.print("IP address is: "); 
   Serial.print(WiFi.localIP()); 
 
-  // Define endpoint for GET request
-  server.on("/start_signal", HTTP_GET, handleRoot);
-  // Start the server
+  server.on("/start_signal", HTTP_GET, handleToStartSignal);
   server.begin();
 }
-
+  
 void loop() {
-  if (WiFi.status() == WL_CONNECTED)
-  {
-    HTTPClient http; 
-    http.begin(server_name); 
-    http.addHeader("Content-Type", "text/plain"); 
-    
-    sprintf(result, "First depth: %d, sec: %d", dep1,dep2 ); 
-    int httpResponse = http.POST (String(result)); 
+ if(WiFi.status()== WL_CONNECTED){   //Check WiFi connection status
+  if(hasStarted){
+    //insert Xiang's code
+    Serial.println("process starts");
 
-    if (httpResponse<=0)
-    {
-      delay(1500); 
-      Serial.println("Server post response below 0. Not posted"); 
-    }
-    else 
-    {
-      String response= http.getString();  //get the string from http 
-      Serial.println(response);
-    }
-    // Handle client requests
-    server.handleClient();
+  }else{
+    //Serial.println("Process has not start");
   }
-  else 
-  {
-    Serial.println("WiFi Connection lost."); 
-  }
+ }else{
+    Serial.println("Error in WiFi connection");  
+ }
+  delay(10000);  //Send a request every 10 seconds
+  // Handle client requests
+  server.handleClient();
 }
