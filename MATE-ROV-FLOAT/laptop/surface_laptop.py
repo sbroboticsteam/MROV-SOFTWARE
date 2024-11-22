@@ -23,7 +23,7 @@ class helloHandler(BaseHTTPRequestHandler):
                         self.send_response(response.status_code)
                         self.send_header('Content-type', 'text/plain')
                         self.end_headers()
-                        self.wfile.write("Failed with status code: {response.status_code} - {response.text}".encode('utf-8'))           
+                        self.wfile.write(f"Failed with status code: {response.status_code} - {response.text}".encode('utf-8'))           
             else:
                 # If the GET request isn't to `/`, send a 404 response
                 self.send_response(404)
