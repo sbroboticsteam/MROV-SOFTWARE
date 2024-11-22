@@ -49,7 +49,7 @@ ESP32 Programming Team
 
 Surface Laptop Team 
 - Set up a Python server with the following route
-- GET /start
+- GET /
   - Send an HTTP GET request to ESP32's /start_signal to start the automated process
 - POST /depth
   - Store the received (time, depth) data in an array and reply with a 200 status code
