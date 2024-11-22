@@ -2,8 +2,8 @@
 #include <HTTPClient.h>
 #include <WebServer.h>
 
-const char* ssid = "SBRT";
-const char* password = "Robotic$3";
+const char* ssid = "MyAltice c998f9";
+const char* password = "222-rose-824";
 int hasStarted = 0; 
 
 // Create a WebServer object on port 80
@@ -12,6 +12,7 @@ char result[100];
 HTTPClient http; 
 
 unsigned long elapsedTime; 
+unsigned long lastSendTime;
 int depth = 0; 
 String ip_address;
 
@@ -56,7 +57,7 @@ void setup() {
 }
   
 void loop() {
-  if(hasStarted){//insert Xiang's code
+  if(hasStarted && millis() - lastSendTime > 3000){//insert Xiang's code
     Serial.println("process starts");
     
     unsigned long time_elapsed_since = millis() - elapsedTime; 
@@ -69,10 +70,10 @@ void loop() {
       Serial.println(response); 
     }
     depth+=2; 
+    lastSendTime = millis();
   }else{
    //Serial.println("Process has not start");
   }
-  delay(3000);  //Send a request every 10 seconds
   // Handle client requests
   server.handleClient();
 }
