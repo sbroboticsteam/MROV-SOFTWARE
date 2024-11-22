@@ -12,13 +12,13 @@
   python -m venv myenv
   ```
 2.1 On macOS/Linux
-    ```
-    source myenv/bin/activate
-    ```
+  ```
+  source myenv/bin/activate
+  ```
 2.2 On  Windows
-    ```
-    myenv\Scripts\activate
-    ```
+  ```
+  myenv\Scripts\activate
+  ```
 3. Install any missing package by 
   ```
   pip install [any missing package]
