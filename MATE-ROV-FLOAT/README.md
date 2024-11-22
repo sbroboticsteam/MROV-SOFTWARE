@@ -53,8 +53,6 @@ Surface Laptop Team
   - Send an HTTP GET request to ESP32's /start_signal to start the automated process
 - POST /depth
   - Store the received (time, depth) data in an array and reply with a 200 status code
-- GET /display_graph
-  - Display a time vs depth graph using the available data
 
 
 
