@@ -6,17 +6,11 @@ from Components.temp_camera import Camera
 from Components.connectivity import Connectivity
 # from Components.controller_sensitivity import ControllerSensitivity, AdjustableControllerSensivitity
 
-
-
-
 # controls for minimizing, maximizing and closing widgets (like a window)
 class WindowControls(QWidget):
     minimizeClicked = pyqtSignal()
     maximizeClicked = pyqtSignal()
     closeClicked = pyqtSignal()
-
-
-
 
     def __init__(self, parent=None):
         super(WindowControls, self).__init__(parent)
@@ -24,15 +18,9 @@ class WindowControls(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(2)
 
-
-
-
         self.minbtn = QPushButton("-")
         self.maxbtn = QPushButton("□")
         self.closebtn = QPushButton("x")
-
-
-
 
         for btn in [self.minbtn, self.maxbtn, self.closebtn]:
             btn.setFixedSize(20, 20)
@@ -63,20 +51,11 @@ class WindowControls(QWidget):
         layout.addWidget(self.maxbtn)
         layout.addWidget(self.closebtn)
 
-
-
-
         self.setLayout(layout)
-
-
-
 
         self.minbtn.clicked.connect(self.minimizeClicked)
         self.maxbtn.clicked.connect(self.maximizeClicked)
         self.closebtn.clicked.connect(self.closeClicked)
-
-
-
 
 # working on widgets that can be moved around and adjusted for size
 class AdjustableWidget(QWidget):
@@ -97,57 +76,31 @@ class AdjustableWidget(QWidget):
         self.prevsize = self.size()
 
 
-
-
         self.setupUI()
-
-
-
 
     def setupUI(self):
         self.mainlayout = QVBoxLayout()
         self.mainlayout.setContentsMargins(0, 0, 0, 0)
 
-
-
-
         self.title_bar =  QWidget()
         self.title_bar.setStyleSheet("background-color: black")
         self.title_bar.setFixedHeight(30)
 
-
-
-
         titlelayout = QHBoxLayout()
         titlelayout.setContentsMargins(10, 0, 5, 0)
 
-
-
-
         self.titlelabel = QLabel(self.title)
         self.titlelabel.setStyleSheet("color: white;")
-
-
-
 
         self.windowcontrols   = WindowControls()
         self.windowcontrols.minimizeClicked.connect(self.minimizeEvent)
         self.windowcontrols.maximizeClicked.connect(self.maximizeEvent)
         self.windowcontrols.closeClicked.connect(self.closeEvent)
 
-
-
-
         titlelayout.addWidget(self.titlelabel)
         titlelayout.addStretch()
         titlelayout.addWidget(self.windowcontrols)
         self.title_bar.setLayout(titlelayout)
-
-
-
-
-
-
 
 
         if self.title == "Speed Panel":
@@ -161,22 +114,13 @@ class AdjustableWidget(QWidget):
         else:
             widget = QWidget()
 
-
-
-
         self.contentarea =  widget
         # self.contentarea.setStyleSheet("background-color: black;")
         # self.contentarea.setContentsMargins(10, 10, 10, 10)
 
-
-
-
         self.mainlayout.addWidget(self.title_bar)
         self.mainlayout.addWidget(self.contentarea)
         self.setLayout(self.mainlayout)
-
-
-
 
         self.resize(300, 200)
    
@@ -203,34 +147,17 @@ class AdjustableWidget(QWidget):
             self.maximized = False
 
 
-
-
- 
-       
-
-
-
-
     def is_near_border(self, pos):
         return (pos.x() > self.width() - self.resizemargin) or (pos.y() > self.height() - self.resizemargin)
-
-
-
 
     def resize_widget(self, diff):
         width_new =  self.width() + diff.x()
         height_new = self.height() + diff.y()
         self.resize(width_new, height_new)
 
-
-
-
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
-
-
-
 
         path = QPainterPath()
         path.addRoundedRect(0, 0, self.width(), self.height(), 5, 5)
@@ -238,12 +165,9 @@ class AdjustableWidget(QWidget):
         painter.fillPath(path, QColor('gray'))
         painter.drawPath(path)
 
-
-
-
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
-		self.raise_()
+            self.raise_()
             self.oldpos = event.globalPos()
             if self.title_bar.geometry().contains(event.pos()):
                 self.moving=True
@@ -254,7 +178,6 @@ class AdjustableWidget(QWidget):
     def mouseMoveEvent(self, event):
         if self.oldpos and not self.maximized:
             diff = QPoint(event.globalPos() - self.oldpos)
-
 
             if self.moving:
                 newpos = self.pos() + diff
