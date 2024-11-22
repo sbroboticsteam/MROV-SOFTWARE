@@ -68,7 +68,7 @@ void loop() {
   }else{
    //Serial.println("Process has not start");
   }
-  delay(10000);  //Send a request every 10 seconds
+  delay(3000);  //Send a request every 3 seconds
   // Handle client requests
   server.handleClient();
 }
