@@ -11,11 +11,11 @@
   ```
   python -m venv myenv
   ```
-    - On macOS/Linux
+    On macOS/Linux
     ```
     source myenv/bin/activate
     ```
-    - On  Windows
+    On  Windows
     ```
     myenv\Scripts\activate
     ```
