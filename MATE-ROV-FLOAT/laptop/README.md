@@ -11,19 +11,20 @@
   ```
   python -m venv myenv
   ```
-    On macOS/Linux
+2.1 On macOS/Linux
     ```
     source myenv/bin/activate
     ```
-    On  Windows
+2.2 On  Windows
     ```
     myenv\Scripts\activate
     ```
+3. Install any missing package by 
   ```
-  pip install [any missing packages]
+  pip install [any missing package]
   ```
 
-2. Run surface_laptop.py 
+4. Run surface_laptop.py 
   ```
   python surface_laptop.py 
   ```
