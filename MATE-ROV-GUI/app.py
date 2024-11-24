@@ -17,13 +17,12 @@ class MainWindow(QMainWindow): # MainWindow class extends QMainWindow
 
        
         self.cam = AdjustableWidget("Webcam", self)        
-        
         self.cam.setGeometry(100, 100, 900, 700)
-        self.cam.show()
+        
 
         self.sp = AdjustableWidget("Speed Panel", self)
         self.sp.setGeometry(1000,100,350,250)
-        self.cam.show()
+        
 
 
     
