@@ -34,7 +34,7 @@
 
 import socket
 
-HOST = '192.168.1.160'
+HOST = '10.0.0.3'
 PORT = 4891
 
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

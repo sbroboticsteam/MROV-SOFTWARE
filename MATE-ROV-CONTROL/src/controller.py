@@ -67,8 +67,8 @@ screen = pygame.display.set_mode((800, 600))
 x = 0
 y = 0
 speed = 0
-xVel = 0
-yVel = 0
+# xVel = 0
+# yVel = 0
 rx = 0
 ry = 0
 
@@ -116,12 +116,12 @@ while True or KeyboardInterrupt:
             # print("Y", y)
             # print(x)
             # print(speed)
-            if xVel > 0:
-                print("X position", x + xVel)
-                print("Y position", y + yVel)
-            if yVel > 0:
-                print("X position", x + xVel)
-                print("Y position", y + yVel)
+            # if xVel > 0:
+            #     print("X position", x + xVel)
+            #     print("Y position", y + yVel)
+            # if yVel > 0:
+            #     print("X position", x + xVel)
+            #     print("Y position", y + yVel)
 
         # Following is right stick controls
         if event.type == pygame.JOYAXISMOTION:
@@ -214,7 +214,7 @@ while True or KeyboardInterrupt:
     # # print(speed)
     # print("X position", x + xVel)
     # print("Y position", y + yVel)
-    player.move(x + xVel, y + yVel)
+    player.move(x, y)
 
     screen.fill((0, 0, 0))
     player.draw(screen)
