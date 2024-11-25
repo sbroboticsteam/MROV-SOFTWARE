@@ -33,27 +33,57 @@
 #     asyncio.run(main())
 
 import socket
+import sys
+import os
 
+# Add the src directory to the Python path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
+
+# Now you can import get_controller_input
+from controller import get_controller_input
 HOST = '10.0.0.3'
 PORT = 4891
 
+print("CALLING FROM CLIENT")
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
 try:
-    # Connect to the server
+    # Connect to the Raspberry Pi server
     client_socket.connect((HOST, PORT))
     print(f"Connected to server at {HOST}:{PORT}")
+    
+    last_data = None
 
-    # Send a message to the server
-    message = "hello"
-    client_socket.send(message.encode('utf-8'))
-    print(f"Sent message: {message}")
+    # Retrieve controller inputs
+    for inputs in get_controller_input():
+        if inputs != last_data:
+            data = str(inputs) 
+            #print(f"Sending: {data}")
+            client_socket.sendall(data.encode('utf-8'))  
+            last_data = inputs 
 
-    # Wait for a response from the server
-    response = client_socket.recv(1024).decode('utf-8')
-    print(f"Received from server: {response}")
-
+except Exception as e:
+    print(f"Error: {e}")
 finally:
-    # Close the socket
     client_socket.close()
     print("Connection closed.")
+
+# client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+# try:
+#     # Connect to the server
+#     client_socket.connect((HOST, PORT))
+#     print(f"Connected to server at {HOST}:{PORT}")
+
+#     # Send a message to the server
+#     message = "hello"
+#     client_socket.send(message.encode('utf-8'))
+#     print(f"Sent message: {message}")
+
+#     # Wait for a response from the server
+#     response = client_socket.recv(1024).decode('utf-8')
+#     print(f"Received from server: {response}")
+
+# finally:
+#     # Close the socket
+#     client_socket.close()
+#     print("Connection closed.")
