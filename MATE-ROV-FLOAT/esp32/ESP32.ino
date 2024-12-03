@@ -1,6 +1,8 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <WebServer.h>
+#include <ArduinoQueue.h> //library to implement queue https://github.com/EinarArnason/ArduinoQueue
+
 
 const char* ssid = "MyAltice c998f9";
 const char* password = "222-rose-824";
@@ -57,11 +59,20 @@ void setup() {
 }
   
 void loop() {
+  ArduinoQueue<int> intQueue(20); //initialize queue with data (int) and size of 20
+  
   if(hasStarted && millis() - lastSendTime > 3000){//insert Xiang's code
     Serial.println("process starts");
     
     unsigned long time_elapsed_since = millis() - elapsedTime; 
-    int httpResponse = http.POST(String(time_elapsed_since) + "," + String(depth));
+    sprintf(result, "Current depth: %d", depth);  //print out current depth 
+    
+    int httpResponse = http.POST(String(time_elapsed_since) + "," + String(depth));  //if String(depth) doesn't work, change it to String(result)
+
+    // //use a queue, where enqueue adds the element into it
+    // intQueue.enqueue(depth); 
+    // int number = intQueue.dequeue();  //remove the element from the queue
+    // Serial.printf("%d\n", number);    //print to make sure the queue is working correctly(should be the same printed Current depth: ) 
     
     if(httpResponse < 0){
       Serial.println("Server post response below 0. Not posted");
