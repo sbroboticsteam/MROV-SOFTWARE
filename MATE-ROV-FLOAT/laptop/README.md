@@ -6,24 +6,23 @@
 2. The (time, depth) coordinates received from the ESP32 will be stored in coordinates_data.json
 
 # Setup Requirement 
-
 1. To set up a virtual environment for your Python project, follow these steps:
   ```
   python -m venv myenv
   ```
-    - On macOS/Linux
-    ```
-    source myenv/bin/activate
-    ```
-    - On  Windows
-    ```
-    myenv\Scripts\activate
-    ```
+2.1 On macOS/Linux
   ```
-  pip install [any missing packages]
+  source myenv/bin/activate
   ```
-
-2. Run surface_laptop.py 
+2.2 On  Windows
+  ```
+  myenv\Scripts\activate
+  ```
+3. Install any missing package by 
+  ```
+  pip install [any missing package]
+  ```
+4. Run surface_laptop.py 
   ```
   python surface_laptop.py 
   ```
