@@ -18,8 +18,8 @@ ArduinoQueue<Coordinate> coordinateQueue(50);
 const char* ssid = "NETGEAR56";
 const char* password = "rockytulip400";
 int hasStarted = 0; 
-int descending = 0; 
-int ascending = 0; 
+int toDescend = 0; 
+int toAscend = 0; 
 
 // Create a WebServer object on port 80
 WebServer server(80);
@@ -38,11 +38,11 @@ void handleToStartSignal() {
     if(!hasStarted){
         elapsedTime = millis(); 
         hasStarted = 1;   
-        descending = 1; //start to descend
+        toDescend = 1; //start to descend
         depth_testing = 2;
         http.begin("http://" + ip_address + ":8000/depth");
         http.addHeader("Content-Type", "text/plain"); 
-        http.setTimeout(5000);
+        http.setTimeout(5000); 
         server.send(200, "text/plain", "Process starts, will use ip_address: " + ip_address);
     }else{
         server.send(400, "text/plain", "Process already started, using ip_address: " + ip_address);
@@ -65,16 +65,24 @@ void setup() {
   Serial.println("Connected to the WiFi network");
   Serial.print("IP address is: "); 
   Serial.println(WiFi.localIP()); 
+  Serial.print("Hostname is: ");
+  Serial.println(WiFi.getHostname());
 
   //Set up server
   server.on("/start_signal", HTTP_GET, handleToStartSignal);
   server.begin();
+
+  /*used for testing*/
+  getWaterLevelInFloat();
+  getDepth();
+  descending();
+  ascending();
 }
 
 void loop() {
   if(hasStarted /*process has started*/){
     Serial.println("process starts");
-    if(descending){
+    if(toDescend){
       if(/*getWaterLevelInFloat() <= MAX_WATER_ALLOWED_IN_FLOAT*/ 1) { //[TODO]: write function getWaterLevelInFloat()
         //descending(); //[TODO]: write function descending()
         Serial.println("descending"); 
@@ -103,13 +111,13 @@ void loop() {
     }
 
     //float changes to ascending if the target depth has been reached or max water allowed in float is reached
-    if( /*getWaterLevelInFloat() > MAX_WATER_ALLOWED_IN_FLOAT || */descending && (depth >= TARGET_DEPTH)){
-      descending = 0; 
-      ascending = 1;  
+    if( /*getWaterLevelInFloat() > MAX_WATER_ALLOWED_IN_FLOAT || */toDescend && (depth >= TARGET_DEPTH)){
+      toDescend = 0; 
+      toAscend = 1;  
       depth_testing = -2;
     //float finish the process if reaches the surface when ascending
-    }else if(ascending && depth <= 0){
-      ascending = 0; 
+    }else if(toAscend && depth <= 0){
+      toAscend = 0; 
       hasStarted = 0;  
     }
   }else{
