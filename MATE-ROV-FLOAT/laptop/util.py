@@ -22,8 +22,11 @@ def write_to_json_file(new_coordinate):
 
 def get_local_ip_address():
     try:
-        hostname = socket.gethostname()
-        IPAddr = socket.gethostbyname(hostname)
+        # Attempt to connect to a public IP address to find the local IP
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))  # Google's public DNS
+        IPAddr = s.getsockname()[0]
+        s.close()
         return IPAddr
     except Exception as e:
         print(f"get_local_ip_address: An error occurred: {e}")
