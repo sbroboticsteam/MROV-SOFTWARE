@@ -15,8 +15,8 @@ struct Coordinate{
 
 ArduinoQueue<Coordinate> coordinateQueue(50);
 
-const char* ssid = "NETGEAR56";
-const char* password = "rockytulip400";
+const char* ssid = "";
+const char* password = "";
 int hasStarted = 0; 
 int toDescend = 0; 
 int toAscend = 0; 
