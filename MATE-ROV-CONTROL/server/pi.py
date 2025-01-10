@@ -7,7 +7,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 's
 
 # Now you can import get_controller_input
 from controller import get_controller_input
-HOST = '192.168.0.6'
+HOST = '192.168.0.160'
 PORT = 4891
 
 print("CALLING FROM CLIENT")

@@ -1,18 +1,17 @@
 import pygame
 import math
-from arcadeDrive import arcadeDrive, arcadeDrive2, arcadeDrive3, arcadeDrive4
-
-mapping_dict = {
-    "UP":
-        "DOWN"
-}
+from arcadeDrive import arcadeDrive, arcadeDrive2, arcadeDrive3
 
 pygame.joystick.init()
 joysticks = [pygame.joystick.Joystick(x) for x in range(pygame.joystick.get_count())]
 
+for joystick in joysticks:
+    joystick.init()
+
+
 def get_controller_input():
     pygame.init()
-    joystick = pygame.joystick.Joystick(0)
+    joystick = joysticks[0]
     
     previous_state = {
         "axes": {"left_stick": {"x": 0, "y": 0}, "right_stick": {"x": 0, "y": 0}},
@@ -39,7 +38,7 @@ def get_controller_input():
         motor_values = arcadeDrive3(x, y, rx, rT, lT)
         
         inputs = {
-            "axes": {"left_stick": {"x": x, "y": y}, "right_stick": {"x": rx, "y": ry}},
+            # "axes": {"left_stick": {"x": x, "y": y}, "right_stick": {"x": rx, "y": ry}},
             "motor_values": motor_values,
             # "buttons": buttons,
             # "hats": hats,
