@@ -1,0 +1,3 @@
+# Ignore all files in the myenv directory
+/laptop/myenv/
+/laptop/__pycache__/

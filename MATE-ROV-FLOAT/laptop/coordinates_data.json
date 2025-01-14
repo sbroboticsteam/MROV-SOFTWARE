@@ -1,0 +1,20 @@
+{
+    "coordinates": [
+        {
+            "time": 0.0,
+            "depth": 0.0
+        },
+        {
+            "time": 3.0,
+            "depth": 2.0
+        },
+        {
+            "time": 6.0,
+            "depth": 4.0
+        },
+        {
+            "time": 9.0,
+            "depth": 6.0
+        }
+    ]
+}
