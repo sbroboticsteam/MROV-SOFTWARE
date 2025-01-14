@@ -1,8 +1,9 @@
-from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QPushButton, QVBoxLayout, QLabel 
-from PyQt5.QtCore import QUrl, QThread, pyqtSignal
+from PyQt5.QtWidgets import QWidget, QPushButton, QVBoxLayout, QLabel 
+from PyQt5.QtCore import QThread, pyqtSignal
 from PyQt5.QtGui import QPixmap, QImage
 import cv2
 import os
+
 
 class Webcam(QWidget):
     def __init__(self):
@@ -13,25 +14,35 @@ class Webcam(QWidget):
         self.feedLabel = QLabel()
         self.layout.addWidget(self.feedLabel)
         
+        self.startBtn = QPushButton("Yes")
+        self.startBtn.clicked.connect(self.start)
+        self.layout.addWidget(self.startBtn)
+
         self.cancelBtn = QPushButton("No")
         self.cancelBtn.clicked.connect(self.cancel)
         self.layout.addWidget(self.cancelBtn)
 
-        self.worker1 = Worker1()
-        self.worker1.imageUpdate.connect(self.imageUpdateSlot)
-        self.worker1.start()
+        self.worker = Worker(0)
+        self.worker.imageUpdate.connect(self.imageUpdateSlot)
+        self.worker.start()
         
         self.setLayout(self.layout)
     def imageUpdateSlot(self, img):
         self.feedLabel.setPixmap(QPixmap.fromImage(img))
-
+    def start(self):
+        if (not self.worker.isRunning()):
+            self.worker.start()
     def cancel(self):
-        self.worker1.stop()
-class Worker1(QThread):
+        if (self.worker.isRunning()):
+            self.worker.stop()
+class Worker(QThread):
     imageUpdate = pyqtSignal(QImage)
+    def __init__(self, camera):
+        super(Worker, self).__init__()
+        self.camera = camera
     def run(self):
         self.threadActive = True
-        cam = cv2.VideoCapture(0)
+        cam = cv2.VideoCapture(self.camera)
         while self.threadActive:
             ret, frame = cam.read()
             if ret:

@@ -1,6 +1,10 @@
 from PyQt5.QtWidgets import QApplication, QWidget, QHBoxLayout, QPushButton, QFrame, QLabel, QVBoxLayout
 from PyQt5.QtCore import Qt, QPoint, pyqtSignal
 from PyQt5.QtGui import QPainter, QColor, QPainterPath
+from Components.speedpanel import SpeedPanel
+from Components.temp_camera import Camera
+from Components.connectivity import Connectivity
+# from Components.controller_sensitivity import ControllerSensitivity, AdjustableControllerSensivitity
 
 # controls for minimizing, maximizing and closing widgets (like a window)
 class WindowControls(QWidget):
@@ -55,14 +59,11 @@ class WindowControls(QWidget):
 
 # working on widgets that can be moved around and adjusted for size
 class AdjustableWidget(QWidget):
-    quadrantChanged = pyqtSignal(QWidget, int, int)
-    def __init__(self, title="Widget", parent=None, quadrant=0):
+    def __init__(self, title="Widget", parent=None):
         super().__init__(parent)
         self.setWindowFlags(Qt.FramelessWindowHint)
-        self.setAttribute(Qt.WA_TranslucentBackground)
         self.setMinimumSize(200, 100)
         self.title = title
-        self.quadrant = quadrant
         self.minimized=False
         self.maximized=False
         self.og_geometry=None # original geometry
@@ -73,6 +74,7 @@ class AdjustableWidget(QWidget):
         self.moving = False
         self.resizemargin = 10
         self.prevsize = self.size()
+
 
         self.setupUI()
 
@@ -100,16 +102,28 @@ class AdjustableWidget(QWidget):
         titlelayout.addWidget(self.windowcontrols)
         self.title_bar.setLayout(titlelayout)
 
-        self.contentarea =  QWidget()
-        self.contentarea.setStyleSheet("background-color: black;")
-        self.contentarea.setContentsMargins(10, 10, 10, 10)
+
+        if self.title == "Speed Panel":
+            widget = SpeedPanel()
+        elif self.title == "Webcam":
+            widget = Camera()
+        elif self.title == "Connectivity":
+            widget = Connectivity()
+        elif self.title == "Controller Sensitivity":
+            widget = QWidget()
+        else:
+            widget = QWidget()
+
+        self.contentarea =  widget
+        # self.contentarea.setStyleSheet("background-color: black;")
+        # self.contentarea.setContentsMargins(10, 10, 10, 10)
 
         self.mainlayout.addWidget(self.title_bar)
         self.mainlayout.addWidget(self.contentarea)
         self.setLayout(self.mainlayout)
 
         self.resize(300, 200)
-    
+   
     def minimizeEvent(self):
         # if not minimized already, set height of widget to the title bar only
         if not self.minimized:
@@ -120,7 +134,7 @@ class AdjustableWidget(QWidget):
         else:
             self.setFixedHeight(self.prevsize.height())
             self.minimized=False
-    
+   
     def maximizeEvent(self):
         if not self.maximized:
             self.og_geometry = self.geometry()
@@ -132,57 +146,6 @@ class AdjustableWidget(QWidget):
                 self.setGeometry(self.og_geometry)
             self.maximized = False
 
-    def getQuadrantBounds(self):
-        if not self.parent():
-            return None
-        parent_rect = self.parent().rect()
-        halfwidth = parent_rect.width() // 2
-        halfheight = parent_rect.height() // 2
-
-        quadrant_coords = {
-            0: QPoint(0, 0),
-            1: QPoint(halfwidth, 0),
-            2: QPoint(0,halfheight),
-            3: QPoint(halfwidth, halfheight)
-        }
-
-        return quadrant_coords
-    
-    def detectQuadrant(self, pos):
-        if not self.parent():
-            return self.quadrant
-        
-        parent_rect = self.parent().rect()
-        halfwidth = parent_rect.width() // 2
-        halfheight = parent_rect.height() // 2
-
-        x = pos.x() + self.pos().x()
-        y = pos.y() + self.pos().y()
-
-        # which quadrant are we in?
-        if x < halfwidth:
-            if y < halfheight:
-                return 0
-            else: 
-                return 2
-        else:
-            if y < halfheight:
-                return 1
-            else:
-                return 3
-        
-    def snaptoQuadrant(self, quadrant):
-        bounds= self.getQuadrantBounds()
-        if bounds and quadrant in bounds:
-            newpos = bounds[quadrant]
-            self.move(newpos)
-
-            if self.quadrant != quadrant:
-                self.quadrantChanged.emit(self, self.quadrant, quadrant)
-                self.quadrant = quadrant
-
-
-        
 
     def is_near_border(self, pos):
         return (pos.x() > self.width() - self.resizemargin) or (pos.y() > self.height() - self.resizemargin)
@@ -204,11 +167,13 @@ class AdjustableWidget(QWidget):
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
+            self.raise_()
             self.oldpos = event.globalPos()
             if self.title_bar.geometry().contains(event.pos()):
                 self.moving=True
             elif self.is_near_border(event.pos()) and not self.minimized:
                 self.resizing = True
+
 
     def mouseMoveEvent(self, event):
         if self.oldpos and not self.maximized:
@@ -217,37 +182,13 @@ class AdjustableWidget(QWidget):
             if self.moving:
                 newpos = self.pos() + diff
                 self.move(newpos)
-                newquadrant = self.detectQuadrant(event.pos())
-                if newquadrant != self.quadrant:
-                    self.snaptoQuadrant(newquadrant)
             elif self.resizing and not self.minimized:
                 newwidth = max(self.width() + diff.x(), self.minimumWidth())
                 newheight = max(self.height() + diff.y(), self.minimumHeight())
                 self.resize(newwidth, newheight)
             self.oldpos = event.globalPos()
-    
+   
     def mouseReleaseEvent(self, event):
         self.oldpos, self.resizing, self.moving = None, False, False
 
-# class ExampleAdjustableWindow(AdjustableWidget):
-#     def __init__(self):
-#         super().__init__()
-#         self.setStyleSheet("background-color: lightblue; border: 2px solid darkblue;")
-        
-#     def resize_widget(self, diff):s
-#         width_new = max(self.width() + diff.x(), 100)
-#         height_new =max(self.height() + diff.y(), 100)
 
-#         self.resize(width_new, height_new)
-
-
-#     def paintEvent(self, event):
-#         super().paintEvent(event)
-
-#         painter = QPainter.self()
-#         painter.setPen(QColor('blue'))
-#         painter.setBrush(QColor('lightblue'))
-#         painter.drawEllipse(self.width() // 4, self.height() // 4, self.width() // 2, self.height() // 2)
-        
-
-   
