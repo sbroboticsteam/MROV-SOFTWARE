@@ -3,6 +3,9 @@ import sys
 import os
 
 # Add the src directory to the Python path
+
+print("Current directory of this script:", os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
 
 # Now you can import get_controller_input

@@ -4,10 +4,10 @@ import requests
 import json
 from util import write_to_json_file, get_local_ip_address
 
-ESP32_base_url = "http://192.168.1.91:80/"
+ESP32_base_url = "http://192.168.0.61:80/"
 
 class helloHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
+    def do_GET(self): #get req
         try:
             if self.path == '/':
                 # Send GET start_signal request to ESP32
@@ -64,6 +64,7 @@ class helloHandler(BaseHTTPRequestHandler):
             self.wfile.write(b"Not Found") 
 
 # Define the threaded HTTP server class
+#i don't know if we even need a multi-threaded server for this
 class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
     pass
 

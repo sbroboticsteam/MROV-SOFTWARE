@@ -1,6 +1,6 @@
-#include <WiFi.h>
-#include <HTTPClient.h>
-#include <WebServer.h>
+#include <WiFi.h> //library for arduino to connect to internet (can be either server or client)
+#include <HTTPClient.h> //library for http requests (get, post, etc)
+#include <WebServer.h> //dead simple server that works with only 1 simultaenous client ( only handles get and post requests)
 #include <ArduinoQueue.h> //library to implement queue https://github.com/EinarArnason/ArduinoQueue
 
 #define QUEUE_IMPLEMENTATION FIFO
@@ -8,14 +8,16 @@
 #define TARGET_DEPTH 20 //[TODO]: replace the 100 with the actual target depth value
 #define SEND_INTERVAL 3000 //[TODO]: replace the 3000 with a good interval value for wait time between sending two consecutive coordinates
 
-struct Coordinate{
+struct Coordinate{ //data structure called coordinate with 2 members currentTime and depth
   unsigned long currentTime; 
   int depth; 
 }; 
 
+//initializes the Queue (size of 50)
 ArduinoQueue<Coordinate> coordinateQueue(50);
 
-const char* ssid = "";
+//initializes variables
+const char* ssid = ""; 
 const char* password = "";
 int hasStarted = 0; 
 int toDescend = 0; 
@@ -34,13 +36,13 @@ int depth_testing; /*used for testing*/
 
 // Function to handle HTTP requests for connecting with the surface laptop
 void handleToStartSignal() {
-  if(server.hasArg("ip_address") && (ip_address = server.arg("ip_address"))){
-    if(!hasStarted){
-        elapsedTime = millis(); 
+  if(server.hasArg("ip_address") && (ip_address = server.arg("ip_address"))){ //checks if the server get request has the param ip_address and init it
+    if(!hasStarted){ //has started init to 0
+        elapsedTime = millis(); //start time
         hasStarted = 1;   
         toDescend = 1; //start to descend
         depth_testing = 2;
-        http.begin("http://" + ip_address + ":8000/depth");
+        http.begin("http://" + ip_address + ":8000/depth"); //prepares the post req to with url endpoint
         http.addHeader("Content-Type", "text/plain"); 
         http.setTimeout(5000); 
         server.send(200, "text/plain", "Process starts, will use ip_address: " + ip_address);
@@ -52,12 +54,12 @@ void handleToStartSignal() {
   }
 }
 
+//sets up the server (no calls listen or sent)
 void setup() {
-  Serial.begin(115200);  
-  WiFi.begin(ssid, password); 
+  Serial.begin(115200);  //jitt is printing on the serial monitor (Arduino IDE)
+  WiFi.begin(ssid, password); //connecting to WiFi
 
-  //Connect to WIFI
-  while (WiFi.status() != WL_CONNECTED) 
+  while (WiFi.status() != WL_CONNECTED) //does the connecting to wifi bs if it isnt connected
   {
     Serial.println("Connecting to WiFi..");
     delay(10000);
@@ -68,9 +70,9 @@ void setup() {
   Serial.print("Hostname is: ");
   Serial.println(WiFi.getHostname());
 
-  //Set up server
+  //Set up server param1 is the url path, param2 is that it has to be a get request, param3 is function to be called when route is there
   server.on("/start_signal", HTTP_GET, handleToStartSignal);
-  server.begin();
+  server.begin(); //starts the server
 
   /*used for testing*/
   getWaterLevelInFloat();
@@ -79,8 +81,10 @@ void setup() {
   ascending();
 }
 
-void loop() {
-  if(hasStarted /*process has started*/){
+void loop() { 
+//loop just keeps sending post requests every interval if it fails it puts it back in the queue and 
+//then after it finishes the whole process (ascending) it dequeues what has failed to send
+  if(hasStarted /*process has started*/){ //from init (handleStart)
     Serial.println("process starts");
     if(toDescend){
       if(/*getWaterLevelInFloat() <= MAX_WATER_ALLOWED_IN_FLOAT*/ 1) { //[TODO]: write function getWaterLevelInFloat()
@@ -94,13 +98,13 @@ void loop() {
       Serial.println("ascending");
     }
     
-    if(millis() - lastSendTime > SEND_INTERVAL /*ready to send the next coordinate*/){
-      unsigned long time_elapsed_since = millis() - elapsedTime; 
-      int httpResponse = http.POST(String(time_elapsed_since) + "," + String(depth));
+    if(millis() - lastSendTime > SEND_INTERVAL /*ready to send the next coordinate*/){ //only sends a post req after interval
+      unsigned long time_elapsed_since = millis() - elapsedTime; //total time from start init
+      int httpResponse = http.POST(String(time_elapsed_since) + "," + String(depth)); //post req send to url created in http.begin
       
-      if(httpResponse < 0){
+      if(httpResponse < 0){ //fails
         Serial.println("Server post response below 0. Not posted");
-        Coordinate coordinate = {time_elapsed_since, depth};
+        Coordinate coordinate = {time_elapsed_since, depth}; //Put back in queue if post req fails
         coordinateQueue.enqueue(coordinate);
       }else{
         String response = http.getString(); 
@@ -145,3 +149,5 @@ void loop() {
   // Handle client requests
   server.handleClient();
 }
+
+
