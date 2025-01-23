@@ -10,8 +10,12 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 's
 
 # Now you can import get_controller_input
 from controller import get_controller_input
+
 HOST = '192.168.0.160'
 PORT = 4891
+
+gen = get_controller_input()
+print("get_controller_input is callable:", callable(gen))
 
 print("CALLING FROM CLIENT")
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
