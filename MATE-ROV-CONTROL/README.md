@@ -42,7 +42,7 @@ The src folder contains the following files: arcadeDrive.py, controller.py, and 
 2. Polish Server and Client code: maybe make it send bytes with (some library i forgor)
 3. Document recent changes as we go through every meeting
 4. maybe implement HTTP URL routing get post requests bs (but i doubt it)
-5. Langer's mapping thingy
+5. Langer's mapping thingy (prio 1 maybe)
 6. Arash's PID drift correction thingy
 7. Documenting Float Team's BS
 
