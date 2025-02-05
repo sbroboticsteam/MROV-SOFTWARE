@@ -23,6 +23,8 @@ class MainWindow(QMainWindow): # MainWindow class extends QMainWindow
         self.sp = AdjustableWidget("Speed Panel", self)
         self.sp.setGeometry(1000,100,350,250)
         
+        self.dt=AdjustableWidget("Depth-Time Graph", self)
+        self.dt.setGeometry(100, 800, 600, 400)
 
 
     

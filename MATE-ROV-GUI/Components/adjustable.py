@@ -4,6 +4,7 @@ from PyQt5.QtGui import QPainter, QColor, QPainterPath
 from Components.speedpanel import SpeedPanel
 from Components.temp_camera import Camera
 from Components.connectivity import Connectivity
+from Components.depth_time import DepthTimeWidget
 # from Components.controller_sensitivity import ControllerSensitivity, AdjustableControllerSensivitity
 
 # controls for minimizing, maximizing and closing widgets (like a window)
@@ -111,6 +112,8 @@ class AdjustableWidget(QWidget):
             widget = Connectivity()
         elif self.title == "Controller Sensitivity":
             widget = QWidget()
+        elif self.title=='Depth-Time Graph':
+            widget=DepthTimeWidget()
         else:
             widget = QWidget()
 
