@@ -2,77 +2,109 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from socketserver import ThreadingMixIn
 import requests
 import json
+import traceback
 from util import write_to_json_file, get_local_ip_address
 
-ESP32_base_url = "http://192.168.1.91:80/"
+ESP32_base_url = "http://192.168.0.4:80/"
 
 class helloHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         try:
             if self.path == '/':
-                # Send GET start_signal request to ESP32
-                with requests.get(ESP32_base_url + "start_signal?ip_address=" + get_local_ip_address()) as response: # Get request to the base URL
-                    print(response.text)
-                    # Respond with status 200 if ESP32 successfully start
-                    if response.status_code == 200:
-                        self.send_response(200)
-                        self.send_header('Content-type', 'text/plain')
-                        self.end_headers() 
-                        self.wfile.write(response.text.encode('utf-8'))           
-                    else:
-                        self.send_response(response.status_code)
-                        self.send_header('Content-type', 'text/plain')
-                        self.end_headers()
-                        self.wfile.write(f"Failed with status code: {response.status_code} - {response.text}".encode('utf-8'))           
+                local_ip = get_local_ip_address()
+                if not local_ip:
+                    raise ConnectionError("Failed to obtain local IP address.")
+
+                try:
+                    response = requests.get(ESP32_base_url + f"start_signal?ip_address={local_ip}", timeout=5)
+                    response.raise_for_status()
+                except requests.RequestException as e:
+                    self.send_response(500)
+                    self.send_header('Content-type', 'text/plain')
+                    self.end_headers()
+                    error_msg = f"Failed to reach ESP32: {str(e)}"
+                    self.wfile.write(error_msg.encode('utf-8'))
+                    print(error_msg)
+                    return
+
+                self.send_response(200)
+                self.send_header('Content-type', 'text/plain')
+                self.end_headers()
+                self.wfile.write(response.text.encode('utf-8'))
+
             else:
-                # If the GET request isn't to `/`, send a 404 response
                 self.send_response(404)
                 self.send_header('Content-type', 'text/plain')
                 self.end_headers()
                 self.wfile.write(b"Not Found")
-        except Exception as e:     
-            print(f"GET Route: An error occurred: {e}")
+
+        except Exception as e:
+            self.handle_server_error(e)
 
     def do_POST(self):
-        if self.path == '/depth':
-            content_length = int(self.headers['Content-Length'])
-            post_data = self.rfile.read(content_length)
-            decoded_data = post_data.decode('utf-8').split(',')
-            # Record the (time, depth) coordinate in json_file_path
-            try:
-                depth_value = float(decoded_data[1])
-                current_time = round(float(decoded_data[0])*0.001, 0)
-                coordinate = [{"time": current_time, "depth": depth_value}]
-                write_to_json_file(coordinate)
+        try:
+            if self.path == '/depth':
+                content_length = self.headers.get('Content-Length')
+                if not content_length:
+                    raise ValueError("Missing Content-Length header.")
 
-                # Respond to the client
+                post_data = self.rfile.read(int(content_length))
+                decoded_data = post_data.decode('utf-8').strip().split(',')
+
+                if len(decoded_data) != 2:
+                    raise ValueError("Invalid data format. Expected 'timestamp,depth'.")
+
+                try:
+                    timestamp_ms = float(decoded_data[0])
+                    depth_value = float(decoded_data[1])
+                except ValueError:
+                    raise ValueError("Invalid numerical values in data.")
+
+                current_time = round(timestamp_ms * 0.001, 0)
+                coordinate = [{"time": current_time, "depth": depth_value}]
+
+                if not write_to_json_file(coordinate):
+                    raise IOError("Failed to write to JSON file.")
+
                 self.send_response(200)
                 self.send_header('Content-type', 'application/json')
                 self.end_headers()
-                self.wfile.write(json.dumps("Coordinate received").encode('utf-8'))
-            except ValueError:
-                # Handle invalid depth_value
-                self.send_response(400)
+                self.wfile.write(json.dumps({"message": "Coordinate received"}).encode('utf-8'))
+
+            else:
+                self.send_response(404)
                 self.send_header('Content-type', 'text/plain')
                 self.end_headers()
-                self.wfile.write(b"Failed to store the coordinate")
-        else:
-            # If the POST request isn't to `/depth`, send a 404 response
-            self.send_response(404)
-            self.send_header('Content-type', 'text/plain')
-            self.end_headers()
-            self.wfile.write(b"Not Found") 
+                self.wfile.write(b"Not Found")
 
-# Define the threaded HTTP server class
+        except Exception as e:
+            self.handle_server_error(e)
+
+    def handle_server_error(self, e):
+        """Handles internal server errors."""
+        print(f"Error: {e}")
+        traceback.print_exc()
+
+        self.send_response(500)
+        self.send_header('Content-type', 'text/plain')
+        self.end_headers()
+        self.wfile.write(b"Internal Server Error")
+
 class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
+    """Multithreaded HTTP Server."""
     pass
 
 def main():
     PORT = 8000
-    # Directly use ThreadingMixIn with HTTPServer without subclassing
-    server = ThreadedHTTPServer(('', PORT), helloHandler)  
-    print('Server running on port %s' % PORT)
-    server.serve_forever()
+    try:
+        server = ThreadedHTTPServer(('', PORT), helloHandler)
+        print(f'Server running on port {PORT}')
+        server.serve_forever()
+    except Exception as e:
+        print(f"Error starting server: {e}")
+    except KeyboardInterrupt:
+        print("\nShutting down server gracefully.")
+        exit(0)
 
 if __name__ == '__main__':
     main()
