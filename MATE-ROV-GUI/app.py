@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QPushButton, QVBoxLayout, QLayout
+from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QPushButton, QVBoxLayout, QLayout, QHBoxLayout, QComboBox, QStackedWidget
 from Components.camera import Webcam
 from Components.temp_camera import Camera
 from Components.adjustable import AdjustableWidget
@@ -6,37 +6,158 @@ from Components.adjustable import AdjustableWidget
 
 import sys
 
+class DashboardPage(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.widgets=[]
+        self.setStyleSheet('background-color: #f0f0f0;')
+
+    def addWidget(self, widget_type):
+        widget=AdjustableWidget(widget_type, self)
+        if widget_type=="Webcam":
+            widget.setGeometry(100, 100, 900, 700)
+        elif widget_type=="Speed Panel":
+            widget.setGeometry(1000, 100, 350, 250)
+        elif widget_type=="Depth-Time Graph":
+            widget.setGeometry(100, 800, 600, 400)
+        elif widget_type=="Connectivity":
+            widget.setGeometry(1000, 400, 350, 250)
+        elif widget_type=="Controller Sensitivity":
+            widget.setGeometry(1000, 700, 350, 250)
+
+        self.widgets.append(widget)
+        widget.show()
+
+
+class DashboardHeader(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setupUI()
+    
+    def setupUI(self):
+        layout=QHBoxLayout()
+        layout.setContentsMargins(10,5,10,5)
+
+        self.page_selector=QComboBox()
+        self.page_selector.setStyleSheet("""
+                QComboBox {
+                    background-color: white;
+                    border: 1px solid #ccc;
+                    border-radius: 3px;
+                    padding: 5px;
+                    min-width: 100px;
+                }""")
+        
+        self.widget_selector=QComboBox()
+        self.widget_selector.setStyleSheet("""
+                QComboBox {
+                    background-color: white;
+                    border: 1px solid #ccc;
+                    border-radius: 3px;
+                    padding: 5px;
+                    min-width: 150px;
+                }""")
+
+        self.add_page_btn=QPushButton('+ New Page')
+        self.add_page_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #4CAF50;
+                    color: white;
+                    border: none;
+                    border-radius: 3px;
+                    padding: 5px 10px;
+                }
+                QPushButton:hover {
+                    background-color: #45a049;
+                }""")
+        
+        layout.addWidget(self.page_selector)
+        layout.addWidget(self.add_page_btn)
+        layout.addStretch()
+        layout.addWidget(self.widget_selector)
+
+        self.setLayout(layout)
+        self.setFixedHeight(50)
+        self.setStyleSheet('background-color: #333333;')
 
 # each "component" in PyQt5 is a class
 class MainWindow(QMainWindow): # MainWindow class extends QMainWindow
     def __init__(self):
         super().__init__() # initialize class
         self.setWindowTitle("MATE ROV Dashboard") # setting the window title (what appears at the top of the window)
+        self.setupUI()
 
 
-
-       
-        self.cam = AdjustableWidget("Webcam", self)        
-        self.cam.setGeometry(100, 100, 900, 700)
+        # NO LONGER NECESSARY TO MANUALLY ADD WIDGETS LIKE CAVEMEN!!!!
+        # self.cam = AdjustableWidget("Webcam", self)        
+        # self.cam.setGeometry(100, 100, 900, 700)
         
 
-        self.sp = AdjustableWidget("Speed Panel", self)
-        self.sp.setGeometry(1000,100,350,250)
+        # self.sp = AdjustableWidget("Speed Panel", self)
+        # self.sp.setGeometry(1000,100,350,250)
         
-        self.dt=AdjustableWidget("Depth-Time Graph", self)
-        self.dt.setGeometry(100, 800, 600, 400)
+        # self.dt=AdjustableWidget("Depth-Time Graph", self)
+        # self.dt.setGeometry(100, 800, 600, 400)
 
 
     
-        self.setFixedWidth(1700)
-        self.setFixedHeight(1500)
+        # self.setFixedWidth(1700)
+        # self.setFixedHeight(1500)
+    
+    def setupUI(self):
+        central=QWidget()
+        self.setCentralWidget(central)
+        layout=QVBoxLayout(central)
+        layout.setContentsMargins(0,0,0,0)
+        layout.setSpacing(0)
+
+        self.header=DashboardHeader()
+        layout.addWidget(self.header)
+
+        self.pages=QStackedWidget()
+        layout.addWidget(self.pages)
+
+        self.widgets_list=[
+            "Webcam",
+            "Controller Sensitivity",
+            # "Auto Mode",
+            "Connectivity",
+            "Speed Panel",
+            "Depth-Time Graph"
+        ]
+        self.header.widget_selector.addItems(self.widgets_list)
+
+        self.header.add_page_btn.clicked.connect(self.addNewPage)
+        self.header.page_selector.currentIndexChanged.connect(self.changePage)
+        self.header.widget_selector.currentIndexChanged.connect(self.addWidgetToCurrent)
+        
+        self.addNewPage()
+
+    def addNewPage(self):
+        page_num = self.pages.count() + 1
+        new_page = DashboardPage()
+        self.pages.addWidget(new_page)
+        self.header.page_selector.addItem(f"Page {page_num}")
+        self.header.page_selector.setCurrentIndex(self.pages.count() - 1)
+        
+    def changePage(self, index):
+        if index >= 0:
+            self.pages.setCurrentIndex(index)
+            
+    def addWidgetToCurrent(self, index):
+        if self.pages.count() > 0:
+            current_page = self.pages.currentWidget()
+            widget_type = self.widgets_list[index]
+            current_page.addWidget(widget_type)
+    
 
 
 app = QApplication(sys.argv) # required to be called once for every PyQt5 app
+
 
 
 window = MainWindow() # create instance of MainWindow
 window.show() # show the main window (make it visible)
 
 
-app.exec() # starts application event loop (keeps app running continuously until we exit)
+sys.exit(app.exec_()) # starts application event loop (keeps app running continuously until we exit)
