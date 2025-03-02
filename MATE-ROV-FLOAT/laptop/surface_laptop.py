@@ -5,6 +5,7 @@ from socketserver import ThreadingMixIn
 import json
 import traceback
 import os
+import requests
 
 # Make sure you update this if your ESP32's base URL changes
 # In this example, the ESP32 uses "server.on('/start_signal')",
@@ -89,6 +90,27 @@ class MyRequestHandler(BaseHTTPRequestHandler):
 
             except Exception as e:
                 self.send_error_response(e)
+    
+    def do_GET(self):
+        if self.path == '/stop_float':
+            try:
+                esp32_ip = "192.168.1.78"  # Replace with actual IP of ESP32
+                url = f"http://{esp32_ip}/stop_signal"
+                # Or if you need to pass anything else, add it as query params
+
+                r = requests.get(url, timeout=5)
+                r.raise_for_status()
+
+                # Send a response back to the client indicating success
+                self.send_response(200)
+                self.send_header('Content-type', 'text/plain')
+                self.end_headers()
+                msg = "Stop signal sent to float."
+                self.wfile.write(msg.encode('utf-8'))
+            except Exception as e:
+                self.send_error_response(e)
+
+
         else:
             self.send_response(404)
             self.end_headers()

@@ -1,58 +1,142 @@
-# VPF
 
-This is the repository for the Vertical Profiling Float Team for SBRT 2024 MATE ROV. 
+# MROV-FLOAT
 
-## Project Requirements 
-We are programming a vertical profiling float to do the following:
-1. Listen for a START signal at the surface of the water then start an automated process to detect the depth of the water.
-2. Steps of the automated depth detection process
-   2.1 sink into the water until it reaches a depth of 2.5 meters
-   2.2 stay at the depth for 2 minutes then start ascending to the surface
-   2.3 during the whole process, attempt to send a (time, depth) tuple data point to the surface laptop every 5 seconds
-3. Repeat Step 2 TWO TIMES exactly
-4. The surface laptop should gather all the (time, depth) tuple data received and plot a Depth vs Time graph
+## Underwater Float Data Collection System
 
-## Important Notes: 
-- We will write the program for the float in an ESP32, a microcontroller, or a tiny computer, using C++
-- We will write the program for the surface laptop in Python
-- To enable data transmission between the float and the laptop, we will use the HTTP communication protocol and use HTTP timeout to decide if data has been received by the surface laptop 
-- We will use a queue to store all the (time, depth) tuple data waiting to be transmitted in the float
-- After receiving the START signal, all the following actions on the float should be automated (not controlled by the surface laptop, the program is written on the float
-- The float needs to program to resent a (time, depth) tuple data if the surface laptop fails to receive the data due to poor network signal underwater
+This project implements a data collection system for an underwater float device. The system consists of an ESP32 microcontroller with a depth sensor in the float that communicates wirelessly with a laptop on the surface.
 
-## Q & A
-1. Where do we get the real-time depth date from?
-   - Electrical Team will attach a sensor on the float and provide us with a getCurrentDepth() func as the sensor's API
-2. How do we control the float's movement (sinking and ascending)? 
-   - Most likely there will be servo(s) attached to the float where we need to control the speed and direction of the servo(s) for the float to move 
+## Features
 
+* Real-time depth and pressure data collection
+* Wireless data transmission via WiFi
+* Data persistence during connection loss with automatic retransmission
+* Variable sampling rates for velocity testing
+* Visual status indicator via onboard NeoPixel LED
+* Graphical data visualization on the surface laptop
+* Multiple operation modes (normal and velocity testing)
 
-## Learning resources
-1. How to send HTTP request from an ESP32: 
+## System Requirements
 
-   https://www.youtube.com/watch?app=desktop&v=LiQaPJ9UrSM&t=19s
-2. How to set up an HTTP server (to receive and process the request) in Python: 
+### Hardware
 
-   https://www.youtube.com/watch?v=kogOfxg1c_g
+* ESP32 microcontroller board
+* MS5837 depth/pressure sensor (Blue Robotics)
+* NeoPixel LED
+* Laptop with WiFi connectivity
 
-   https://youtu.be/DeFST8tvtuI?si=belyx59lG6xcFqGZ&t=383 
+### Software
 
+* Arduino IDE (1.8.13 or newer)
+* Python 3.7+ with the following libraries:
+  * matplotlib
+  * requests
+  * socket
 
-## Task Assignment 
+## Installation
 
-ESP32 Programming Team 
-- Connect the ESP32 to the SBRT WIFI 
-- Set up a GET /start_signal to receive the START signal from a surface laptop (most likely an HTTP GET request) and start the automated process. 
-  - Reply to the laptop with a 200 status code after successfully starting the automated process. 
-- Send an HTTP POST request to the surface laptop containing a (time, depth) tuple and validate if the laptop has successfully received the request or not by catching either an HTTP timeout (indicate failure) or an HTTP response with a 200 status code (indicate success)
-- Program the servo(s) to sink and ascend the float at a proper time 
+### 1. Arduino Libraries
 
-Surface Laptop Team 
-- Set up a Python server with the following route
-- GET /
-  - Send an HTTP GET request to ESP32's /start_signal to start the automated process
-- POST /depth
-  - Store the received (time, depth) data in an array and reply with a 200 status code
+1. Download the following libraries as ZIP files:
+   * [MS5837 Library](vscode-file://vscode-app/c:/Users/ruthv/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/code/electron-sandbox/workbench/workbench.html)
+   * [cppQueue Library](vscode-file://vscode-app/c:/Users/ruthv/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/code/electron-sandbox/workbench/workbench.html)
+   * [ArduinoJson Library](vscode-file://vscode-app/c:/Users/ruthv/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/code/electron-sandbox/workbench/workbench.html)
+   * [Adafruit NeoPixel Library](vscode-file://vscode-app/c:/Users/ruthv/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/code/electron-sandbox/workbench/workbench.html)
+2. In the Arduino IDE, go to **Sketch > Include Library > Add .ZIP Library** and select each downloaded ZIP file.
 
+### 2. ESP32 Setup
 
+1. Install ESP32 board support in Arduino IDE:
 
+   * Go to **File > Preferences**
+   * Add `https://dl.espressif.com/dl/package_esp32_index.json` to "Additional Board Manager URLs"
+   * Go to **Tools > Board > Boards Manager**
+   * Search for ESP32 and install the package
+2. Open `ESP32.ino` from the [ESP32](vscode-file://vscode-app/c:/Users/ruthv/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/code/electron-sandbox/workbench/workbench.html) folder
+3. Select the correct board and port:
+
+   * **Tools > Board > ESP32 Arduino > ESP32 Dev Module**
+   * Select the appropriate COM port under **Tools > Port**
+4. Modify WiFi credentials if necessary:
+
+   **#define** WIFI_SSID       **"SBRT"**
+
+   **#define** WIFI_PASSWORD   **"Robotic$3"**
+5. Upload the code to your ESP32 by clicking the upload button or pressing **Ctrl+U**
+6. Open the Serial Monitor ( **Tools > Serial Monitor** ) and set the baud rate to 115200 to verify the ESP32 is working properly. You should see initialization messages and the ESP32's IP address.
+
+### 3. Laptop Software Setup
+
+1. Install required Python libraries:
+
+   **pip** **install** **matplotlib** **requests**
+2. Navigate to the MATE-ROV-FLOAT/laptop folder
+
+## Usage
+
+### Starting the System
+
+1. Open a terminal/command prompt and navigate to the MATE-ROV-FLOAT/laptop folder
+2. Start the laptop server:
+
+   **python** **surface_laptop.py**
+
+   This will start a server on port 8000 that will receive data from the ESP32.
+3. Open another terminal/command prompt and navigate to the MATE-ROV-FLOAT/laptop folder
+4. Run the command interface:
+
+   **python** **send_command.py**
+5. When prompted, enter the ESP32's IP address (visible in the Arduino Serial Monitor)
+6. Use the following commands to control the float:
+
+   * `s` - Start float (begins data collection and transmission)
+   * `vs` - Start velocity testing (increases data collection rate)
+   * `vst` - Stop velocity testing (returns to normal data rate)
+   * `st` - Stop float (halts data collection)
+   * `q` - Quit the command interface
+
+### Viewing the Data
+
+While the system is running, data is saved to `coordinates.json` in the laptop folder. To visualize this data:
+
+1. Open a terminal/command prompt and navigate to the MATE-ROV-FLOAT/laptop folder
+2. Run the plotting script:
+
+   **python** **plot.py**
+3. This will display graphs of depth, pressure, and velocity over time.
+
+## Project Structure
+
+* `/esp32/ESP32/` - Main ESP32 code for autonomous operation
+* `/esp32/VelocityTest/` - Enhanced code with variable sampling rates for velocity testing
+* `/laptop/surface_laptop.py` - Server for receiving data from ESP32
+* `/laptop/send_command.py` - Command interface for controlling the float
+* `/laptop/plot.py` - Data visualization tool
+
+## LED Status Indicators
+
+* **Red** : WiFi disconnected or signal below threshold, or system not started
+* **Yellow** : WiFi connected, system running, data in queue waiting to be sent
+* **Green** : WiFi connected, system running, queue empty (all data sent)
+* **Blue** (flash): Data packet successfully sent
+
+## Troubleshooting
+
+* **ESP32 not connecting to WiFi** : Verify the SSID and password are correct
+* **Data not being received** : Ensure the laptop and ESP32 are on the same network
+* **Connection errors** : Check that firewalls aren't blocking communication on port 8000
+* **Sensor errors** : Verify the sensor is correctly wired to the ESP32
+* **LED stays red** : Check WiFi connection and RSSI threshold
+* **Queue filling up** : Check laptop server is running and receiving data correctly
+
+## Technical Details
+
+* The ESP32 runs two concurrent tasks using FreeRTOS:
+  * Core 0: WiFi connection monitoring and HTTP server
+  * Core 1: Sensor reading and data transmission
+* Data is stored in a FIFO queue when WiFi connection is poor
+* The system can switch between normal mode (2000ms sample rate) and velocity testing mode (20ms sample rate)
+* All HTTP communication uses GET for commands and POST for data transmission
+
+## Contact
+
+For issues or questions, please contact Ruthvick.Bandaru@Stonybrook.edu

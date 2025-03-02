@@ -1,15 +1,60 @@
+#!/usr/bin/env python3
 import requests
 import socket
 
-# Get laptop ip address on the network. 
-hostname = socket.gethostname()
-laptop_ip = socket.gethostbyname(hostname)
+def get_laptop_ip():
+    """Returns the laptop's IP address on the local network."""
+    hostname = socket.gethostname()
+    return socket.gethostbyname(hostname)
 
-esp32_ip = "192.168.0.4"  # Replace with actual IP of your ESP32 on the network
-url = f"http://{esp32_ip}/start_signal?ip_address={laptop_ip}"
+def send_command(esp32_ip, command, laptop_ip=""):
+    """
+    Sends the appropriate command to the ESP32.
+    
+    Parameters:
+      esp32_ip: The ESP32 IP address on the network.
+      command: One of "s", "vs", "vst", "st".
+      laptop_ip: Required for the start command.
+    """
+    if command == "s":
+        # Start signal: pass the laptop IP so that the ESP32 knows where to send data.
+        url = f"http://{esp32_ip}/start_signal?ip_address={laptop_ip}"
+    elif command == "vs":
+        # Start velocity testing: increase data capture rate.
+        url = f"http://{esp32_ip}/start_velocity"
+    elif command == "vst":
+        # Stop velocity testing: revert data capture rate.
+        url = f"http://{esp32_ip}/stop_velocity"
+    elif command == "st":
+        # Stop signal: stop the float.
+        url = f"http://{esp32_ip}/stop_signal"
+    else:
+        print("Invalid command!")
+        return
 
-try:
-    response = requests.get(url, timeout=10)
-    print("Response:", response.text)
-except Exception as e:
-    print("Error:", e)
+    try:
+        response = requests.get(url, timeout=10)
+        print("Response:", response.text)
+    except Exception as e:
+        print("Error sending command:", e)
+
+def main():
+    esp32_ip = input("Enter the ESP32 IP address: ").strip()
+    laptop_ip = get_laptop_ip()
+    print(f"Laptop IP determined as: {laptop_ip}\n")
+    print("Available Commands:")
+    print("  s   - Start float")
+    print("  vs  - Start velocity testing")
+    print("  vst - Stop velocity testing")
+    print("  st  - Stop float")
+    print("  q   - Quit")
+
+    while True:
+        cmd = input("Enter command: ").strip().lower()
+        if cmd == "q":
+            print("Exiting.")
+            break
+        send_command(esp32_ip, cmd, laptop_ip)
+
+if __name__ == '__main__':
+    main()

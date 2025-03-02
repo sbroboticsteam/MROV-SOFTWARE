@@ -1,308 +1,254 @@
 [
   {
-    "time": 0.108,
-    "depth": 0.000396,
-    "pressure": 1017.72,
+    "time": 0.476,
+    "depth": 9.9e-05,
+    "pressure": 1014.27,
     "company": 6969
   },
   {
-    "time": 2.353,
-    "depth": 0.000595,
-    "pressure": 1017.74,
+    "time": 2.643,
+    "depth": 0.029036,
+    "pressure": 1017.19,
     "company": 6969
   },
   {
-    "time": 4.532,
-    "depth": -0.000495,
-    "pressure": 1017.63,
+    "time": 4.81,
+    "depth": 1.119111,
+    "pressure": 1127.19,
     "company": 6969
   },
   {
-    "time": 6.728,
-    "depth": -0.000694,
-    "pressure": 1017.61,
+    "time": 4.952,
+    "depth": 1.203741,
+    "pressure": 1135.73,
     "company": 6969
   },
   {
-    "time": 8.887,
-    "depth": -0.000892,
-    "pressure": 1017.59,
+    "time": 5.094,
+    "depth": 1.272713,
+    "pressure": 1142.69,
     "company": 6969
   },
   {
-    "time": 11.087,
-    "depth": -0.000198,
-    "pressure": 1017.66,
+    "time": 5.236,
+    "depth": 1.335045,
+    "pressure": 1148.98,
     "company": 6969
   },
   {
-    "time": 13.276,
-    "depth": -0.000297,
-    "pressure": 1017.65,
+    "time": 5.378,
+    "depth": 1.394108,
+    "pressure": 1154.94,
     "company": 6969
   },
   {
-    "time": 15.473,
-    "depth": -0.000793,
-    "pressure": 1017.6,
+    "time": 5.52,
+    "depth": 1.442963,
+    "pressure": 1159.87,
     "company": 6969
   },
   {
-    "time": 17.831,
-    "depth": -0.000396,
-    "pressure": 1017.64,
+    "time": 5.662,
+    "depth": 1.471899,
+    "pressure": 1162.79,
     "company": 6969
   },
   {
-    "time": 20.069,
-    "depth": -0.000495,
-    "pressure": 1017.63,
+    "time": 5.804,
+    "depth": 1.48835,
+    "pressure": 1164.45,
     "company": 6969
   },
   {
-    "time": 22.953,
-    "depth": -0.000595,
-    "pressure": 1017.62,
+    "time": 5.946,
+    "depth": 1.498656,
+    "pressure": 1165.49,
     "company": 6969
   },
   {
-    "time": 25.598,
-    "depth": -0.000694,
-    "pressure": 1017.61,
+    "time": 6.088,
+    "depth": 1.513421,
+    "pressure": 1166.98,
     "company": 6969
   },
   {
-    "time": 27.821,
-    "depth": -0.001982,
-    "pressure": 1017.48,
+    "time": 6.23,
+    "depth": 1.541565,
+    "pressure": 1169.82,
     "company": 6969
   },
   {
-    "time": 30.513,
-    "depth": -0.003072,
-    "pressure": 1017.37,
+    "time": 6.372,
+    "depth": 1.582492,
+    "pressure": 1173.95,
     "company": 6969
   },
   {
-    "time": 32.733,
-    "depth": -0.004063,
-    "pressure": 1017.27,
+    "time": 6.514,
+    "depth": 1.615888,
+    "pressure": 1177.32,
     "company": 6969
   },
   {
-    "time": 35.798,
-    "depth": -0.004162,
-    "pressure": 1017.26,
+    "time": 6.656,
+    "depth": 1.623321,
+    "pressure": 1178.07,
     "company": 6969
   },
   {
-    "time": 37.84,
-    "depth": -0.004558,
-    "pressure": 1017.22,
+    "time": 6.798,
+    "depth": 1.623519,
+    "pressure": 1178.09,
     "company": 6969
   },
   {
-    "time": 39.882,
-    "depth": -0.005351,
-    "pressure": 1017.14,
+    "time": 6.94,
+    "depth": 1.623321,
+    "pressure": 1178.07,
     "company": 6969
   },
   {
-    "time": 41.924,
-    "depth": -0.006045,
-    "pressure": 1017.07,
+    "time": 7.082,
+    "depth": 1.621636,
+    "pressure": 1177.9,
     "company": 6969
   },
   {
-    "time": 43.966,
-    "depth": -0.006243,
-    "pressure": 1017.05,
+    "time": 7.224,
+    "depth": 1.609051,
+    "pressure": 1176.63,
     "company": 6969
   },
   {
-    "time": 46.008,
-    "depth": -0.00654,
-    "pressure": 1017.02,
+    "time": 7.366,
+    "depth": 1.58824,
+    "pressure": 1174.53,
     "company": 6969
   },
   {
-    "time": 57.257,
-    "depth": -0.008423,
-    "pressure": 1016.83,
+    "time": 7.508,
+    "depth": 1.547511,
+    "pressure": 1170.42,
     "company": 6969
   },
   {
-    "time": 59.299,
-    "depth": -0.008622,
-    "pressure": 1016.81,
+    "time": 7.65,
+    "depth": 1.491124,
+    "pressure": 1164.73,
     "company": 6969
   },
   {
-    "time": 61.341,
-    "depth": -0.009811,
-    "pressure": 1016.69,
+    "time": 7.792,
+    "depth": 1.418387,
+    "pressure": 1157.39,
     "company": 6969
   },
   {
-    "time": 63.383,
-    "depth": -0.010306,
-    "pressure": 1016.64,
+    "time": 7.934,
+    "depth": 1.337226,
+    "pressure": 1149.2,
     "company": 6969
   },
   {
-    "time": 65.425,
-    "depth": -0.010703,
-    "pressure": 1016.6,
+    "time": 8.076,
+    "depth": 1.242686,
+    "pressure": 1139.66,
     "company": 6969
   },
   {
-    "time": 67.467,
-    "depth": -0.011,
-    "pressure": 1016.57,
+    "time": 8.218,
+    "depth": 1.145174,
+    "pressure": 1129.82,
     "company": 6969
   },
   {
-    "time": 69.509,
-    "depth": -0.011495,
-    "pressure": 1016.52,
+    "time": 8.36,
+    "depth": 1.031707,
+    "pressure": 1118.37,
     "company": 6969
   },
   {
-    "time": 71.551,
-    "depth": -0.011198,
-    "pressure": 1016.55,
+    "time": 8.502,
+    "depth": 0.919925,
+    "pressure": 1107.09,
     "company": 6969
   },
   {
-    "time": 73.593,
-    "depth": -0.011198,
-    "pressure": 1016.55,
+    "time": 8.644,
+    "depth": 0.815277,
+    "pressure": 1096.53,
     "company": 6969
   },
   {
-    "time": 75.635,
-    "depth": -0.011297,
-    "pressure": 1016.54,
+    "time": 8.786,
+    "depth": 0.721531,
+    "pressure": 1087.07,
     "company": 6969
   },
   {
-    "time": 77.677,
-    "depth": -0.011396,
-    "pressure": 1016.53,
+    "time": 8.928,
+    "depth": 0.624316,
+    "pressure": 1077.26,
     "company": 6969
   },
   {
-    "time": 79.719,
-    "depth": -0.011297,
-    "pressure": 1016.54,
+    "time": 9.07,
+    "depth": 0.511345,
+    "pressure": 1065.86,
     "company": 6969
   },
   {
-    "time": 81.76,
-    "depth": -0.011594,
-    "pressure": 1016.51,
+    "time": 9.212,
+    "depth": 0.417301,
+    "pressure": 1056.37,
     "company": 6969
   },
   {
-    "time": 83.802,
-    "depth": -0.010108,
-    "pressure": 1016.66,
+    "time": 9.354,
+    "depth": 0.320581,
+    "pressure": 1046.61,
     "company": 6969
   },
   {
-    "time": 85.844,
-    "depth": -0.009712,
-    "pressure": 1016.7,
+    "time": 21.588,
+    "depth": 0.000297,
+    "pressure": 1014.29,
     "company": 6969
   },
   {
-    "time": 87.886,
-    "depth": -0.009216,
-    "pressure": 1016.75,
-    "company": 6969
-  },
-  {
-    "time": 89.928,
-    "depth": -0.008721,
-    "pressure": 1016.8,
-    "company": 6969
-  },
-  {
-    "time": 91.97,
-    "depth": -0.008225,
-    "pressure": 1016.85,
-    "company": 6969
-  },
-  {
-    "time": 99.165,
-    "depth": -0.006739,
-    "pressure": 1017,
-    "company": 6969
-  },
-  {
-    "time": 113.622,
-    "depth": -0.00436,
-    "pressure": 1017.24,
-    "company": 6969
-  },
-  {
-    "time": 121.962,
-    "depth": -0.002378,
-    "pressure": 1017.44,
-    "company": 6969
-  },
-  {
-    "time": 130.246,
-    "depth": -0.000495,
-    "pressure": 1017.63,
-    "company": 6969
-  },
-  {
-    "time": 41.924,
-    "depth": -0.006045,
-    "pressure": 1017.07,
-    "company": 6969
-  },
-  {
-    "time": 138.148,
-    "depth": -0.000991,
-    "pressure": 1017.58,
-    "company": 6969
-  },
-  {
-    "time": 144.795,
-    "depth": -0.000595,
-    "pressure": 1017.62,
-    "company": 6969
-  },
-  {
-    "time": 148.4,
-    "depth": -0.000198,
-    "pressure": 1017.66,
-    "company": 6969
-  },
-  {
-    "time": 150.933,
-    "depth": -0.000495,
-    "pressure": 1017.63,
-    "company": 6969
-  },
-  {
-    "time": 153.183,
-    "depth": -0.000595,
-    "pressure": 1017.62,
-    "company": 6969
-  },
-  {
-    "time": 157.69,
-    "depth": -0.000396,
-    "pressure": 1017.64,
-    "company": 6969
-  },
-  {
-    "time": 160.658,
+    "time": 33.733,
     "depth": -9.9e-05,
-    "pressure": 1017.67,
+    "pressure": 1014.25,
+    "company": 6969
+  },
+  {
+    "time": 45.961,
+    "depth": -0.000495,
+    "pressure": 1014.21,
+    "company": 6969
+  },
+  {
+    "time": 53.591,
+    "depth": -0.000297,
+    "pressure": 1014.23,
+    "company": 6969
+  },
+  {
+    "time": 55.788,
+    "depth": -0.000396,
+    "pressure": 1014.22,
+    "company": 6969
+  },
+  {
+    "time": 57.965,
+    "depth": -0.000396,
+    "pressure": 1014.22,
+    "company": 6969
+  },
+  {
+    "time": 60.142,
+    "depth": -0.000694,
+    "pressure": 1014.19,
     "company": 6969
   }
 ]
