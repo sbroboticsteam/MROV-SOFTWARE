@@ -1,12 +1,20 @@
 import pygame
 import math
 
-import sys
+# With this:
 import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
+import sys
+from pathlib import Path
 
-from arcadeDrive import arcadeDrive, arcadeDrive2, arcadeDrive3
+# Add src directory to Python path
+# sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(str(Path(__file__).resolve().parent.parent/'src'))
+from arcadeDrive import arcadeDrive3
+##from controller  import get_controller_input
 from controller import get_controller_input
+
+# from src.arcadeDrive import arcadeDrive3
+# from src.controller import get_controller_input
 
 pygame.joystick.init()
 joysticks = [pygame.joystick.Joystick(x) for x in range(pygame.joystick.get_count())]
