@@ -25,7 +25,30 @@
 #define VELOCITY_READ_INTERVAL     20  // faster rate for velocity testing
 
 // How many items to attempt to send at once
-#define SEND_BATCH_SIZE     5
+#define SEND_BATCH_SIZE     10
+
+// ----------------- NEW: Pump control -----------------
+#define PUMP_DESC_PIN 12   // Pump control pin for descending (fill ballast)
+#define PUMP_ASC_PIN  27   // Pump control pin for ascending (empty ballast)
+
+// ----------------- NEW: Routine state machine -----------------
+enum RoutineState {
+  R_IDLE,
+  R_DESCENDING,
+  R_WAITING,
+  R_ASCENDING
+};
+
+volatile bool routineActive = false;
+volatile RoutineState routineState = R_IDLE;
+unsigned long routineWaitStart = 0;
+
+// -------------------- NEW: Velocity Control Variables --------------------
+// Maximum allowed descent velocity (m/s) when the ballast tank is full.
+float maxDescentVelocity = 0.3;  // You can change this value later
+// Variables for tracking previous sensor reading (for velocity computation)
+unsigned long previousTime = 0;
+float previousDepth = 0.0;
 
 // Shared flags
 volatile bool wifiFlag   = false;  // True if WiFi connected & RSSI good
@@ -43,7 +66,7 @@ struct Measurement {
 };
 
 // Use cppQueue: record size = sizeof(Measurement), capacity = 400, FIFO, no overwrite
-cppQueue measurementQueue(sizeof(Measurement), 400, FIFO, false);
+cppQueue measurementQueue(sizeof(Measurement), 800, FIFO, false);
 
 // Web server and HTTP client
 WebServer server(80);
@@ -68,6 +91,22 @@ void setStripColor(uint8_t r, uint8_t g, uint8_t b) {
   strip.show();
 }
 
+// -------------------- NEW: Pump control helper functions --------------------
+void pumpDescend() {
+  digitalWrite(PUMP_DESC_PIN, HIGH);
+  digitalWrite(PUMP_ASC_PIN, LOW);
+}
+
+void pumpAscend() {
+  digitalWrite(PUMP_DESC_PIN, LOW);
+  digitalWrite(PUMP_ASC_PIN, HIGH);
+}
+
+void pumpOff() {
+  digitalWrite(PUMP_DESC_PIN, LOW);
+  digitalWrite(PUMP_ASC_PIN, LOW);
+}
+
 // -------------------- /start_signal handler --------------------
 void handleStartSignal() {
   if (server.hasArg("ip_address")) {
@@ -77,6 +116,9 @@ void handleStartSignal() {
       startTime = millis();
       sensor.read();
       initialDepth = sensor.depth();  // baseline depth
+      // Reset velocity tracking variables when starting
+      previousTime = 0;
+      previousDepth = 0.0;
       server.send(200, "text/plain",
         "Data transmission started. Will post to " + laptopIpAddress + ":8000/depth");
     } else {
@@ -95,12 +137,16 @@ void handleStopSignal() {
   measurementQueue.flush();
   setStripColor(255, 0, 0); // LED RED
 
-  // Reset timing variables
+  // Reset timing variables and velocity tracking
   startTime = millis();
   initialDepth = 0.0;
+  previousTime = 0;
+  previousDepth = 0.0;
 
-  // Also restore the normal data capture rate
+  // Also restore the normal data capture rate and stop pump
   currentReadInterval = NORMAL_READ_INTERVAL;
+  routineState = R_IDLE;
+  pumpOff();
   
   server.send(200, "text/plain", "Float has been stopped and reset to initial state.");
 }
@@ -125,6 +171,44 @@ void handleStopVelocity() {
   server.send(200, "text/plain", "Velocity testing stopped. Data capture rate reverted to normal.");
 }
 
+// -------------------- /start_routine handler --------------------
+void handleStartRoutine() {
+  if (!hasStarted) {
+    server.send(400, "text/plain", "Float not started yet. Please start the float first.");
+    return;
+  }
+  if (!routineActive) {
+    routineActive = true;
+    routineState = R_DESCENDING;
+    // Reset velocity tracking when starting routine
+    previousTime = 0;
+    previousDepth = 0.0;
+    server.send(200, "text/plain", "Routine started: Descending initiated.");
+    Serial.println("Routine started: Descending initiated.");
+  } else {
+    server.send(200, "text/plain", "Routine already active.");
+  }
+}
+
+// -------------------- NEW: Pump control endpoints --------------------
+void handlePumpAscend() {
+  pumpAscend();
+  server.send(200, "text/plain", "Pump ascending initiated.");
+  Serial.println("Pump ascending initiated.");
+}
+
+void handlePumpDescend() {
+  pumpDescend();
+  server.send(200, "text/plain", "Pump descending initiated.");
+  Serial.println("Pump descending initiated.");
+}
+
+void handlePumpStop() {
+  pumpOff();
+  server.send(200, "text/plain", "Pump stopped.");
+  Serial.println("Pump stopped.");
+}
+
 // -------------------- TASK on CORE 0: WiFi & WebServer --------------------
 void TaskWifiServer(void * pvParameters) {
   (void) pvParameters;  // unused
@@ -146,7 +230,7 @@ void TaskWifiServer(void * pvParameters) {
   }
 }
 
-// -------------------- TASK on CORE 1: Sensor Reading & Queue Send --------------------
+// -------------------- TASK on CORE 1: Sensor Reading, Routine, & Queue Send --------------------
 void TaskSensorAndSending(void * pvParameters) {
   (void) pvParameters;
   unsigned long lastReadTime = 0;
@@ -162,18 +246,87 @@ void TaskSensorAndSending(void * pvParameters) {
       continue;
     }
 
-    // 2) Read sensor data when interval has elapsed and enqueue measurement
+    // Read sensor data once per loop iteration for both routine and normal reading
+    sensor.read();
+    float currentDepth = sensor.depth() - initialDepth;
+
+    // -------------------- Routine State Machine --------------------
+    if (routineActive) {
+      switch (routineState) {
+        case R_DESCENDING: {
+          // --- Velocity Check ---
+          // If this is the first iteration in descending, initialize previousTime/previousDepth.
+          if (previousTime == 0) {
+            previousTime = currentMillis;
+            previousDepth = currentDepth;
+          }
+          unsigned long dt_ms = currentMillis - previousTime;
+          if (dt_ms > 0) {
+            float dt = dt_ms / 1000.0; // convert to seconds
+            float dv = currentDepth - previousDepth;  // expected to be positive while descending
+            float descentVelocity = dv / dt;
+            if (descentVelocity > maxDescentVelocity) {
+              // Exceeded allowed descent velocity; stop the pump temporarily.
+              pumpOff();
+              Serial.println("Descent velocity exceeded maximum. Pump turned off temporarily.");
+              // Update tracking variables for next iteration.
+              previousTime = currentMillis;
+              previousDepth = currentDepth;
+              // Do not proceed with normal pump descending logic in this iteration.
+              break;
+            }
+          }
+          // If within allowed velocity, ensure pump is active for descending.
+          pumpDescend();
+          // Check if target depth reached.
+          if (currentDepth >= 2.5) {
+            pumpOff();
+            routineState = R_WAITING;
+            routineWaitStart = currentMillis;
+            Serial.println("Routine: Target depth reached. Holding position...");
+            // Reset velocity tracking for the next phase.
+            previousTime = 0;
+            previousDepth = 0.0;
+          } else {
+            // Update velocity tracking for next iteration.
+            previousTime = currentMillis;
+            previousDepth = currentDepth;
+          }
+          break;
+        }
+        case R_WAITING:
+          // Hold for at least 42 seconds
+          if (currentMillis - routineWaitStart >= 42000) {  // 42 seconds
+            pumpAscend();
+            routineState = R_ASCENDING;
+            Serial.println("Routine: Hold complete. Ascending initiated...");
+          }
+          break;
+        case R_ASCENDING:
+          // Wait until float has ascended near the surface (e.g., depth ≤ 0.5 m)
+          if (currentDepth <= 0.5) {
+            pumpOff();
+            routineState = R_IDLE;
+            routineActive = false;
+            Serial.println("Routine: Ascended. Routine complete.");
+          }
+          break;
+        case R_IDLE:
+        default:
+          break;
+      }
+    }
+
+    // 2) Normal sensor reading & data queuing (uses currentReadInterval)
     if ((currentMillis - lastReadTime) >= currentReadInterval) {
       lastReadTime = currentMillis;
 
-      sensor.read();
-      float depth = sensor.depth() - initialDepth;
       float pressure = sensor.pressure();
       unsigned long elapsed = currentMillis - startTime;
 
       Measurement m;
       m.timeSinceStart = elapsed;
-      m.depth          = depth;
+      m.depth          = currentDepth;
       m.pressure       = pressure;
       m.companyNum     = COMPANY_NUMBER;
 
@@ -181,7 +334,7 @@ void TaskSensorAndSending(void * pvParameters) {
         Serial.println("Queue is full, could not push new measurement!");
       } else {
         Serial.printf("Enqueued: time=%lu ms, depth=%.3f, pressure=%.3f\n",
-                      elapsed, depth, pressure);
+                      elapsed, currentDepth, pressure);
       }
     }
 
@@ -241,8 +394,10 @@ void TaskSensorAndSending(void * pvParameters) {
     if (!wifiFlag) {
       setStripColor(255, 0, 0); // RED if WiFi is poor
     } else {
-      setStripColor(measurementQueue.isEmpty() ? 0 : 255, measurementQueue.isEmpty() ? 255 : 255, measurementQueue.isEmpty() ? 0 : 0);
       // GREEN if queue is empty, YELLOW if not
+      setStripColor(measurementQueue.isEmpty() ? 0 : 255,
+                    measurementQueue.isEmpty() ? 255 : 255,
+                    measurementQueue.isEmpty() ? 0 : 0);
     }
 
     vTaskDelay(50 / portTICK_PERIOD_MS);
@@ -260,6 +415,11 @@ void setup() {
   strip.setBrightness(50);
   setStripColor(255, 0, 0);  // LED RED initially
 
+  // Set up pump control pins
+  pinMode(PUMP_DESC_PIN, OUTPUT);
+  pinMode(PUMP_ASC_PIN, OUTPUT);
+  pumpOff(); // Ensure pump is off initially
+
   // Connect to WiFi (blocking)
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   Serial.print("Connecting to WiFi");
@@ -276,6 +436,13 @@ void setup() {
   server.on("/stop_signal", HTTP_GET, handleStopSignal);
   server.on("/start_velocity", HTTP_GET, handleStartVelocity);
   server.on("/stop_velocity", HTTP_GET, handleStopVelocity);
+  server.on("/start_routine", HTTP_GET, handleStartRoutine);
+  
+  // NEW: Pump control endpoints
+  server.on("/pump_ascend", HTTP_GET, handlePumpAscend);
+  server.on("/pump_descend", HTTP_GET, handlePumpDescend);
+  server.on("/pump_stop", HTTP_GET, handlePumpStop);
+  
   server.begin();
   Serial.println("HTTP server started on port 80");
 
@@ -317,5 +484,5 @@ void setup() {
 
 void loop() {
   // Nothing here – all work is done in FreeRTOS tasks
-  delay(1000);
+  delay(500);
 }

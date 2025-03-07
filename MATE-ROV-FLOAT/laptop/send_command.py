@@ -13,7 +13,7 @@ def send_command(esp32_ip, command, laptop_ip=""):
     
     Parameters:
       esp32_ip: The ESP32 IP address on the network.
-      command: One of "s", "vs", "vst", "st".
+      command: One of "s", "vs", "vst", "st", "rs", "a", "d", ".".
       laptop_ip: Required for the start command.
     """
     if command == "s":
@@ -26,8 +26,20 @@ def send_command(esp32_ip, command, laptop_ip=""):
         # Stop velocity testing: revert data capture rate.
         url = f"http://{esp32_ip}/stop_velocity"
     elif command == "st":
-        # Stop signal: stop the float.
+        # Stop float (and pump) command.
         url = f"http://{esp32_ip}/stop_signal"
+    elif command == "rs":
+        # Start routine: initiate the descent/wait/ascend sequence.
+        url = f"http://{esp32_ip}/start_routine"
+    elif command == "a":
+        # Pump ascend command.
+        url = f"http://{esp32_ip}/pump_ascend"
+    elif command == "d":
+        # Pump descend command.
+        url = f"http://{esp32_ip}/pump_descend"
+    elif command == ".":
+        # Pump stop command.
+        url = f"http://{esp32_ip}/pump_stop"
     else:
         print("Invalid command!")
         return
@@ -39,14 +51,18 @@ def send_command(esp32_ip, command, laptop_ip=""):
         print("Error sending command:", e)
 
 def main():
-    esp32_ip = input("Enter the ESP32 IP address: ").strip()
+    esp32_ip = "192.168.1.238"  # Replace with your ESP32 IP if needed
     laptop_ip = get_laptop_ip()
     print(f"Laptop IP determined as: {laptop_ip}\n")
     print("Available Commands:")
     print("  s   - Start float")
     print("  vs  - Start velocity testing")
     print("  vst - Stop velocity testing")
-    print("  st  - Stop float")
+    print("  st  - Stop float (and pump)")
+    print("  rs  - Start routine (descend to >=2.5m, hold >42 sec, then ascend)")
+    print("  a   - Pump ascend")
+    print("  d   - Pump descend")
+    print("  .   - Pump stop")
     print("  q   - Quit")
 
     while True:
