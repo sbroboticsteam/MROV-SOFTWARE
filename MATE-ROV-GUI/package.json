@@ -1,0 +1,16 @@
+{
+  "name": "mate-rov-gui",
+  "version": "1.0.0",
+  "description": "## Contributors - Giovanni Terefi - Brian Cao - Ada Lin - Derrick Ma - Vincent Tan - Saad Ismail - Randy Sim",
+  "main": "index.js",
+  "scripts": {
+    "test": "concurrently \"node server3000.js\" \"node server3001.js\" \"node server3002.js\" \"node server3003.js\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "concurrently": "^9.1.2",
+    "express": "^4.21.2"
+  }
+}
