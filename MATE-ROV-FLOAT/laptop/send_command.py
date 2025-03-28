@@ -51,7 +51,7 @@ def send_command(esp32_ip, command, laptop_ip=""):
         print("Error sending command:", e)
 
 def main():
-    esp32_ip = "192.168.1.238"  # Replace with your ESP32 IP if needed
+    esp32_ip = "192.168.1.78"  # Replace with your ESP32 IP if needed
     laptop_ip = get_laptop_ip()
     print(f"Laptop IP determined as: {laptop_ip}\n")
     print("Available Commands:")
@@ -60,8 +60,8 @@ def main():
     print("  vst - Stop velocity testing")
     print("  st  - Stop float (and pump)")
     print("  rs  - Start routine (descend to >=2.5m, hold >42 sec, then ascend)")
-    print("  a   - Pump ascend")
-    print("  d   - Pump descend")
+    print("  a   - Float Descend")
+    print("  d   - Float Ascend")
     print("  .   - Pump stop")
     print("  q   - Quit")
 

@@ -28,8 +28,8 @@
 #define SEND_BATCH_SIZE     10
 
 // ----------------- NEW: Pump control -----------------
-#define PUMP_DESC_PIN 12   // Pump control pin for descending (fill ballast)
-#define PUMP_ASC_PIN  27   // Pump control pin for ascending (empty ballast)
+#define PUMP_DESC_PIN 27   // Pump control pin for descending (fill ballast)
+#define PUMP_ASC_PIN  12   // Pump control pin for ascending (empty ballast)
 
 // ----------------- NEW: Routine state machine -----------------
 enum RoutineState {
@@ -46,6 +46,10 @@ unsigned long routineWaitStart = 0;
 // -------------------- NEW: Velocity Control Variables --------------------
 // Maximum allowed descent velocity (m/s) when the ballast tank is full.
 float maxDescentVelocity = 0.18;  // You can change this value later
+
+// Maximum allowed ascent velocity (m/s).
+float maxAscentVelocity = 0.18;   // Change as desired
+
 // Variables for tracking previous sensor reading (for velocity computation)
 unsigned long previousTime = 0;
 float previousDepth = 0.0;
@@ -232,90 +236,117 @@ void TaskWifiServer(void * pvParameters) {
 
 // -------------------- TASK on CORE 1: Sensor Reading, Routine, & Queue Send --------------------
 void TaskSensorAndSending(void * pvParameters) {
-  (void) pvParameters;
-  unsigned long lastReadTime = 0;
-  unsigned long currentMillis = 0;
-
-  for (;;) {
-    currentMillis = millis();
-
-    // 1) If not started, keep LED RED and wait
-    if (!hasStarted) {
-      setStripColor(255, 0, 0); // RED
-      vTaskDelay(500 / portTICK_PERIOD_MS);
-      continue;
-    }
-
-    // Read sensor data once per loop iteration for both routine and normal reading
-    sensor.read();
-    float currentDepth = sensor.depth() - initialDepth;
-
-    // -------------------- Routine State Machine --------------------
-    if (routineActive) {
-      switch (routineState) {
-        case R_DESCENDING: {
-          // --- Velocity Check ---
-          // If this is the first iteration in descending, initialize previousTime/previousDepth.
-          if (previousTime == 0) {
-            previousTime = currentMillis;
-            previousDepth = currentDepth;
-          }
-          unsigned long dt_ms = currentMillis - previousTime;
-          if (dt_ms > 0) {
-            float dt = dt_ms / 1000.0; // convert to seconds
-            float dv = currentDepth - previousDepth;  // expected to be positive while descending
-            float descentVelocity = dv / dt;
-            if (descentVelocity > maxDescentVelocity) {
-              // Exceeded allowed descent velocity; stop the pump temporarily.
-              pumpOff();
-              Serial.println("Descent velocity exceeded maximum. Pump turned off temporarily.");
-              // Update tracking variables for next iteration.
+    (void) pvParameters;
+    unsigned long lastReadTime = 0;
+    unsigned long currentMillis = 0;
+  
+    for (;;) {
+      currentMillis = millis();
+  
+      // 1) If not started, keep LED RED and wait
+      if (!hasStarted) {
+        setStripColor(255, 0, 0); // RED
+        vTaskDelay(500 / portTICK_PERIOD_MS);
+        continue;
+      }
+  
+      // Read sensor data (for both routine logic and normal reading)
+      sensor.read();
+      float currentDepth = sensor.depth() - initialDepth;
+  
+      // -------------------- Routine State Machine --------------------
+      if (routineActive) {
+        switch (routineState) {
+          case R_DESCENDING: {
+            // --- Descent Velocity Check ---
+            if (previousTime == 0) {
               previousTime = currentMillis;
               previousDepth = currentDepth;
-              // Do not proceed with normal pump descending logic in this iteration.
-              break;
             }
+            unsigned long dt_ms = currentMillis - previousTime;
+            if (dt_ms > 0) {
+              float dt = dt_ms / 1000.0; // convert to seconds
+              float dv = currentDepth - previousDepth;  // expected positive while descending
+              float descentVelocity = dv / dt;
+              if (descentVelocity > maxDescentVelocity) {
+                // Exceeded allowed descent velocity; stop the pump temporarily.
+                pumpOff();
+                Serial.println("Descent velocity exceeded maximum. Pump turned off temporarily.");
+                // Update tracking for next iteration.
+                previousTime = currentMillis;
+                previousDepth = currentDepth;
+                // Skip normal descending logic this loop.
+                break;
+              }
+            }
+            // Within allowed velocity -> keep descending
+            pumpDescend();
+            // Check if target depth reached
+            if (currentDepth >= 2.5) {
+              pumpOff();
+              routineState = R_WAITING;
+              routineWaitStart = currentMillis;
+              Serial.println("Routine: Target depth reached. Holding position...");
+              // Reset velocity tracking
+              previousTime = 0;
+              previousDepth = 0.0;
+            } else {
+              previousTime = currentMillis;
+              previousDepth = currentDepth;
+            }
+            break;
           }
-          // If within allowed velocity, ensure pump is active for descending.
-          pumpDescend();
-          // Check if target depth reached.
-          if (currentDepth >= 2.5) {
-            pumpOff();
-            routineState = R_WAITING;
-            routineWaitStart = currentMillis;
-            Serial.println("Routine: Target depth reached. Holding position...");
-            // Reset velocity tracking for the next phase.
-            previousTime = 0;
-            previousDepth = 0.0;
-          } else {
-            // Update velocity tracking for next iteration.
-            previousTime = currentMillis;
-            previousDepth = currentDepth;
-          }
-          break;
-        }
-        case R_WAITING:
-          // Hold for at least 42 seconds
-          if (currentMillis - routineWaitStart >= 42000) {  // 42 seconds
+          case R_WAITING:
+            // Hold for 42 seconds
+            if (currentMillis - routineWaitStart >= 42000) {
+              pumpAscend();
+              routineState = R_ASCENDING;
+              Serial.println("Routine: Hold complete. Ascending initiated...");
+              // Reset velocity tracking for ascent
+              previousTime = 0;
+              previousDepth = 0.0;
+            }
+            break;
+          case R_ASCENDING: {
+            // --- Ascent Velocity Check ---
+            if (previousTime == 0) {
+              previousTime = currentMillis;
+              previousDepth = currentDepth; 
+            }
+            unsigned long dt_ms = currentMillis - previousTime;
+            if (dt_ms > 0) {
+              float dt = dt_ms / 1000.0; 
+              float dv = currentDepth - previousDepth;  // expected to be negative while ascending
+              float ascentVelocity = dv / dt;
+              // If ascentVelocity < -maxAscentVelocity => speed is too high (negative = going up)
+              if (ascentVelocity < -maxAscentVelocity) {
+                pumpOff();
+                Serial.println("Ascent velocity exceeded maximum. Pump turned off temporarily.");
+                previousTime = currentMillis;
+                previousDepth = currentDepth;
+                // Skip normal ascending logic this loop.
+                break;
+              }
+            }
+            // Within allowed velocity -> keep ascending
             pumpAscend();
-            routineState = R_ASCENDING;
-            Serial.println("Routine: Hold complete. Ascending initiated...");
+            if (currentDepth <= 0.5) {
+              pumpOff();
+              routineState = R_IDLE;
+              routineActive = false;
+              Serial.println("Routine: Ascended. Routine complete.");
+            } else {
+              previousTime = currentMillis;
+              previousDepth = currentDepth;
+            }
+            break;
           }
-          break;
-        case R_ASCENDING:
-          // Wait until float has ascended near the surface (e.g., depth ≤ 0.5 m)
-          if (currentDepth <= 0.5) {
-            pumpOff();
-            routineState = R_IDLE;
-            routineActive = false;
-            Serial.println("Routine: Ascended. Routine complete.");
-          }
-          break;
-        case R_IDLE:
-        default:
-          break;
+          case R_IDLE:
+          default:
+            break;
+        }
       }
-    }
+  
 
     // 2) Normal sensor reading & data queuing (uses currentReadInterval)
     if ((currentMillis - lastReadTime) >= currentReadInterval) {
