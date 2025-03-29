@@ -1,0 +1,1 @@
+ffmpeg -i test2.jpg -vf v360=input=dfisheye:ih_fov=195:iv_fov=195:output=equirect:out_stereo=none -q:v 1 stitched_output.jpg
