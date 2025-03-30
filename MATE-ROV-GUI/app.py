@@ -1,7 +1,9 @@
-from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QPushButton, QVBoxLayout, QLayout, QHBoxLayout, QComboBox, QStackedWidget
+from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QPushButton, QVBoxLayout, QLayout, QHBoxLayout, QComboBox, QStackedWidget, QMessageBox
 from Components.camera import Webcam
 from Components.temp_camera import Camera
 from Components.adjustable import AdjustableWidget
+import os, subprocess
+from PyQt5.QtCore import QThread, pyqtSignal
 
 
 import sys
@@ -70,20 +72,67 @@ class DashboardHeader(QWidget):
                 QPushButton:hover {
                     background-color: #45a049;
                 }""")
+
+        self.script_selector=QComboBox()
+        self.script_selector.setStyleSheet("""
+                QComboBox {
+                    background-color: white;
+                    border: 1px solid #ccc;
+                    border-radius: 3px;
+                    padding: 5px;
+                    min-width: 200px;
+                }""")
+        
+        self.run_script_btn=QPushButton('Run Script')
+        self.run_script_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #2196F3;
+                    color: white;
+                    border: none;
+                    border-radius: 3px;
+                    padding: 5px 10px;
+                }
+                QPushButton:hover {
+                    background-color: #0b7dda;
+                }""")
         
         layout.addWidget(self.page_selector)
         layout.addWidget(self.add_page_btn)
         layout.addStretch()
+        layout.addWidget(self.script_selector)
+        layout.addWidget(self.run_script_btn)
         layout.addWidget(self.widget_selector)
 
         self.setLayout(layout)
         self.setFixedHeight(50)
         self.setStyleSheet('background-color: #333333;')
 
+class ScriptExecutionThread(QThread):
+    finished = pyqtSignal(int)
+    error = pyqtSignal(str)
+    
+    def __init__(self, script_path):
+        super().__init__()
+        self.script_path = script_path
+        
+    def run(self):
+        try:
+            result = subprocess.run(
+                [sys.executable, self.script_path], 
+                capture_output=True, 
+                text=True
+            )
+            self.finished.emit(result.returncode)
+            if result.stderr:
+                self.error.emit(result.stderr)
+        except Exception as e:
+            self.error.emit(str(e))
+
 # each "component" in PyQt5 is a class
 class MainWindow(QMainWindow): # MainWindow class extends QMainWindow
     def __init__(self):
         super().__init__() # initialize class
+        self.script_thread=None
         self.setWindowTitle("MATE ROV Dashboard") # setting the window title (what appears at the top of the window)
         self.setupUI()
 
@@ -127,9 +176,12 @@ class MainWindow(QMainWindow): # MainWindow class extends QMainWindow
         ]
         self.header.widget_selector.addItems(self.widgets_list)
 
+        self.populate_script_selector()
+
         self.header.add_page_btn.clicked.connect(self.addNewPage)
         self.header.page_selector.currentIndexChanged.connect(self.changePage)
         self.header.widget_selector.currentIndexChanged.connect(self.addWidgetToCurrent)
+        self.header.run_script_btn.clicked.connect(self.run_selected_script)
         
         self.addNewPage()
 
@@ -149,6 +201,63 @@ class MainWindow(QMainWindow): # MainWindow class extends QMainWindow
             current_page = self.pages.currentWidget()
             widget_type = self.widgets_list[index]
             current_page.addWidget(widget_type)
+    
+    def populate_script_selector(self):
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        # put all scripts in the Scripts folder
+        scripts_dir = os.path.join(current_dir, "Scripts")
+
+        python_files = []
+    
+        # Check main Scripts directory
+        for f in os.listdir(scripts_dir):
+            if f.endswith('.py'):
+                python_files.append(f"Scripts/{f}")
+        
+        if python_files:
+            self.header.script_selector.addItems(python_files)
+        else:
+            self.header.script_selector.addItem("No scripts found")
+        
+    def run_selected_script(self):
+        if self.script_thread and self.script_thread.isRunning():
+            QMessageBox.warning(self, "Script Running", "A script is already running. Please wait for it to finish.")
+            return
+            
+        script_name = self.header.script_selector.currentText()
+        if not script_name:
+            return
+            
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        script_path = os.path.join(current_dir, script_name)
+        
+        if not os.path.exists(script_path):
+            QMessageBox.critical(self, "Error", f"Script file not found: {script_path}")
+            return
+
+        # Set button to indicate script is running
+        self.header.run_script_btn.setText("Running...")
+        self.header.run_script_btn.setEnabled(False)
+        
+        # Run script in a separate thread
+        self.script_thread = ScriptExecutionThread(script_path)
+        self.script_thread.finished.connect(self.on_script_finished)
+        self.script_thread.error.connect(self.on_script_error)
+        self.script_thread.start()
+    
+    def on_script_finished(self, return_code):
+        self.header.run_script_btn.setText("Run Script")
+        self.header.run_script_btn.setEnabled(True)
+        
+        if return_code == 0:
+            QMessageBox.information(self, "Success", "Script executed successfully")
+        else:
+            QMessageBox.warning(self, "Warning", f"Script finished with return code: {return_code}")
+            
+    def on_script_error(self, error_message):
+        QMessageBox.critical(self, "Error", f"Script execution error: {error_message}")
+        self.header.run_script_btn.setText("Run Script")
+        self.header.run_script_btn.setEnabled(True)
     
 
 
