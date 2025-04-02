@@ -35,7 +35,9 @@ def get_controller_input():
         buttons = [joystick.get_button(i) for i in range(joystick.get_numbuttons())]
         hats = [joystick.get_hat(i) for i in range(joystick.get_numhats())]
         # motor_values = arcadeDrive3(x, y, rx)
+        
         motor_values = arcadeDrive3(x, y, rx, rT, lT)
+        # Arcade drive called on jetson
         
         inputs = {
             "axes": {"left_stick": {"x": x, "y": y}, "right_stick": {"x": rx, "y": ry}},
