@@ -28,11 +28,8 @@ class PCA9685:
 
     @frequency.setter
     def frequency(self, freq_hz):
-        # Adjust requested frequency to compensate for chip inaccuracy
-        # For 666Hz target, request around 630Hz
-        adjusted_freq = int(freq_hz * 0.95)  # Adjust by 5% down
         self._frequency = freq_hz
-        prescale_val = int(25000000.0 / (4096 * adjusted_freq)) - 1
+        prescale_val = int(25000000.0 / (4096 * freq_hz)) - 1
 
         mode1 = self.bus.read_byte_data(self.address, MODE1)
         # Enter sleep mode
@@ -111,12 +108,15 @@ class ESC:
 
         if pulse_width == self.current_pulse:
             return  # No need to re-send if unchanged
+        
 
         self.current_pulse = pulse_width
         self._set_pulse_width(pulse_width)
 
     def _set_pulse_width(self, pulse_width):
-        duty_cycle = int((pulse_width / 20000.0) * 0xFFFF)
+        offset = 9
+        pulse_width += offset
+        duty_cycle = int((pulse_width / 20000.0) * 4096)
         print(f"Channel {self.channel}: pulse {pulse_width} µs -> duty_cycle {duty_cycle}")
         self.pca.channels[self.channel].duty_cycle = duty_cycle
         # A tiny pause can help the PCA9685 register the new duty cycle
@@ -143,15 +143,25 @@ class ESCController:
         for esc in self.escs:
             esc.set_state(0)
 
+    def sendCustomPeriod(self, period):
+        # Send a custom period to all ESCs
+        for esc in self.escs:
+            esc._set_pulse_width(period)
+
 def main():
-    esc_channels = [8, 9, 10, 11, 0, 1, 2, 3]
+    esc_channels = [0, 1, 2, 3, 4, 5, 6, 7]
     pca = PCA9685(bus_number=7)
-    # Use 50Hz (typical servo/ESC frequency).
     pca.frequency = 50
 
     esc_controller = ESCController(esc_channels, pca)
-    # Initialize all ESCs: each will receive 1500µs for 2s
+
     esc_controller.initialize_all()
+
+    
+    # motor_states = [-1, -1, 1, 1, 1,1,1,1]  # Example motor states
+    # esc_controller.set_all_states(motor_states)
+
+    # return
 
     HOST = '192.168.1.173'
     PORT = 4891
