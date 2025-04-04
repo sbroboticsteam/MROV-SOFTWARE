@@ -1,11 +1,12 @@
 from PyQt5.QtWidgets import QApplication, QWidget, QHBoxLayout, QPushButton, QFrame, QLabel, QVBoxLayout
 from PyQt5.QtCore import Qt, QPoint, pyqtSignal
-from PyQt5.QtGui import QPainter, QColor, QPainterPath
+from PyQt5.QtGui import QPainter, QColor, QPainterPath, QCloseEvent
 from Components.speedpanel import SpeedPanel
 from Components.temp_camera import Camera
 from Components.connectivity import Connectivity
 from Components.depth_time import DepthTimeWidget
-# from Components.controller_sensitivity import ControllerSensitivity, AdjustableControllerSensivitity
+#from Components.network import NetworkConnectionWidget
+from Components.controller_sensitivity import ControllerSensitivity
 
 # controls for minimizing, maximizing and closing widgets (like a window)
 class WindowControls(QWidget):
@@ -96,7 +97,7 @@ class AdjustableWidget(QWidget):
         self.windowcontrols   = WindowControls()
         self.windowcontrols.minimizeClicked.connect(self.minimizeEvent)
         self.windowcontrols.maximizeClicked.connect(self.maximizeEvent)
-        self.windowcontrols.closeClicked.connect(self.closeEvent)
+        self.windowcontrols.closeClicked.connect(self.handleClose)
 
         titlelayout.addWidget(self.titlelabel)
         titlelayout.addStretch()
@@ -111,9 +112,11 @@ class AdjustableWidget(QWidget):
         elif self.title == "Connectivity":
             widget = Connectivity()
         elif self.title == "Controller Sensitivity":
-            widget = QWidget()
+            widget = ControllerSensitivity()
         elif self.title=='Depth-Time Graph':
             widget=DepthTimeWidget()
+        # elif self.title=='Network Connection':
+        #     widget=NetworkConnectionWidget()
         else:
             widget = QWidget()
 
@@ -148,6 +151,15 @@ class AdjustableWidget(QWidget):
             if self.og_geometry:
                 self.setGeometry(self.og_geometry)
             self.maximized = False
+
+    def handleClose(self):
+        self.close()
+    
+    def closeEvent(self, event: QCloseEvent):
+        if self.parent() and hasattr(self.parent, 'widgets'):
+            if self in self.parent().widgets:
+                self.parent.widgets.remove(self)
+        event.accept()
 
 
     def is_near_border(self, pos):

@@ -1,0 +1,26 @@
+{
+    "sensitivity": {
+      "joystick": {
+        "left_stick": {
+          "x": 75,
+          "y": 80
+        },
+        "right_stick": {
+          "x": 65,
+          "y": 70
+        }
+      },
+      "triggers": {
+        "left": 60,
+        "right": 60
+      },
+      "buttons": {
+        "standard": 50,
+        "bumpers": 45
+      }
+    },
+    "deadzone": {
+      "joysticks": 10,
+      "triggers": 5
+    }
+  }

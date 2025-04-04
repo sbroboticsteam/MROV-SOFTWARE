@@ -1,10 +1,10 @@
 from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QPushButton, QVBoxLayout, QLayout, QHBoxLayout, QComboBox, QStackedWidget, QMessageBox
 from Components.camera import Webcam
 from Components.temp_camera import Camera
+#from Components.network import NetworkConnectionWidget
 from Components.adjustable import AdjustableWidget
 import os, subprocess
 from PyQt5.QtCore import QThread, pyqtSignal
-
 
 import sys
 
@@ -26,6 +26,8 @@ class DashboardPage(QWidget):
             widget.setGeometry(1000, 400, 350, 250)
         elif widget_type=="Controller Sensitivity":
             widget.setGeometry(1000, 700, 350, 250)
+        # elif widget_type=="Network Connection":
+        #     widget.setGeometry(1000, 950, 350, 250)
 
         self.widgets.append(widget)
         widget.show()
@@ -172,7 +174,8 @@ class MainWindow(QMainWindow): # MainWindow class extends QMainWindow
             # "Auto Mode",
             "Connectivity",
             "Speed Panel",
-            "Depth-Time Graph"
+            "Depth-Time Graph",
+            'Network Connection'
         ]
         self.header.widget_selector.addItems(self.widgets_list)
 

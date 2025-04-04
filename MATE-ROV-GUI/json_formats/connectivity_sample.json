@@ -1,0 +1,27 @@
+{
+    "devices": [
+      {
+        "name": "Raspberry Pi",
+        "type": "computer", 
+        "ip_address": "192.168.0.160",
+        "status": "connected",
+        "ping": 35.4,
+        "last_update": 1624572331
+      },
+      {
+        "name": "Camera #1",
+        "type": "camera",
+        "ip_address": "192.168.1.198", 
+        "stream_url": "http://localhost:3000/video",
+        "status": "disconnected",
+        "ping": null,
+        "last_update": 1624572331
+      },
+      {
+        "name": "X-box Controller",
+        "type": "controller",
+        "status": "connected",
+        "last_update": 1624572331
+      }
+    ]
+  }
