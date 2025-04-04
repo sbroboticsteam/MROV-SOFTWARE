@@ -2,6 +2,7 @@ import socket
 import sys
 import os
 import json
+import time
 
 # Add the src directory to the Python path
 
@@ -12,7 +13,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 's
 # Now you can import get_controller_input
 from controller import get_controller_input
 
-HOST = '192.168.1.130'
+HOST = '192.168.1.173'
 PORT = 4891
 
 gen = get_controller_input()
@@ -33,8 +34,9 @@ try:
             data = json.dumps(inputs)
             # data = data.replace('\r\n', '\n')
             #print(f"Sending: {data}")
-            client_socket.sendall(data.encode('utf-8'))  
+            client_socket.sendall(data.encode('utf-8'))
             last_data = inputs 
+            time.sleep(0.05)
 
 except Exception as e:
     print(f"Error: {e}")
