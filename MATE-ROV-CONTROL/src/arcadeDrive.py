@@ -55,13 +55,13 @@ def arcadeDrive3(x,y, rx, rT, lT) -> list[int]: #for strafing right left forward
     # print(f"Y: {y}")
     # print(f"RX: {rx}")
     
-    PWM = rT- lT
+    PWM = rT - lT
 
     frontLeft = y + x + rx #2
     frontRight = y - x - rx #3
     backRight = -y - x + rx #4  
     backLeft = -y + x - rx #1
-    data = [frontLeft,frontRight,backLeft,backRight]
+    data = [-frontLeft,-frontRight,-backLeft,-backRight]
     
     for val in data:
         absVal = abs(val)
@@ -72,10 +72,10 @@ def arcadeDrive3(x,y, rx, rT, lT) -> list[int]: #for strafing right left forward
         # if maxVal > 1.0:
         #     data = [x / maxVal for x in data]
 
-    data.append(PWM)
-    data.append(PWM)
-    data.append(PWM)
-    data.append(PWM)
+    data.append(-PWM)
+    data.append(-PWM)
+    data.append(-PWM)
+    data.append(-PWM)
             
     # print(data)
     return data
