@@ -70,23 +70,30 @@ class PCA9685Channel:
         self.pca.bus.write_byte_data(self.pca.address, base_reg + 3, (off_value >> 8) & 0xFF)
 
 
-# Example usage:
 if __name__ == "__main__":
-    # ESC configuration - channel numbers for each ESC
-    esc_channels = [8, 9, 10, 11, 12, 13, 14, 15]  # Channels for 8 ESCs
-
-    # Initialize PCA9685 with I2C bus 7
+    esc_channels = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     pca = PCA9685(bus_number=7)
-
-    # Set PWM frequency to 50Hz (standard for most ESCs)
     pca.frequency = 50
 
-    # Example: set neutral duty cycle to all ESCs (1500us pulse)
-    # 1500us -> 307 (~1500 / 20000 * 4096)
-    neutral_duty = int((1500 / 20000.0) * 4096)
-
+    offset = 9
+    high_time = 1500 + offset
+    duty_cycle = int((high_time / 20000.0) * 4096)
     for ch in esc_channels:
-        pca.channels[ch].duty_cycle = neutral_duty
-        print(f"ESC on channel {ch} set to neutral")
+        pca.channels[ch].duty_cycle = duty_cycle
+        print(f"ESC on channel {ch} set to ({high_time-offset}µs)")
+    
+    exit()
 
-    print("All ESCs initialized.")
+    # Sweep from 1100µs to 1900µs in steps of 10µs
+    for high_time in range(1100, 1901, 50):
+        duty_cycle = int((high_time / 20000.0) * 4096)
+        for ch in esc_channels:
+            pca.channels[ch].duty_cycle = duty_cycle
+            print(f"ESC on channel {ch} set to {duty_cycle} (high_time: {high_time})")
+        sleep(0.05)
+
+    # After finishing, optionally set them all back to neutral (1500µs):
+    duty_cycle = int((1500 / 20000.0) * 4096)
+    for ch in esc_channels:
+        pca.channels[ch].duty_cycle = duty_cycle
+        print(f"ESC on channel {ch} set to neutral (1500µs)")
