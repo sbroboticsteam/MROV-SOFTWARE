@@ -87,16 +87,26 @@ def arcadeDrive6(input):
     ### Add Vectors is called before this in big control loop on jetson and is then output is parameter of this function
     
     # Inverse Kinematics for Planar Thrusters (X-Y movement and rotation)
-    planar_front_left = input[0] + input[1] + input[5]
-    planar_front_right = input[0] - input[1] - input[5]
-    planar_back_right = -input[0] - input[1] + input[5]
-    planar_back_left = -input[0] + input[1] - input[5]
+    planar_front_left = -input[0] - input[1] - input[5]
+    planar_front_right = -input[0] + input[1] + input[5]
+    planar_back_right = +input[0] + input[1] - input[5]
+    planar_back_left = +input[0] - input[1] + input[5]
+    
+    # planar_front_left = -input[0] - input[1] - input[5]
+    # planar_front_right = -input[0] + input[1] + input[5]
+    # planar_back_right = +input[0] + input[1] - input[5]
+    # planar_back_left = +input[0] - input[1] + input[5]
 
     # Inverse Kinematics for Vertical Thrusters (Depth and Roll-Pitch Corrections)
-    vertical_front_left = input[2] + input[3] + input[4]
-    vertical_front_right = input[2] - input[3] + input[4]
-    vertical_back_left = input[2] + input[3] - input[4]
-    vertical_back_right = input[2] - input[3] - input[4]
+    vertical_front_left = -input[2] - input[3] - input[4]
+    vertical_front_right = -input[2] + input[3] - input[4]
+    vertical_back_left = -input[2] - input[3] + input[4]
+    vertical_back_right = -input[2] + input[3] + input[4]
+    
+    # vertical_front_left = input[2] + input[3] + input[4]
+    # vertical_front_right = input[2] - input[3] + input[4]
+    # vertical_back_left = input[2] + input[3] - input[4]
+    # vertical_back_right = input[2] - input[3] - input[4]
 
     # Scaling and Normalization
     def normalize_thrusters(thrusters):
