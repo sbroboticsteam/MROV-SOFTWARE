@@ -82,8 +82,8 @@ class ESC:
         self.channel = channel
         self.pca = pca
         self.STOP_PULSE = 1500
-        self.MIN_PULSE = 1100
-        self.MAX_PULSE = 1900
+        self.MIN_PULSE = 1300
+        self.MAX_PULSE = 1700
         self.FORWARD_MIN = 1525
         self.REVERSE_MAX = 1475
         # Each ESC starts at the 1500µs neutral pulse
@@ -149,21 +149,27 @@ class ESCController:
             esc._set_pulse_width(period)
 
 def main():
-    esc_channels = [0, 1, 2, 3, 4, 5, 6, 7]
+
+    esc_channels = [0, 7, 2, 5, 1, 4, 6, 3]
     pca = PCA9685(bus_number=7)
     pca.frequency = 50
-
     esc_controller = ESCController(esc_channels, pca)
-
     esc_controller.initialize_all()
-
     
+    # 1 Front Left
+    # 2 Front Left UP
+    # 3 Back Left
+    # 4 Back Left up
+    # 5 Front Right Up
+    # 6 Back Right
+    # 7 Back Right Up
+    # 8 Front Right
+
     # motor_states = [-1, -1, 1, 1, 1,1,1,1]  # Example motor states
     # esc_controller.set_all_states(motor_states)
 
     # return
-
-    HOST = '192.168.1.173'
+    HOST = '192.168.1.237'
     PORT = 4891
 
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -175,6 +181,7 @@ def main():
 
     try:
         while True:
+            print("Waiting for a client connection...")
             com_socket, addy = server.accept()
             print(f"Connected to {addy}")
             while True:
