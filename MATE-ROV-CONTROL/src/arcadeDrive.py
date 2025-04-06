@@ -1,10 +1,7 @@
 import numpy as np
-<<<<<<< HEAD
 import time
 import sys
 
-=======
->>>>>>> jetson
 
 def arcadeDrive(x,y) -> list[float]: #og karamat code
     """
@@ -86,7 +83,6 @@ def arcadeDrive3(x,y, rx, rT, lT) -> list[int]: #for strafing right left forward
     # print(data)
     return data
 
-<<<<<<< HEAD
 def arcadeDrive6(input):
     ### Add Vectors is called before this in big control loop on jetson and is then output is parameter of this function
     
@@ -292,8 +288,6 @@ class PID_Controller:
 
 
 
-=======
->>>>>>> jetson
 def arcadeDrive4(controller_input, pid_input) -> list[float]:
     """
     Converts controller and PID inputs into motor power values for an ROV with 8 thrusters
