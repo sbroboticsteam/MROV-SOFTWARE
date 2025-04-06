@@ -170,7 +170,7 @@ print(f"Server listening on {HOST}:{PORT}...")
 # Instantiate the arm state machine
 arm_sm = ArmStateMachine()
 prevButtons = [0,0,0,0,0,0,0,0,0,0,0,0,0]
-prevHats = #[soemthing that the hats are int]
+prevHats = [[0,0]]
 
 try:
     while True:
