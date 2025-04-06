@@ -2,6 +2,10 @@ import socket
 import sys
 import os
 import json
+<<<<<<< HEAD
+=======
+import time
+>>>>>>> jetson
 
 # Add the src directory to the Python path
 
@@ -33,14 +37,21 @@ while True:
                 data = json.dumps(inputs)
                 # data = data.replace('\r\n', '\n')
                 #print(f"Sending: {data}")
+<<<<<<< HEAD
                 client_socket.sendall(data.encode('utf-8'))  
                 last_data = inputs 
+=======
+                client_socket.sendall(data.encode('utf-8'))
+                last_data = inputs 
+                time.sleep(0.05)
+>>>>>>> jetson
 
     except Exception as e:
         print(f"Error: {e}")
     finally:
         client_socket.close()
         print("Connection closed.")
+<<<<<<< HEAD
 
 # client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -98,3 +109,6 @@ while True:
         
 # if __name__ == "__main__":
 #     asyncio.run(main())
+=======
+        time.sleep(5)
+>>>>>>> jetson

@@ -1,7 +1,10 @@
 import numpy as np
+<<<<<<< HEAD
 import time
 import sys
 
+=======
+>>>>>>> jetson
 
 def arcadeDrive(x,y) -> list[float]: #og karamat code
     """
@@ -58,13 +61,13 @@ def arcadeDrive3(x,y, rx, rT, lT) -> list[int]: #for strafing right left forward
     # print(f"Y: {y}")
     # print(f"RX: {rx}")
     
-    PWM = rT- lT
+    PWM = rT - lT
 
     frontLeft = y + x + rx #2
     frontRight = y - x - rx #3
     backRight = -y - x + rx #4  
     backLeft = -y + x - rx #1
-    data = [frontLeft,frontRight,backLeft,backRight]
+    data = [-frontLeft,-frontRight,-backLeft,-backRight]
     
     for val in data:
         absVal = abs(val)
@@ -75,14 +78,15 @@ def arcadeDrive3(x,y, rx, rT, lT) -> list[int]: #for strafing right left forward
         # if maxVal > 1.0:
         #     data = [x / maxVal for x in data]
 
-    data.append(PWM)
-    data.append(PWM)
-    data.append(PWM)
-    data.append(PWM)
+    data.append(-PWM)
+    data.append(-PWM)
+    data.append(-PWM)
+    data.append(-PWM)
             
     # print(data)
     return data
 
+<<<<<<< HEAD
 def arcadeDrive6(input):
     ### Add Vectors is called before this in big control loop on jetson and is then output is parameter of this function
     
@@ -288,6 +292,8 @@ class PID_Controller:
 
 
 
+=======
+>>>>>>> jetson
 def arcadeDrive4(controller_input, pid_input) -> list[float]:
     """
     Converts controller and PID inputs into motor power values for an ROV with 8 thrusters
