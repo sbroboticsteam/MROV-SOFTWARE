@@ -1,4 +1,4 @@
 # Byte-compiled files 
 /pyenvMATE/
 /src/__pycache__/
-*/.vscode/
+**/.vscode/
