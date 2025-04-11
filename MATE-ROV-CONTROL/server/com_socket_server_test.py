@@ -1,7 +1,7 @@
 import socket
 import json
 
-HOST = '10.0.0.3'
+HOST = '192.168.1.237'
 PORT = 4891
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

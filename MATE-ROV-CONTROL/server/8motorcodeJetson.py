@@ -82,8 +82,8 @@ class ESC:
         self.channel = channel
         self.pca = pca
         self.STOP_PULSE = 1500
-        self.MIN_PULSE = 1300
-        self.MAX_PULSE = 1700
+        self.MIN_PULSE = 1200
+        self.MAX_PULSE = 1800
         self.FORWARD_MIN = 1525
         self.REVERSE_MAX = 1475
         # Each ESC starts at the 1500µs neutral pulse
@@ -155,7 +155,7 @@ def main():
     pca.frequency = 50
     esc_controller = ESCController(esc_channels, pca)
     esc_controller.initialize_all()
-    
+
     # 1 Front Left
     # 2 Front Left UP
     # 3 Back Left
@@ -169,6 +169,7 @@ def main():
     # esc_controller.set_all_states(motor_states)
 
     # return
+  
     HOST = '192.168.1.237'
     PORT = 4891
 
