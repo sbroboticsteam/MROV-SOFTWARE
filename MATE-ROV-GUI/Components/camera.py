@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import QWidget, QPushButton, QVBoxLayout, QLabel, QSizePolicy
 from PyQt5.QtCore import QThread, pyqtSignal, Qt, QSize, QMutex, QMutexLocker
-from PyQt5.QtGui import QPixmap, QImage, QResizeEvent
+from PyQt5.QtGui import QPixmap, QImage, QResizeEvent, QColor
 import cv2
 import os
 import time
@@ -17,10 +17,15 @@ class Webcam(QWidget):
         
         self.feedLabel = QLabel()
         self.feedLabel.setAlignment(Qt.AlignCenter)         
-        # self.feedLabel.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.feedLabel.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         # self.feedLabel.setMinimumSize(QSize(320, 240))
         self.layout.addWidget(self.feedLabel)
         
+        # Create a placeholder pixmap with the full size to prevent resizing
+        placeholder = QPixmap(640, 480)
+        placeholder.fill(QColor(0, 0, 0))  # Fill with black
+        self.feedLabel.setPixmap(placeholder)
+
         button_layout = QVBoxLayout()
 
         self.startBtn = QPushButton("Start")
@@ -36,6 +41,7 @@ class Webcam(QWidget):
         self.mutex = QMutex()
         self.current_image = None
         self.is_visible = True
+        self.aspect_ratio = 4 / 3
 
         self.worker = RTSPWorker(rtsp_url)
         self.worker.imageUpdate.connect(self.imageUpdateSlot)
@@ -48,13 +54,14 @@ class Webcam(QWidget):
         try:     
             with QMutexLocker(self.mutex):
                 self.current_image = img
+                if self.aspect_ratio == 4/3:
+                    self.aspect_ratio = img.width() / img.height()
             if self.feedLabel.width() > 0 and self.feedLabel.height() > 0:
                 try:
                     scaled_img = img.scaled(
                         self.feedLabel.width(), 
                         self.feedLabel.height(), 
-                        Qt.KeepAspectRatio,
-                        Qt.SmoothTransformation
+                        Qt.KeepAspectRatio
                         )
                     self.feedLabel.setPixmap(QPixmap.fromImage(scaled_img))
                 except Exception as e:
@@ -76,8 +83,7 @@ class Webcam(QWidget):
                         scaled_img = self.current_image.scaled(
                             self.feedLabel.width(),
                             self.feedLabel.height(),
-                            Qt.KeepAspectRatio,
-                            Qt.SmoothTransformation
+                            Qt.KeepAspectRatio
                         )
                         self.feedLabel.setPixmap(QPixmap.fromImage(scaled_img))
                     except Exception as e:
