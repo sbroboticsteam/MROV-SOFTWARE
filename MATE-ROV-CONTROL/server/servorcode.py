@@ -158,7 +158,7 @@ class ArmStateMachine:
             servo_claw.value = angle_to_value(NEUTRAL_ANGLE)  
 
 # Network configuration
-HOST = '192.168.1.133'
+HOST = '192.168.1.203'
 PORT = 4891
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
