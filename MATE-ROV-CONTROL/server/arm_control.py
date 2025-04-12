@@ -125,8 +125,8 @@ class Arm:
         ArmState.STOWED: {
             "claw": 180,     # Closed position (2100 µs)
             "wrist": 0,      # Horizontal rotation (900 µs)
-            "elbow": 100,     # Up position (850 µs)
-            "shoulder": 0   # Hidden away (900 µs)
+            "elbow": 10,     # Up position (850 µs)
+            "shoulder": 10   # Hidden away (900 µs)
         },
         ArmState.FULLY_OUT: {
             "claw": 0,       # Open position (500 µs)
@@ -157,7 +157,7 @@ class Arm:
         self.servos = {
             "claw": Servo(0, pca, min_pulse=500, max_pulse=2100, name="Claw"),
             "wrist": Servo(1, pca, min_pulse=900, max_pulse=2000, name="Wrist"),
-            "elbow": Servo(2, pca, min_pulse=900, max_pulse=1600, name="Elbow"),
+            "elbow": Servo(2, pca, min_pulse=850, max_pulse=1600, name="Elbow"),
             "shoulder": Servo(3, pca, min_pulse=900, max_pulse=1600, name="Shoulder")
         }
         
