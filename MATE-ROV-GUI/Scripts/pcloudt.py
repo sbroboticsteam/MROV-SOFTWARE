@@ -1,4 +1,3 @@
-import pymeshlab
 import subprocess
 import os
 
@@ -36,7 +35,7 @@ def open_meshlab_with_file(meshlab_path, file_path):
 if __name__ == "__main__":
     # Define your known paths here
     meshlab_executable = r"C:\Program Files\VCG\MeshLab\meshlab.exe"  # Replace with your actual path
-    pointcloud_file = r"C:\Users\megac\OneDrive\Desktop\VSCode\SBRT\MROV-SOFTWARE\MATE-ROV-GUI\Assets\Pointcloud.ply"
+    pointcloud_file = r"C:\Users\vince\OneDrive\Documents\1PARA\1Projects\Robotics_Project\MATE-ROV-GUI\MROV-SOFTWARE\MATE-ROV-GUI\Assets\Pointcloud.ply"
     
     # Open MeshLab with the pointcloud file
     open_meshlab_with_file(meshlab_executable, pointcloud_file)
