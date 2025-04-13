@@ -1,4 +1,3 @@
-import pymeshlab
 import subprocess
 import os
 
