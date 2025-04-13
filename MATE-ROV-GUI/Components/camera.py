@@ -5,8 +5,8 @@ import cv2
 import os
 import time
 
-rtsp_url='rtsp://admin:admin@192.168.1.198/media/video1?tcp'
-# rtsp_url='http://localhost:3000/video'
+# rtsp_url='rtsp://admin:admin@192.168.1.198/media/video1?tcp'
+rtsp_url='http://localhost:3000/video'
 
 
 class Webcam(QWidget):

@@ -5,7 +5,6 @@ from Components.temp_camera import Camera
 from Components.adjustable import AdjustableWidget
 import os, subprocess
 from PyQt5.QtCore import QThread, pyqtSignal
-
 import sys
 
 class DashboardPage(QWidget):
