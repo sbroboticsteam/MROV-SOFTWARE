@@ -71,148 +71,178 @@ def get_controller_input():
         yield inputs
 
 # import pygame
+# import json
 # import math
-# from arcadeDrive import arcadeDrive, arcadeDrive2, arcadeDrive3
+# from arcadeDrive import arcadeDrive3  # Import your drive function
+
+# pygame.init()
+# pygame.joystick.init()
+
+# # Make sure at least one joystick is connected
+# if pygame.joystick.get_count() == 0:
+#     raise RuntimeError("No joystick found!")
+# joystick = pygame.joystick.Joystick(0)
+# joystick.init()
+
 
 # class ControllerMapper:
 #     def __init__(self):
-#         pygame.init()
-#         pygame.joystick.init()
+#         # Mapping configuration:
+#         # - Axes: keys map to an axis index, with options for inversion and deadzone.
+#         # - Triggers: same as axes, but may include a transform function.
+#         # - Buttons: each entry maps a logical button name to a specific button index.
+#         # - Hats: each entry maps a logical hat name to a specific hat index.
         
-#         # Initialize controller
-#         if pygame.joystick.get_count() == 0:
-#             raise RuntimeError("No controller found!")
-#         self.joystick = pygame.joystick.Joystick(0)
-#         self.joystick.init()
-
-#         # Customizable mapping configuration
+#         # left joystick left/right  = axis0
+#         # left joystick up/down     = axis1
+#         # right joystick left/right = axis2
+#         # right joystick up/down    = axis3
+#         # left trigger              = axis4
+#         # right trigger             = axis5
+#         # a                         = button 0
+#         # b                         = button 1
+#         # x                         = button 2
+#         # y                         = button 3
+#         # left bumper               = button 4
+#         # right bumper              = button 5
+#         # back                      = button 6
+#         # start                     = button 7
+#         # xbox                      = button ? (not used)
+#         # dpad up                   = hat0[1] = 1
+#         # dpad right                = hat0[0] = 1
+#         # dpad down                 = hat0[1] = -1
+#         # dpad left                 = hat0[0] = -1
+        
+        
+        
 #         self.mapping = {
 #             'linear': {
 #                 'x': {'axis': 0, 'invert': False, 'deadzone': 0.1},
-#                 'y': {'axis': 1, 'invert': True, 'deadzone': 0.1},
-#                 'z': {'axis': 5, 'transform': lambda x: (x + 1) / 2}  # Right trigger
+#                 'y': {'axis': 1, 'invert': True,  'deadzone': 0.1},
 #             },
 #             'rotation': {
-#                 'theta': {'axis': 2, 'deadzone': 0.1},  # Right stick X
-#                 'phi': {'axis': 3, 'deadzone': 0.1},    # Right stick Y
-#                 'rho': {'axis': 4, 'transform': lambda x: (x + 1) / 2}  # Left trigger
+#                 'turnRL': {'axis': 2, 'invert': False, 'deadzone': 0.1},
+#                 'ry':   {'axis': 3, 'invert': False, 'deadzone': 0.1},
 #             },
-#             'arm': {
-#                 'position': {'buttons': [4, 5]},  # LB/RB buttons
-#                 'claw': {'buttons': [0, 1]}       # A/B buttons
+#             'triggers': {
+#                 'up': {'axis': 5, 'invert': False, 'deadzone': 0.0, 'transform': lambda x: (x + 1) / 2},
+#                 'down':  {'axis': 4, 'invert': False, 'deadzone': 0.0, 'transform': lambda x: (x + 1) / 2},
+#             },
+#             'buttons': {
+#                 'openClaw':  {'button': 0},  # A button
+#                 'closeClaw': {'button': 1},  # B button
+#                 'arm_move':  {'button': 2},  # X button: used to move the arm up/down
+#                 'Y': {'button': 3}, # probably rename to 'action1' or something
+#                 'LB': {'button': 4},
+#                 'RB': {'button': 5},
+#                 'Back': {'button': 6},
+#                 'Start': {'button': 7},
+#                 # Add additional buttons if needed.
+#             },
+#             'hats': {
+#                 'arm_rotate': {'hat': 0, 'component': 'x'}  # This assumes a single hat controlling the d-pad.
 #             }
 #         }
-
-#         # Initialize state
 #         self.previous_state = self._create_empty_state()
 
 #     def _create_empty_state(self):
-#         return {
-#             'axes': {
-#                 'left_stick': {'x': 0.0, 'y': 0.0},
-#                 'right_stick': {'x': 0.0, 'y': 0.0}
-#             },
-#             'triggers': {
-#                 'left_Trigger': 0.0,
-#                 'right_Trigger': 0.0
-#             },
+#         state = {
+#             'linear': {'x': 0.0, 'y': 0.0},
+#             'rotation': {'theta': 0.0, 'phi': 0.0},
+#             'triggers': {'right_Trigger': 0.0, 'left_Trigger': 0.0},
 #             'buttons': {},
-#             'motor_values': [0, 0, 0, 0]
+#             'hats': {},
+#             'motor_values': [0, 0, 0, 0],
+#             'arm': {'rotate': 0, 'move': 0, 'claw': None}
 #         }
+        
+#         for btn_name in self.mapping.get('buttons', {}):
+#             state['buttons'][btn_name] = 0
+#         # Initialize hats; here we assume each hat returns a tuple (x, y)
+#         for hat_name in self.mapping.get('hats', {}):
+#             state['hats'][hat_name] = (0, 0)
+#         return state
 
 #     def _apply_deadzone(self, value, deadzone):
 #         return 0.0 if abs(value) < deadzone else value
 
 #     def _process_axis(self, config):
-#         raw = self.joystick.get_axis(config['axis'])
-        
-#         # Apply transformations
+#         # Get raw axis value
+#         value = joystick.get_axis(config['axis'])
+#         # Apply custom transformation if defined
 #         if 'transform' in config:
-#             raw = config['transform'](raw)
-            
-#         # Apply inversion
+#             value = config['transform'](value)
+#         # Invert the value if needed
 #         if config.get('invert', False):
-#             raw = -raw
-            
-#         # Apply deadzone
-#         return self._apply_deadzone(raw, config.get('deadzone', 0.0))
+#             value = -value
+#         # Apply deadzone filtering
+#         return self._apply_deadzone(value, config.get('deadzone', 0.0))
 
-#     def get_controller_input(self):
-#         pygame.event.pump()
-#         new_state = self._create_empty_state()
-
-#         # Process linear controls
-#         new_state['axes']['left_stick']['x'] = self._process_axis(
-#             self.mapping['linear']['x']
-#         )
-#         new_state['axes']['left_stick']['y'] = self._process_axis(
-#             self.mapping['linear']['y']
-#         )
-#         new_state['triggers']['right_Trigger'] = self._process_axis(
-#             self.mapping['linear']['z']
-#         )
-
-#         # Process rotational controls
-#         new_state['axes']['right_stick']['x'] = self._process_axis(
-#             self.mapping['rotation']['theta']
-#         )
-#         new_state['triggers']['left_Trigger'] = self._process_axis(
-#             self.mapping['rotation']['rho']
-#         )
-
-#         # Generate motor values
-#         new_state['motor_values'] = arcadeDrive3(
-#             new_state['axes']['left_stick']['x'],
-#             new_state['axes']['left_stick']['y'],
-#             new_state['axes']['right_stick']['x'],
-#             new_state['triggers']['right_Trigger'],
-#             new_state['triggers']['left_Trigger']
-#         )
-
-#         # Detect changes
-#         for key in new_state:
-#             if new_state[key] != self.previous_state[key]:
-#                 print(f"Changed {key}: {new_state[key]}")
-
-#         self.previous_state = new_state.copy()
-#         return new_state
-
-# class RobotController:
-#     def __init__(self):
-#         self.mapper = ControllerMapper()
+#     def get_state(self):
+#         state = self._create_empty_state()
         
-#     def run(self):
-#         try:
-#             while True:
-#                 # Get mapped controller state
-#                 state = self.mapper.get_state()
-                
-#                 # Convert to motor commands using existing arcadeDrive
-#                 motor_values = self._convert_to_motor_commands(state)
-                
-#                 # Send to motors (replace with your actual implementation)
-#                 self._send_to_motors(motor_values)
-                
-#         except KeyboardInterrupt:
-#             print("\nStopping controller...")
-#             pygame.quit()
+#         # Process axes
+#         for key in ['linear', 'rotation']:
+#             for subkey, conf in self.mapping[key].items():
+#                 state[key][subkey] = self._process_axis(conf)
+#         # Process triggers
+#         for trig, conf in self.mapping['triggers'].items():
+#             state['triggers'][trig] = self._process_axis(conf)
+            
+#         # Process buttons
+#         for btn_name, conf in self.mapping['buttons'].items():
+#             state['buttons'][btn_name] = joystick.get_button(conf['button'])
+            
+#         # Process hats: for arm_rotate, we only need the x component.
+#         for hat_name, conf in self.mapping['hats'].items():
+#             hat_value = joystick.get_hat(conf['hat'])
+#             # Assuming hat returns a tuple (x, y)
+#             state['hats'][hat_name] = hat_value
+#             if conf.get('component') == 'x':
+#                 state['arm']['rotate'] = hat_value[0]
+#             elif conf.get('component') == 'y':
+#                 state['arm']['rotate'] = hat_value[1]
+#         # Map buttons to arm actions:
+#         # - 'openClaw' button => open claw
+#         # - 'closeClaw' button => close claw
+#         # - 'arm_move' button => arm move (toggle or analog if desired)
+#         if state['buttons'].get('openClaw', 0):
+#             state['arm']['claw'] = 'open'
+#         elif state['buttons'].get('closeClaw', 0):
+#             state['arm']['claw'] = 'close'
+#         else:
+#             state['arm']['claw'] = 'neutral'
+#         # For arm move (up/down), we use the X button value.
+#         # Here, if the button is pressed, we set a fixed move value (e.g., 1 for up).
+#         # You could modify this to support a toggle or incremental move.
+#         state['arm']['move'] = state['buttons'].get('arm_move', 0)
 
-#     def _convert_to_motor_commands(self, state):
-#         """Convert mapped state to arcadeDrive3 parameters"""
-#         # Extract values using our mapping
+#         # Compute motor values using arcadeDrive3 as before.
 #         x = state['linear']['x']
 #         y = state['linear']['y']
 #         rx = state['rotation']['theta']
-#         rT = state['linear']['z']   # Right trigger mapped to z
-#         lT = state['rotation']['rho']  # Left trigger mapped to rho
-        
-#         return arcadeDrive3(x, y, rx, rT, lT)
+#         rT = state['triggers']['right_Trigger']
+#         lT = state['triggers']['left_Trigger']
+#         state['motor_values'] = arcadeDrive3(x, y, rx, rT, lT)
 
-#     def _send_to_motors(self, motor_values):
-#         """Replace this with your actual motor control logic"""
-#         print(f"Motor commands: {motor_values}")
-#         # Example: ser.write(motor_values) for serial communication
+#         # Optionally, print changes compared to previous state.
+#         for key in state:
+#             if state[key] != self.previous_state.get(key):
+#                 print(f"Changed {key}: {state[key]}")
+#         self.previous_state = state.copy()
+#         return state
 
-# if __name__ == "__main__":
-#     controller = RobotController()
-#     controller.run()
+
+# def get_controller_input():
+#     mapper = ControllerMapper()
+#     while True:
+#         pygame.event.pump()  # Process events
+#         state = mapper.get_state()
+#         yield state
+
+
+# # Example usage: print state changes
+# # if __name__ == '__main__':
+# #     for controller_state in get_controller_input():
+# #         # You can send this state over a network or use it for further processing.
+# #         print(json.dumps(controller_state))
