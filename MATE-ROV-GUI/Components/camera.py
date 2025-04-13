@@ -5,8 +5,8 @@ import cv2
 import os
 import time
 
-# rtsp_url='rtsp://admin:admin@192.168.1.198/media/video1'
-rtsp_url='http://localhost:3000/video'
+rtsp_url='rtsp://admin:admin@192.168.1.198/media/video1?tcp'
+# rtsp_url='http://localhost:3000/video'
 
 
 class Webcam(QWidget):
@@ -28,12 +28,16 @@ class Webcam(QWidget):
 
         button_layout = QVBoxLayout()
 
+        # Create Start button with initial style
         self.startBtn = QPushButton("Start")
         self.startBtn.clicked.connect(self.start)
+        self.startBtn.setStyleSheet("QPushButton { color: gray; }")
         self.layout.addWidget(self.startBtn)
 
+        # Create Stop button with initial style
         self.cancelBtn = QPushButton("Stop")
         self.cancelBtn.clicked.connect(self.cancel)
+        self.cancelBtn.setStyleSheet("QPushButton { color: gray; }")
         self.layout.addWidget(self.cancelBtn)
 
         self.layout.addLayout(button_layout)
@@ -47,7 +51,22 @@ class Webcam(QWidget):
         self.worker.imageUpdate.connect(self.imageUpdateSlot)
         self.worker.start()
         
+        # Set initial button states since the worker is already started
+        self.updateButtonStyles(True)
+        
         self.setLayout(self.layout)
+
+    def updateButtonStyles(self, isRunning):
+        """Update button colors based on whether the stream is running"""
+        if isRunning:
+            # Stream is running - Start button is inactive, Stop button is active
+            self.startBtn.setStyleSheet("QPushButton { color: gray; }")
+            self.cancelBtn.setStyleSheet("QPushButton { color: red; font-weight: bold; }")
+        else:
+            # Stream is stopped - Start button is active, Stop button is inactive
+            self.startBtn.setStyleSheet("QPushButton { color: green; font-weight: bold; }")
+            self.cancelBtn.setStyleSheet("QPushButton { color: gray; }")
+
     def imageUpdateSlot(self, img):
         if not self.is_visible:
             return
@@ -104,9 +123,15 @@ class Webcam(QWidget):
             self.worker = RTSPWorker(rtsp_url)  # Create a new worker if needed
             self.worker.imageUpdate.connect(self.imageUpdateSlot)
             self.worker.start()
+            # Update button styles
+            self.updateButtonStyles(True)
+
     def cancel(self):
         if (self.worker.isRunning()):
             self.worker.stop()
+            # Update button styles
+            self.updateButtonStyles(False)
+
     def closeEvent(self, event):
         # Properly clean up when the widget is closed
         self.cancel()

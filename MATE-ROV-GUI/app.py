@@ -137,6 +137,7 @@ class MainWindow(QMainWindow): # MainWindow class extends QMainWindow
         self.script_thread=None
         self.setWindowTitle("MATE ROV Dashboard") # setting the window title (what appears at the top of the window)
         self.setupUI()
+        self.showMaximized() # show the window maximized (full screen)
 
 
         # NO LONGER NECESSARY TO MANUALLY ADD WIDGETS LIKE CAVEMEN!!!!
