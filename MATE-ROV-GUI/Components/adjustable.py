@@ -6,6 +6,7 @@ from Components.temp_camera import Camera
 from Components.connectivity import Connectivity
 from Components.depth_time import DepthTimeWidget
 # from Components.controller_sensitivity import ControllerSensitivity, AdjustableControllerSensivitity
+from Components.controller_sensitivity import ControllerSensitivity
 
 # controls for minimizing, maximizing and closing widgets (like a window)
 class WindowControls(QWidget):
@@ -111,7 +112,7 @@ class AdjustableWidget(QWidget):
         elif self.title == "Connectivity":
             widget = Connectivity()
         elif self.title == "Controller Sensitivity":
-            widget = QWidget()
+            widget = ControllerSensitivity(self)
         elif self.title=='Depth-Time Graph':
             widget=DepthTimeWidget()
         else:
