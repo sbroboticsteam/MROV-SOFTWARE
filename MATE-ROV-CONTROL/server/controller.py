@@ -40,7 +40,7 @@ def get_controller_input():
         inputs = {
             # "axes": {"left_stick": {"x": x, "y": y}, "right_stick": {"x": rx, "y": ry}},
             "motor_values": motor_values,
-            # "buttons": buttons,
+            "buttons": buttons,
             # "hats": hats,
             # "triggers": {"left_Trigger": {lT}, "right_Trigger": {rT}},
         }
