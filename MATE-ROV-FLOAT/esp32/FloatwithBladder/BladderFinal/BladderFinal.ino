@@ -28,8 +28,82 @@
 #define SEND_BATCH_SIZE     10
 
 // ----------------- NEW: Pump control -----------------
-#define PUMP_DESC_PIN 27   // Pump control pin for descending (fill ballast)
-#define PUMP_ASC_PIN  12   // Pump control pin for ascending (empty ballast)
+#define PUMP_DESC_PIN 12   // Pump control pin for descending (fill ballast)
+#define PUMP_ASC_PIN  27   // Pump control pin for ascending (empty ballast)
+
+// -------------------- PID Control Variables --------------------
+#define TARGET_DEPTH 2.625  // Middle of our range (2.5 to 2.75)
+#define DEPTH_TOLERANCE 0.125  // ±0.125m from target (gives us 2.5 to 2.75 range)
+
+// PID coefficients - you'll need to tune these
+float Kp = 5.0;    // Proportional gain
+float Ki = 0.02;   // Integral gain
+float Kd = 2.0;    // Derivative gain
+
+// PID state variables
+float integral = 0.0;
+float previousError = 0.0;
+unsigned long lastPidTime = 0;
+
+// PID output will be between -100 (full ascend) and +100 (full descend)
+int pidOutput = 0;
+
+// Function to calculate PID control value
+int calculatePid(float currentDepth) {
+  unsigned long currentTime = millis();
+  float deltaTime = (currentTime - lastPidTime) / 1000.0; // in seconds
+  
+  // Only update PID if we have a reasonable delta time
+  if (deltaTime < 0.01 || lastPidTime == 0) {
+    lastPidTime = currentTime;
+    return 0; // No meaningful calculation possible
+  }
+  
+  // Calculate error (positive error means we need to descend more)
+  float error = TARGET_DEPTH - currentDepth;
+  
+  // Calculate integral (with anti-windup)
+  integral += error * deltaTime;
+  // Limit integral to prevent excessive windup
+  if (integral > 20) integral = 20;
+  if (integral < -20) integral = -20;
+  
+  // Calculate derivative
+  float derivative = (error - previousError) / deltaTime;
+  
+  // Calculate PID output
+  int output = int(Kp * error + Ki * integral + Kd * derivative);
+  
+  // Limit output to -100 to +100
+  if (output > 100) output = 100;
+  if (output < -100) output = -100;
+  
+  // Update state for next iteration
+  previousError = error;
+  lastPidTime = currentTime;
+  
+  return output;
+}
+
+// Function to control pump based on PID output
+void applyPidToPump(int pidOutput) {
+  // Define a deadband where we turn off the pump (near zero)
+  if (pidOutput > 10) {
+    // Need to descend (positive output)
+    pumpDescend();
+    Serial.printf("PID: Descending (output: %d)\n", pidOutput);
+  } 
+  else if (pidOutput < -10) {
+    // Need to ascend (negative output)
+    pumpAscend();
+    Serial.printf("PID: Ascending (output: %d)\n", pidOutput);
+  } 
+  else {
+    // Within deadband - hold position
+    pumpOff();
+    Serial.println("PID: Holding position");
+  }
+}
 
 // ----------------- NEW: Routine state machine -----------------
 enum RoutineState {
@@ -48,7 +122,7 @@ unsigned long routineWaitStart = 0;
 float maxDescentVelocity = 0.18;  // You can change this value later
 
 // Maximum allowed ascent velocity (m/s).
-float maxAscentVelocity = 0.18;   // Change as desired
+float maxAscentVelocity = 0.1;   // Change as desired
 
 // Variables for tracking previous sensor reading (for velocity computation)
 unsigned long previousTime = 0;
@@ -109,6 +183,25 @@ void pumpAscend() {
 void pumpOff() {
   digitalWrite(PUMP_DESC_PIN, LOW);
   digitalWrite(PUMP_ASC_PIN, LOW);
+}
+
+// -------------------- /set_pid handler --------------------
+void handleSetPid() {
+  if (server.hasArg("kp")) {
+    Kp = server.arg("kp").toFloat();
+  }
+  if (server.hasArg("ki")) {
+    Ki = server.arg("ki").toFloat();
+  }
+  if (server.hasArg("kd")) {
+    Kd = server.arg("kd").toFloat();
+  }
+  
+  String response = "PID parameters updated: Kp=" + String(Kp) + 
+                   ", Ki=" + String(Ki) + 
+                   ", Kd=" + String(Kd);
+  server.send(200, "text/plain", response);
+  Serial.println(response);
 }
 
 // -------------------- /start_signal handler --------------------
@@ -184,16 +277,22 @@ void handleStartRoutine() {
   if (!routineActive) {
     routineActive = true;
     routineState = R_DESCENDING;
+    
     // Reset velocity tracking when starting routine
     previousTime = 0;
     previousDepth = 0.0;
+    
+    // Reset PID variables
+    integral = 0.0;
+    previousError = 0.0;
+    lastPidTime = 0;
+    
     server.send(200, "text/plain", "Routine started: Descending initiated.");
     Serial.println("Routine started: Descending initiated.");
   } else {
     server.send(200, "text/plain", "Routine already active.");
   }
 }
-
 // -------------------- NEW: Pump control endpoints --------------------
 void handlePumpAscend() {
   pumpAscend();
@@ -297,14 +396,35 @@ void TaskSensorAndSending(void * pvParameters) {
             break;
           }
           case R_WAITING:
-            // Hold for 42 seconds
-            if (currentMillis - routineWaitStart >= 42000) {
+            // Hold for 45 seconds (changed from 42 seconds)
+            if (currentMillis - routineWaitStart >= 45000) {
               pumpAscend();
               routineState = R_ASCENDING;
+              // Reset PID state variables
+              integral = 0.0;
+              previousError = 0.0;
+              lastPidTime = 0;
               Serial.println("Routine: Hold complete. Ascending initiated...");
               // Reset velocity tracking for ascent
               previousTime = 0;
               previousDepth = 0.0;
+            } 
+            else {
+              // Use PID to maintain depth between 2.5 and 2.75 meters
+              pidOutput = calculatePid(currentDepth);
+              applyPidToPump(pidOutput);
+              
+              // Debug output
+              Serial.printf("Waiting: Depth=%.3f, Target=%.3f, PID Output=%d\n", 
+                            currentDepth, TARGET_DEPTH, pidOutput);
+              
+              // We also want to check if we're outside our allowed range
+              if (currentDepth < 2.5) {
+                Serial.println("WARNING: Depth too shallow (<2.5m)");
+              } 
+              else if (currentDepth > 2.75) {
+                Serial.println("WARNING: Depth too deep (>2.75m)");
+              }
             }
             break;
           case R_ASCENDING: {
@@ -468,6 +588,8 @@ void setup() {
   server.on("/start_velocity", HTTP_GET, handleStartVelocity);
   server.on("/stop_velocity", HTTP_GET, handleStopVelocity);
   server.on("/start_routine", HTTP_GET, handleStartRoutine);
+  server.on("/set_pid", HTTP_GET, handleSetPid);  // New endpoint
+
   
   // NEW: Pump control endpoints
   server.on("/pump_ascend", HTTP_GET, handlePumpAscend);

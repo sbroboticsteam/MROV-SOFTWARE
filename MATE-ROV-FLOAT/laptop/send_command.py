@@ -13,7 +13,7 @@ def send_command(esp32_ip, command, laptop_ip=""):
     
     Parameters:
       esp32_ip: The ESP32 IP address on the network.
-      command: One of "s", "vs", "vst", "st", "rs", "a", "d", ".".
+      command: One of "s", "vs", "vst", "st", "rs", "a", "d", ".", "pid".
       laptop_ip: Required for the start command.
     """
     if command == "s":
@@ -40,6 +40,32 @@ def send_command(esp32_ip, command, laptop_ip=""):
     elif command == ".":
         # Pump stop command.
         url = f"http://{esp32_ip}/pump_stop"
+    elif command == "pid":
+        # PID parameter setting
+        try:
+            kp = input("Enter Kp value (proportional gain): ").strip()
+            ki = input("Enter Ki value (integral gain): ").strip()
+            kd = input("Enter Kd value (derivative gain): ").strip()
+            
+            # Build the URL with only the parameters that were provided
+            url = f"http://{esp32_ip}/set_pid"
+            params = {}
+            if kp: params['kp'] = kp
+            if ki: params['ki'] = ki
+            if kd: params['kd'] = kd
+            
+            if not params:
+                print("No parameters provided. Aborting.")
+                return
+                
+            # Send the request with parameters
+            response = requests.get(url, params=params, timeout=10)
+            print("Response:", response.text)
+            return
+            
+        except Exception as e:
+            print("Error setting PID parameters:", e)
+            return
     else:
         print("Invalid command!")
         return
@@ -60,9 +86,10 @@ def main():
     print("  vst - Stop velocity testing")
     print("  st  - Stop float (and pump)")
     print("  rs  - Start routine (descend to >=2.5m, hold >42 sec, then ascend)")
-    print("  a   - Float Descend")
-    print("  d   - Float Ascend")
+    print("  a   - Float Ascend")
+    print("  d   - Float Descend")
     print("  .   - Pump stop")
+    print("  pid - Set PID parameters")
     print("  q   - Quit")
 
     while True:
