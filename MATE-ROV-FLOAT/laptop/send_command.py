@@ -66,6 +66,50 @@ def send_command(esp32_ip, command, laptop_ip=""):
         except Exception as e:
             print("Error setting PID parameters:", e)
             return
+    elif command == "vel":
+        # Velocity limits setting
+        try:
+            descent = input("Enter max descent velocity (m/s, positive value): ").strip()
+            ascent = input("Enter max ascent velocity (m/s, positive value): ").strip()
+            
+            # Build the URL with only the parameters that were provided
+            url = f"http://{esp32_ip}/set_velocity"
+            params = {}
+            if descent: params['descent'] = descent
+            if ascent: params['ascent'] = ascent
+            
+            if not params:
+                print("No parameters provided. Aborting.")
+                return
+                
+            # Send the request with parameters
+            response = requests.get(url, params=params, timeout=10)
+            print("Response:", response.text)
+            return
+            
+        except Exception as e:
+            print("Error setting velocity limits:", e)
+            return
+    # Add this to the send_command function in send_command.py
+    elif command == "wait":
+        try:
+            seconds = input("Enter wait time in seconds: ").strip()
+            if not seconds or not seconds.isdigit() or int(seconds) <= 0:
+                print("Invalid input. Please enter a positive number.")
+                return
+                
+            url = f"http://{esp32_ip}/set_wait_time?seconds={seconds}"
+            response = requests.get(url, timeout=10)
+            print("Response:", response.text)
+            return
+            
+        except Exception as e:
+            print("Error setting wait time:", e)
+            return 
+    # Add to the send_command function in send_command.py
+    elif command == "pid_toggle":
+        url = f"http://{esp32_ip}/toggle_pid_control"
+
     else:
         print("Invalid command!")
         return
@@ -90,6 +134,10 @@ def main():
     print("  d   - Float Descend")
     print("  .   - Pump stop")
     print("  pid - Set PID parameters")
+    print("  vel - Set velocity limits")  # New command
+    # In the main() function of send_command.py, add this line to the available commands:
+    print("  wait - Set routine wait time (in seconds)")
+    print("  pid_toggle - Toggle PID control outside of routine mode") 
     print("  q   - Quit")
 
     while True:

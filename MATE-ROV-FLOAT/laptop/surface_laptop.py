@@ -60,33 +60,41 @@ class MyRequestHandler(BaseHTTPRequestHandler):
             self.wfile.write(b"Not Found")
 
     def do_POST(self):
+        
         if self.path == '/depth':
             try:
                 content_length = int(self.headers.get('Content-Length', 0))
                 raw_post_data = self.rfile.read(content_length)
-                data = json.loads(raw_post_data)
-
-                # Expecting a JSON object like:
-                # {
-                #   "time": <number in ms>,
-                #   "depth": <float>,
-                #   "pressure": <float>,
-                #   "company": <int>
-                # }
-                # Convert to something we append to coordinates.json
-                measurements_to_append = [data]
+                post_data = json.loads(raw_post_data)
+                
+                # Process the data - now with debugging fields
+                if 'data' in post_data:
+                    measurements_to_append = []
+                    for data in post_data['data']:
+                        # Make sure we save all fields
+                        measurements_to_append.append(data)
+                        
+                        # Print debugging info to console
+                        if 'pid_output' in data and 'velocity' in data:
+                            print(f"Depth: {data['depth']:.3f}m, "
+                                  f"Velocity: {data['velocity']:.3f}m/s, "
+                                  f"PID Output: {data['pid_output']}, "
+                                  f"Error: {data.get('pid_error', 'N/A')}, "
+                                  f"Pump: {data.get('pump_status', 'N/A')}")
+                else:
+                    # Handle single measurement (backwards compatibility)
+                    measurements_to_append = [post_data]
+                    
+                    # Print debugging info if available
+                    if 'pid_output' in post_data and 'velocity' in post_data:
+                        print(f"Depth: {post_data['depth']:.3f}m, "
+                              f"Velocity: {post_data['velocity']:.3f}m/s, "
+                              f"PID Output: {post_data['pid_output']}, "
+                              f"Error: {post_data.get('pid_error', 'N/A')}, "
+                              f"Pump: {post_data.get('pump_status', 'N/A')}")
 
                 # Append to file
                 success = write_to_json_file(measurements_to_append, 'coordinates.json')
-                if not success:
-                    raise IOError("Failed to write to coordinates.json")
-
-                # Send back a JSON response
-                self.send_response(200)
-                self.send_header('Content-type', 'application/json')
-                self.end_headers()
-                resp = {"message": "DATARECEIVED"}
-                self.wfile.write(json.dumps(resp).encode('utf-8'))
 
             except Exception as e:
                 self.send_error_response(e)
