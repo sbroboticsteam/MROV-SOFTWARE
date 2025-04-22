@@ -2,6 +2,10 @@ import json
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import numpy as np
+import plotly.io as pio
+# Set the renderer to use local resources
+pio.renderers.default = "browser"
+
 
 def main():
     # 1) Read the JSON file
@@ -265,8 +269,9 @@ def main():
         dtick=0.1
     )
 
-    # Show the interactive figure
-    fig.show()
+    # Configure Plotly to include all necessary resources in the HTML
+    config = {'include_plotlyjs': True}
+    fig.show(config=config)
 
 if __name__ == '__main__':
     main()
