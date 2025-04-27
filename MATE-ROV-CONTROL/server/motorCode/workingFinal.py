@@ -82,8 +82,8 @@ class ESC:
         self.channel = channel
         self.pca = pca
         self.STOP_PULSE = 1500
-        self.MIN_PULSE = 1300
-        self.MAX_PULSE = 1700
+        self.MIN_PULSE = 1100
+        self.MAX_PULSE = 1900
         self.FORWARD_MIN = 1525
         self.REVERSE_MAX = 1475
         # Each ESC starts at the 1500µs neutral pulse
