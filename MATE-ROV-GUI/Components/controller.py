@@ -79,49 +79,131 @@ class BroadcastThread(QThread):
         self.broadcast_port = broadcast_port
         self.controller_data = None
         self.broadcast_socket = None
+        self.commands = {}  # Store commands that will be sent with next update
     
     def set_controller_data(self, data):
-        self.controller_data = data
+        # Transform raw controller data to named format
+        if not data:
+            return
+            
+        controller = {}
+        
+        # Map button indices to names
+        button_names = ["a", "b", "x", "y", "lb", "rb", "back", "start", "l3", "r3"]
+        buttons = data.get("buttons", [])
+        for i, state in enumerate(buttons):
+            if i < len(button_names):
+                controller[button_names[i]] = state
+            else:
+                controller[f"button_{i}"] = state
+        
+        # Map axes to names
+        axes = data.get("axes", [])
+        if len(axes) >= 6:
+            controller["left_stick_x"] = axes[0]
+            controller["left_stick_y"] = axes[1]
+            controller["right_stick_x"] = axes[2]
+            controller["right_stick_y"] = axes[3]
+            controller["left_trigger"] = (axes[4] + 1) / 2  # Convert from [-1,1] to [0,1]
+            controller["right_trigger"] = (axes[5] + 1) / 2
+        
+        # Map D-pad (hat)
+        hats = data.get("hats", [])
+        if hats and len(hats) > 0:
+            controller["dpad_x"] = hats[0][0]
+            controller["dpad_y"] = hats[0][1]
+        
+        self.controller_data = controller
+    
+    def set_command(self, command_name, value):
+        """Set a command to be sent with the next packet"""
+        self.commands[command_name] = value
+        
+    def clear_command(self, command_name):
+        """Remove a command so it won't be sent anymore"""
+        if command_name in self.commands:
+            del self.commands[command_name]
+            
+    def clear_all_commands(self):
+        """Clear all commands"""
+        self.commands = {}
     
     def run(self):
         self.running = True
         self.broadcast_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.broadcast_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         
-        self.statusUpdate.emit(f"Broadcasting controller data on port {self.broadcast_port}")
+        target_ip = '192.168.1.237'
+        self.statusUpdate.emit(f"Sending controller data to {target_ip} on port {self.broadcast_port}")
         
         try:
             while self.running:
                 if self.controller_data:
-                    # Convert to JSON and broadcast
-                    json_data = json.dumps(self.controller_data)
+                    # Build the complete packet with controller data and any commands
+                    packet = {
+                        "controller": self.controller_data,
+                        "commands": self.commands
+                    }
                     
-                    # Send to broadcast address
+                    # Convert to JSON and send
+                    json_data = json.dumps(packet)
+                    
                     try:
                         self.broadcast_socket.sendto(
                             json_data.encode('utf-8'), 
-                            ('<broadcast>', self.broadcast_port)
+                            (target_ip, self.broadcast_port)
                         )
-                    except:
-                        # Fall back to subnet broadcast if <broadcast> doesn't work
-                        try:
-                            # Try common subnet broadcast addresses
-                            self.broadcast_socket.sendto(
-                                json_data.encode('utf-8'), 
-                                ('192.168.0.255', self.broadcast_port)
-                            )
-                        except Exception as e:
-                            self.statusUpdate.emit(f"Broadcast error: {e}")
-                            time.sleep(1)  # Wait a bit longer on error
+                    except Exception as e:
+                        self.statusUpdate.emit(f"Send error: {e}")
+                        time.sleep(1)  # Wait a bit longer on error
                 
-                time.sleep(0.05)  # 20Hz broadcast rate to avoid network saturation
+                time.sleep(0.05)  # 20Hz send rate
                 
         except Exception as e:
-            self.statusUpdate.emit(f"Broadcast error: {e}")
+            self.statusUpdate.emit(f"Send error: {e}")
         finally:
             if self.broadcast_socket:
                 self.broadcast_socket.close()
-            self.statusUpdate.emit("Broadcast thread stopped")
+            self.statusUpdate.emit("Send thread stopped")
+    
+    # def run(self):
+    #     self.running = True
+    #     self.broadcast_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    #     self.broadcast_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        
+    #     self.statusUpdate.emit(f"Broadcasting controller data on port {self.broadcast_port}")
+        
+    #     try:
+    #         while self.running:
+    #             if self.controller_data:
+    #                 # Convert to JSON and broadcast
+    #                 json_data = json.dumps(self.controller_data)
+                    
+    #                 # Send to broadcast address
+    #                 try:
+    #                     self.broadcast_socket.sendto(
+    #                         json_data.encode('utf-8'), 
+    #                         ('<broadcast>', self.broadcast_port)
+    #                     )
+    #                 except:
+    #                     # Fall back to subnet broadcast if <broadcast> doesn't work
+    #                     try:
+    #                         # Try common subnet broadcast addresses
+    #                         self.broadcast_socket.sendto(
+    #                             json_data.encode('utf-8'), 
+    #                             ('192.168.0.255', self.broadcast_port)
+    #                         )
+    #                     except Exception as e:
+    #                         self.statusUpdate.emit(f"Broadcast error: {e}")
+    #                         time.sleep(1)  # Wait a bit longer on error
+                
+    #             time.sleep(0.05)  # 20Hz broadcast rate to avoid network saturation
+                
+    #     except Exception as e:
+    #         self.statusUpdate.emit(f"Broadcast error: {e}")
+    #     finally:
+    #         if self.broadcast_socket:
+    #             self.broadcast_socket.close()
+    #         self.statusUpdate.emit("Broadcast thread stopped")
     
     def stop(self):
         self.running = False
