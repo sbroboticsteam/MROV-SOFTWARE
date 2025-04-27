@@ -69,19 +69,25 @@ class EthernetManager:
                     logger.error(f"Control listener error: {e}")
                 time.sleep(1)
     
-    def _process_control_data(self, data: bytes, client_socket: socket.socket) -> None:
+    def _process_control_data(self, data, client_socket):
         try:
-            self.last_heartbeat = time.time()
-            raw_data = data.decode('utf-8')
-            logger.debug(f"Received control data: {raw_data}")
-            json_str = raw_data.replace("'", '"')
-            control_data = json.loads(json_str)
+            command_data = json.loads(data.decode('utf-8'))
             if self.control_callback:
-                self.control_callback(control_data)
-            client_socket.send("ACK".encode('utf-8'))
+                self.control_callback(command_data)
+                self.last_heartbeat = time.time()
+        except json.JSONDecodeError:
+            logger.error("Invalid JSON received")
         except Exception as e:
-            logger.error(f"Control data processing error: {e}")
-    
+            logger.error(f"Error processing control data: {e}")
+
+    def _send_data(self, data):
+        try:
+            if self.connected and hasattr(self, 'client_socket') and self.client_socket:
+                self.client_socket.send(data)
+        except Exception as e:
+            logger.error(f"Error sending data: {e}")
+            self.connected = False
+
     def set_control_callback(self, callback) -> None:
         self.control_callback = callback
     
@@ -90,13 +96,13 @@ class EthernetManager:
         return True
     
     def shutdown(self) -> None:
-        logger.info("Shutting down Ethernet manager")
+        """Safely shutdown the ethernet manager."""
         self.running = False
-        if self.control_socket:
+        if hasattr(self, 'control_thread') and self.control_thread:
+            self.control_thread.join(timeout=1.0)
+        if hasattr(self, 'control_socket') and self.control_socket:
             try:
                 self.control_socket.close()
             except:
                 pass
-        if self.control_thread and self.control_thread.is_alive():
-            self.control_thread.join(timeout=1.0)
         logger.info("Ethernet manager shutdown complete")

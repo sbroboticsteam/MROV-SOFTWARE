@@ -9,6 +9,12 @@ import logging
 import argparse
 from enum import Enum
 import math
+import os
+
+from rov.hardware.pca9685 import PCA9685
+from classesForChatPID.thruster import Thruster
+from classesForChatPID.imu_sensor import IMUSensor
+from rov.ethernet_manager import EthernetManager
 
 # Configure logging
 logging.basicConfig(
@@ -18,22 +24,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger("ROV")
 
-# --- Add BNO055 Import ---
-try:
-    # Assuming bno055.py is accessible (e.g., in the same directory or Python path)
-    from bno055 import BNO055, BNO055_ADDRESS_A
-    BNO055_AVAILABLE = True
-    logger.info("BNO055 module successfully imported")
-except ImportError:
-    BNO055_AVAILABLE = False
-    logger.error("Could not import BNO055 class. PID stabilization will be disabled.")
-    BNO055 = None  # Define as None if import fails
-
-# PCA9685 constants
-PCA9685_ADDRESS = 0x40
-MODE1 = 0x00
-PRESCALE = 0xFE
-LED0_ON_L = 0x06
+# Path to the PID calibration file
+DEFAULT_PID_CALIBRATION_FILE = "pid_auto_calibration.json"
 
 # --------------------------- PID Controller Class ---------------------------
 class PID:
@@ -117,266 +109,11 @@ class PID:
         self.reset()  # Reset PID state when setpoint changes
         logger.info(f"PID setpoint updated to {setpoint}")
 
-# --------------------------- PCA9685 Class ---------------------------
-class PCA9685:
-    """Hardware driver for PCA9685 PWM controller."""
-    def __init__(self, bus_number=7, address=PCA9685_ADDRESS):
-        self.bus = SMBus(bus_number)
-        self.address = address
-        self.channels = [PCA9685Channel(self, i) for i in range(16)]
-        self.reset()
-
-    def reset(self):
-        self.bus.write_byte_data(self.address, MODE1, 0x00)
-        sleep(0.01)
-
-    @property
-    def frequency(self):
-        return self._frequency
-
-    @frequency.setter
-    def frequency(self, freq_hz):
-        self._frequency = freq_hz
-        prescale_val = int(25000000.0 / (4096 * freq_hz)) - 1
-
-        mode1 = self.bus.read_byte_data(self.address, MODE1)
-        # Enter sleep mode
-        self.bus.write_byte_data(self.address, MODE1, (mode1 & 0x7F) | 0x10)
-        sleep(0.001)  # micro-delay
-        self.bus.write_byte_data(self.address, PRESCALE, prescale_val)
-        sleep(0.001)  # micro-delay
-        # Exit sleep mode
-        self.bus.write_byte_data(self.address, MODE1, mode1)
-        sleep(0.005)
-        # Restart
-        self.bus.write_byte_data(self.address, MODE1, mode1 | 0x80)
-        sleep(0.001)  # micro-delay
-
-    def deinit(self):
-        try:
-            self.bus.close()
-        except Exception:
-            pass
-
-class PCA9685Channel:
-    """Individual channel on the PCA9685 PWM controller."""
-    def __init__(self, pca, channel):
-        self.pca = pca
-        self.channel = channel
-        self._duty_cycle = 0
-
-    @property
-    def duty_cycle(self):
-        return self._duty_cycle
-
-    @duty_cycle.setter
-    def duty_cycle(self, value):
-        self._duty_cycle = value
-        on_value = 0
-        off_value = value & 0xFFFF
-        base_reg = LED0_ON_L + (4 * self.channel)
-
-        # Write each register with a small delay
-        self.pca.bus.write_byte_data(self.pca.address, base_reg, on_value & 0xFF)
-        time.sleep(0.001)
-        self.pca.bus.write_byte_data(self.pca.address, base_reg + 1, (on_value >> 8) & 0xFF)
-        time.sleep(0.001)
-        self.pca.bus.write_byte_data(self.pca.address, base_reg + 2, off_value & 0xFF)
-        time.sleep(0.001)
-        self.pca.bus.write_byte_data(self.pca.address, base_reg + 3, (off_value >> 8) & 0xFF)
-        time.sleep(0.001)
-
-# --------------------------- Thruster Class ---------------------------
-class Thruster:
-    """Electronic Speed Controller (ESC) for thrusters."""
-    def __init__(self, channel, pca, name="thruster"):
-        self.channel = channel
-        self.pca = pca
-        self.name = name
-        self.STOP_PULSE = 1500
-        self.MIN_PULSE = 1100  # Reverse max pulse
-        self.MAX_PULSE = 1900  # Forward max pulse
-        self.FORWARD_MIN = 1525  # Minimum pulse to start forward motion
-        self.REVERSE_MAX = 1475  # Maximum pulse to start reverse motion
-        self.current_pulse = self.STOP_PULSE
-        self.current_speed = 0.0  # Speed in range -1.0 to 1.0
-        
-        # For logging activity
-        self.last_speed_change = time.time()
-        self.total_active_time = 0.0
-        self.direction_changes = 0
-        logger.debug(f"Created thruster '{self.name}' on channel {self.channel}")
-
-    def initialize(self):
-        """Initialize ESC with neutral signal."""
-        self._set_pulse_width(self.STOP_PULSE)
-        sleep(2)
-        logger.info(f"Thruster {self.name} on channel {self.channel} initialized")
-
-    def set_speed(self, speed):
-        """
-        Set thruster speed (-1.0 for full reverse, +1.0 for full forward; 0.0 stops).
-        """
-        speed = max(-1.0, min(1.0, speed))
-        
-        if speed > 0:
-            pulse_width = self.FORWARD_MIN + (speed * (self.MAX_PULSE - self.FORWARD_MIN))
-        elif speed < 0:
-            pulse_width = self.REVERSE_MAX - (abs(speed) * (self.REVERSE_MAX - self.MIN_PULSE))
-        else:
-            pulse_width = self.STOP_PULSE
-            
-        # Log direction change if applicable
-        if (self.current_speed > 0 and speed < 0) or (self.current_speed < 0 and speed > 0):
-            self.direction_changes += 1
-            logger.debug(f"Thruster {self.name}: Direction change #{self.direction_changes}")
-            
-        # Update only when speed has changed
-        if speed != self.current_speed:
-            now = time.time()
-            if self.current_speed != 0:
-                active_time = now - self.last_speed_change
-                self.total_active_time += active_time
-            logger.debug(f"Thruster {self.name}: {self.current_speed:.2f} -> {speed:.2f} (pulse: {int(pulse_width)})")
-            self.current_speed = speed
-            self.last_speed_change = now
-            self._set_pulse_width(int(pulse_width))
-        
-    def _set_pulse_width(self, pulse_width):
-        """Set ESC pulse width."""
-        offset = 9
-        pulse_width += offset
-        duty_cycle = int((pulse_width / 20000.0) * 4096)
-        self.pca.channels[self.channel].duty_cycle = duty_cycle
-        self.current_pulse = pulse_width
-        sleep(0.001)
-
-    def stop(self):
-        """Stop the thruster."""
-        prev_speed = self.current_speed
-        self.set_speed(0.0)
-        logger.info(f"Thruster {self.name} stopped (was: {prev_speed:.2f})")
-
-    def get_stats(self):
-        """Return statistics for this thruster."""
-        return {
-            "name": self.name,
-            "channel": self.channel,
-            "current_speed": self.current_speed,
-            "current_pulse": self.current_pulse,
-            "total_active_time": self.total_active_time,
-            "direction_changes": self.direction_changes
-        }
-# --------------------------- IMU Sensor Class ---------------------------
-class IMUSensor:
-    """Interface to the BNO055 IMU sensor for orientation data."""
-    def __init__(self, bus_number=7, address=BNO055_ADDRESS_A if BNO055_AVAILABLE else None):
-        self.bno = None
-        self.available = False
-        self.last_read_time = 0
-        self.read_interval = 0.02  # 50Hz max reading rate
-        self.last_heading = 0
-        self.last_roll = 0
-        self.last_pitch = 0
-        self.calibration_status = (0, 0, 0, 0)  # sys, gyro, accel, mag
-        
-        if BNO055_AVAILABLE and address:
-            try:
-                logger.info("Initializing BNO055 sensor...")
-                self.bno = BNO055(bus_number=bus_number, address=address)
-                if not self.bno.begin():
-                    logger.error("Failed to initialize BNO055! PID will be inactive.")
-                    self.available = False
-                else:
-                    logger.info("BNO055 Initialized Successfully.")
-                    # Check initial calibration
-                    time.sleep(1)  # Wait a bit after init
-                    self.calibration_status = self.bno.get_calibration()
-                    logger.info(f"Initial Calibration: Sys={self.calibration_status[0]}, "
-                                f"Gyro={self.calibration_status[1]}, "
-                                f"Accel={self.calibration_status[2]}, "
-                                f"Mag={self.calibration_status[3]}")
-                    self.available = True
-                    
-                    # Initial read
-                    self._read_orientation()
-            except Exception as e:
-                logger.error(f"Exception during BNO055 initialization: {e}")
-                self.available = False
-        else:
-            logger.warning("BNO055 not available. Orientation sensing disabled.")
-            self.available = False
-    
-    def _read_orientation(self):
-        """Read the current orientation from the BNO055 sensor."""
-        if not self.available or not self.bno:
-            return self.last_heading, self.last_roll, self.last_pitch
-            
-        current_time = time.time()
-        # Throttle reads to avoid overwhelming the I2C bus
-        if current_time - self.last_read_time < self.read_interval:
-            return self.last_heading, self.last_roll, self.last_pitch
-            
-        try:
-            # Get Euler angles in degrees
-            heading, roll, pitch = self.bno.get_euler()
-            
-            # Update last read values
-            self.last_heading = heading
-            self.last_roll = roll
-            self.last_pitch = pitch
-            self.last_read_time = current_time
-            
-            # Periodically update calibration status
-            if current_time % 5 < 0.1:  # Every ~5 seconds
-                self.calibration_status = self.bno.get_calibration()
-                
-            return heading, roll, pitch
-            
-        except Exception as e:
-            logger.error(f"Error reading orientation: {e}")
-            return self.last_heading, self.last_roll, self.last_pitch
-    
-    def get_orientation(self):
-        """Get the current orientation (heading, roll, pitch) in degrees."""
-        if self.available:
-            return self._read_orientation()
-        return 0, 0, 0  # Default values if not available
-    
-    # In the IMUSensor class, modify the get_calibration_status method:
-    def get_calibration_status(self):
-        """Get current calibration status (sys, gyro, accel, mag)."""
-        if self.available:
-            try:
-                # Use get_calibration instead of get_calibration_status
-                self.calibration_status = self.bno.get_calibration()
-            except Exception as e:
-                logger.error(f"Error reading calibration status: {e}")
-        return self.calibration_status
-    
-    def is_calibrated(self, min_sys=2, min_gyro=3, min_accel=2, min_mag=2):
-        """Check if the sensor is adequately calibrated."""
-        if not self.available:
-            return False
-            
-        sys, gyro, accel, mag = self.get_calibration_status()
-        return (sys >= min_sys and gyro >= min_gyro and 
-                accel >= min_accel and mag >= min_mag)
-    
-    def close(self):
-        """Close connection to the sensor."""
-        if self.available and self.bno:
-            try:
-                self.bno.close()
-                logger.info("IMU sensor connection closed")
-            except Exception as e:
-                logger.error(f"Error closing IMU sensor: {e}")
-
 # --------------------------- ROV Class ---------------------------
 class ROV:
     """ROV control system with PID stabilization."""
     
-    def __init__(self, pid_enabled=True):
+    def __init__(self, pid_enabled=True, pid_weight=1.0, calibration_file=None):
         logger.info("Initializing ROV...")
         
         # Initialize PCA9685 PWM controller
@@ -406,11 +143,40 @@ class ROV:
         self.current_roll = 0
         self.current_pitch = 0
         
-        # Initialize PID controllers
-        # Starting with conservative gains that can be tuned later
-        self.pid_heading = PID(Kp=0.05, Ki=0.0, Kd=0.01, setpoint=0, sample_time=0.05, output_limits=(-0.5, 0.5))
-        self.pid_pitch = PID(Kp=0.08, Ki=0.0, Kd=0.02, setpoint=0, sample_time=0.05, output_limits=(-0.5, 0.5))
-        self.pid_roll = PID(Kp=0.08, Ki=0.0, Kd=0.02, setpoint=0, sample_time=0.05, output_limits=(-0.5, 0.5))
+        # Load PID calibration values if available
+        pid_gains = self.load_pid_calibration(calibration_file)
+        
+        # Initialize PID controllers with calibration values or defaults
+        heading_gains = pid_gains.get('heading_pid', {'Kp': 0.05, 'Ki': 0.0, 'Kd': 0.01})
+        pitch_gains = pid_gains.get('pitch_pid', {'Kp': 0.08, 'Ki': 0.0, 'Kd': 0.02})
+        roll_gains = pid_gains.get('roll_pid', {'Kp': 0.08, 'Ki': 0.0, 'Kd': 0.02})
+        
+        self.pid_heading = PID(
+            Kp=heading_gains['Kp'], 
+            Ki=heading_gains['Ki'], 
+            Kd=heading_gains['Kd'], 
+            setpoint=0, 
+            sample_time=0.05, 
+            output_limits=(-0.5, 0.5)
+        )
+        
+        self.pid_pitch = PID(
+            Kp=pitch_gains['Kp'], 
+            Ki=pitch_gains['Ki'], 
+            Kd=pitch_gains['Kd'], 
+            setpoint=0, 
+            sample_time=0.05, 
+            output_limits=(-0.5, 0.5)
+        )
+        
+        self.pid_roll = PID(
+            Kp=roll_gains['Kp'], 
+            Ki=roll_gains['Ki'], 
+            Kd=roll_gains['Kd'], 
+            setpoint=0, 
+            sample_time=0.05, 
+            output_limits=(-0.5, 0.5)
+        )
         
         # PID control flags
         self.pid_enabled = pid_enabled and self.imu.available
@@ -418,17 +184,19 @@ class ROV:
         self.heading_pid_enabled = False  # Disable heading PID by default
         self.target_heading = None  # Will be set to current heading when enabled
         
-        # Socket communication
-        self.host = '192.168.1.237'  # Set to ROV's IP
-        self.port = 4891
-        self.server_socket = None
-        self.client_socket = None
-        self.running = False
-        self.last_command_time = time.time()
+        # PID weight factor (0-1)
+        self.pid_weight = max(0.0, min(1.0, pid_weight))
+        logger.info(f"PID weight set to {self.pid_weight:.2f}")
+        
+        # Network communication via EthernetManager
+        self.ethernet = EthernetManager(control_ip='192.168.1.237', control_port=4891)
+        self.ethernet.set_control_callback(self.process_command)
         
         # Data processing
         self.base_motor_states = [0.0] * 8
         self.final_motor_states = [0.0] * 8
+        self.running = False
+        self.last_command_time = time.time()
         
         logger.info("ROV initialization complete")
         
@@ -436,8 +204,38 @@ class ROV:
             logger.info("PID stabilization is ENABLED")
         else:
             logger.info("PID stabilization is DISABLED")
+
+    def load_pid_calibration(self, calibration_file=None):
+        """Load PID calibration values from a JSON file."""
+        if calibration_file is None:
+            calibration_file = DEFAULT_PID_CALIBRATION_FILE
+            
+        try:
+            # Get the full path to the calibration file
+            if not os.path.isabs(calibration_file):
+                # Try in the current directory first
+                if os.path.exists(calibration_file):
+                    full_path = calibration_file
+                else:
+                    # Try in the same directory as this script
+                    script_dir = os.path.dirname(os.path.abspath(__file__))
+                    full_path = os.path.join(script_dir, calibration_file)
+            else:
+                full_path = calibration_file
+                
+            if not os.path.exists(full_path):
+                logger.warning(f"PID calibration file not found: {full_path}")
+                return {}
+                
+            with open(full_path, 'r') as f:
+                calibration = json.load(f)
+                logger.info(f"Loaded PID calibration from {full_path}")
+                return calibration
+                
+        except Exception as e:
+            logger.error(f"Error loading PID calibration: {e}")
+            return {}
     
-        # Add this method to the ROV class
     def log_debug_info(self):
         """Log detailed debug information about PID and motor states."""
         # Format motor values for better readability
@@ -453,9 +251,10 @@ class ROV:
             f"Orientation: Heading={self.current_heading:.1f}° Roll={self.current_roll:.1f}° Pitch={self.current_pitch:.1f}°\n"
             f"Target Heading: {self.target_heading:.1f}°\n"
             f"PID Enabled: {self.pid_enabled}\n"
+            f"PID Weight: {self.pid_weight:.2f}\n"
             f"PID Adjustments: Heading={heading_adj:.3f} Pitch={pitch_adj:.3f} Roll={roll_adj:.3f}\n"
             f"PID Outputs: Heading={self.pid_heading._last_output:.3f} Pitch={self.pid_pitch._last_output:.3f} Roll={self.pid_roll._last_output:.3f}\n"
-            f"Heading PID Enabled: {self.heading_pid_enabled}\n"  # Add this line
+            f"Heading PID Enabled: {self.heading_pid_enabled}\n"
             f"Base Motor States: {base_motors}\n"
             f"Final Motor States: {final_motors}\n"
             f"ESC Pulse Values: {[t.current_pulse for t in self.thrusters]}\n"
@@ -506,16 +305,6 @@ class ROV:
             thruster.initialize()
         logger.info("All thrusters initialized")
     
-    def start_server(self):
-        """Start the control server to receive commands."""
-        logger.info(f"Starting server on {self.host}:{self.port}...")
-        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.server_socket.bind((self.host, self.port))
-        self.server_socket.listen(1)
-        logger.info(f"Server listening on {self.host}:{self.port}")
-        self.running = True
-    
     def process_command(self, command_data):
         """Process received command data."""
         command_processed = False
@@ -535,11 +324,17 @@ class ROV:
             if enable != self.pid_enabled:
                 self.set_pid_enabled(enable)
         
-        # Add this new section to handle heading PID toggle
         if 'heading_pid_enabled' in command_data:
             enable = bool(command_data['heading_pid_enabled'])
             if enable != self.heading_pid_enabled:
-                self.set_heading_pid_enabled(enable)       
+                self.set_heading_pid_enabled(enable)
+        
+        if 'pid_weight' in command_data:
+            weight = float(command_data['pid_weight'])
+            weight = max(0.0, min(1.0, weight))  # Clamp between 0 and 1
+            if weight != self.pid_weight:
+                self.pid_weight = weight
+                logger.info(f"PID weight updated to {weight:.2f}")
                 
         if 'pid_heading' in command_data:
             # Allow setting a specific target heading
@@ -559,6 +354,9 @@ class ROV:
             if 'roll' in gains and len(gains['roll']) == 3:
                 self.pid_roll.set_gains(*gains['roll'])
                 
+        # Update the last command time
+        self.last_command_time = time.time()
+        
         return command_processed
                 
     def set_pid_enabled(self, enabled):
@@ -600,28 +398,44 @@ class ROV:
             pitch_adj = self.pid_pitch.update(self.current_pitch)
             roll_adj = self.pid_roll.update(self.current_roll)
             
+            # Apply PID weight factor
+            heading_adj *= self.pid_weight
+            pitch_adj *= self.pid_weight
+            roll_adj *= self.pid_weight
+            
         return heading_adj, pitch_adj, roll_adj
     
     def mix_motors(self, base_states, heading_adj, pitch_adj, roll_adj):
-        """Mix base motor commands with PID adjustments."""
+        """Mix base motor commands with PID adjustments, accounting for 45° motor placement."""
         final_states = list(base_states)  # Start with joystick commands
 
         # --- Heading Adjustment (Yaw) ---
-        # Affects horizontal thrusters for turning
-        final_states[0] += heading_adj  # FL Horizontal
-        final_states[2] += heading_adj  # BL Horizontal
-        final_states[1] -= heading_adj  # FR Horizontal
-        final_states[3] -= heading_adj  # BR Horizontal
+        # For 45° placed thrusters, we need to adjust the thrust vectors
+        # For clockwise rotation (positive heading_adj):
+        #   FL(-45°) and BR(135°) thrusters should push forward (+)
+        #   FR(45°) and BL(-135°) thrusters should push backward (-)
+        
+        # Front Left (-45°) and Back Right (135°)
+        final_states[0] += heading_adj  # FL
+        final_states[3] += heading_adj  # BR
+        
+        # Front Right (45°) and Back Left (-135°)
+        final_states[1] -= heading_adj  # FR
+        final_states[2] -= heading_adj  # BL
 
         # --- Pitch Adjustment ---
-        # Affects vertical thrusters (front vs back)
+        # For pitch up (positive pitch_adj):
+        #   Front vertical thrusters push up
+        #   Back vertical thrusters push down
         final_states[4] += pitch_adj  # FL Vertical Up
         final_states[5] += pitch_adj  # FR Vertical Up
-        final_states[7] -= pitch_adj  # BL Vertical Up
         final_states[6] -= pitch_adj  # BR Vertical Up
+        final_states[7] -= pitch_adj  # BL Vertical Up
 
         # --- Roll Adjustment ---
-        # Affects vertical thrusters (left vs right)
+        # For roll right (positive roll_adj):
+        #   Left vertical thrusters push up
+        #   Right vertical thrusters push down
         final_states[4] += roll_adj  # FL Vertical Up
         final_states[7] += roll_adj  # BL Vertical Up
         final_states[5] -= roll_adj  # FR Vertical Up
@@ -636,7 +450,7 @@ class ROV:
         # Calculate PID adjustments if enabled
         heading_adj, pitch_adj, roll_adj = self.calculate_pid_adjustments()
         
-         # Store previous motor states for change detection
+        # Store previous motor states for change detection
         previous_motor_states = self.final_motor_states.copy()
             
         # Mix motor commands
@@ -650,7 +464,8 @@ class ROV:
         # Set thruster speeds
         for i, thruster in enumerate(self.thrusters):
             thruster.set_speed(self.final_motor_states[i])
-         #Log when motor commands change significantly
+            
+        # Log when motor commands change significantly
         if any(abs(prev - curr) > 0.05 for prev, curr in zip(previous_motor_states, self.final_motor_states)):
             self.log_debug_info()
         
@@ -664,91 +479,32 @@ class ROV:
             if self.imu.available:
                 self.start_orientation_thread()
                 
-            # Start server
-            self.start_server()
-            
-            # Main control loop
-            last_status_time = time.time()
+            # Start network server via EthernetManager
+            self.ethernet.start_control_server()
+            self.running = True
             
             logger.info("ROV running. Waiting for client connection...")
             
+            # Main control loop variables
+            last_status_time = time.time()
+            last_activity_check = time.time()
+            last_debug_time = time.time()
+            
             while self.running:
-                # Wait for client connection
-                self.server_socket.settimeout(1.0)
-                try:
-                    self.client_socket, client_address = self.server_socket.accept()
-                    logger.info(f"Client connected from {client_address}")
-                    self.last_command_time = time.time()
-                    
-                    # Reset PID target when new client connects
-                    if self.pid_enabled:
-                        with self.pid_lock:
-                            heading, _, _ = self.imu.get_orientation()
-                            self.target_heading = heading
-                            self.pid_heading.set_setpoint(heading)
-                            logger.info(f"Reset target heading to {heading:.1f} degrees for new client")
-                    
-                    # Handle client communication
-                    self._handle_client()
-                    
-                except socket.timeout:
-                    # No client connected yet, continue waiting
-                    continue
-                except KeyboardInterrupt:
-                    logger.info("ROV operation interrupted by user")
-                    break
-                except Exception as e:
-                    logger.error(f"Error in server accept: {e}")
-                    time.sleep(1)  # Prevent tight loop on error
-                    
-            logger.info("ROV control loop ended")
+                current_time = time.time()
                 
-        except KeyboardInterrupt:
-            logger.info("ROV operation interrupted by user")
-        except Exception as e:
-            logger.error(f"Error in ROV operation: {e}")
-        finally:
-            self.shutdown()
-    
-    def _handle_client(self):
-        """Handle communication with a connected client."""
-        self.client_socket.settimeout(0.5)  # Set socket timeout
-        
-        #Initialize the last_status_time here
-        last_status_time = time.time()
-        last_activity_check = time.time()
-        last_debug_time = time.time()  # Add this line to initialize last_debug_time
-        
-        while self.running:
-            try:
-                # Check for incoming data
-                ready = select.select([self.client_socket], [], [], 0.05)
-                if ready[0]:
-                    data = self.client_socket.recv(1024)
-                    if not data:
-                        logger.info("Client disconnected")
-                        break
-                        
-                    # Process received data
-                    try:
-                        command_data = json.loads(data.decode('utf-8'))
-                        self.process_command(command_data)
-                        self.last_command_time = time.time()
-                    except json.JSONDecodeError as e:
-                        logger.error(f"Invalid JSON received: {e}")
-                    except Exception as e:
-                        logger.error(f"Error processing command: {e}")
+                # If a client connects, reset heading target
+                if self.ethernet.connected and self.pid_enabled and self.target_heading is None:
+                    with self.pid_lock:
+                        heading, _, _ = self.imu.get_orientation()
+                        self.target_heading = heading
+                        self.pid_heading.set_setpoint(heading)
+                        logger.info(f"Reset target heading to {heading:.1f} degrees for new client")
                 
-                # Check for client timeout (5 seconds without commands)
-                if time.time() - self.last_command_time > 5.0:
-                    logger.warning("Client connection timed out (no commands received)")
-                    break
-                    
                 # Update thruster values based on commands and PID
                 self.update_thrusters()
                 
                 # Send telemetry data periodically (every 200ms)
-                current_time = time.time()
                 if current_time - last_status_time >= 0.2:
                     self._send_telemetry()
                     last_status_time = current_time
@@ -758,39 +514,29 @@ class ROV:
                     self.log_debug_info()
                     last_debug_time = current_time
                 
-                # Send telemetry data periodically (every 200ms)
-                current_time = time.time()
-                if current_time - last_status_time >= 0.2:
-                    self._send_telemetry()
-                    last_status_time = current_time
-                
                 # Check thruster activity periodically (every 3 seconds)
                 if current_time - last_activity_check >= 3.0:
                     self.monitor_thruster_activity()
                     last_activity_check = current_time
                     
-            except socket.timeout:
-                # Socket timeout - continue loop
-                continue
-            except Exception as e:
-                logger.error(f"Error in client handler: {e}")
-                break
-                
-        # Close client socket when done
-        try:
-            self.client_socket.close()
-        except Exception:
-            pass
-        self.client_socket = None
-        
-        # Stop thrusters when client disconnects
-        for thruster in self.thrusters:
-            thruster.stop()
-        logger.info("All thrusters stopped after client disconnect")
+                # Check for client timeout (5 seconds without commands)
+                if self.ethernet.connected and (current_time - self.last_command_time > 5.0):
+                    logger.warning("Client connection timed out (no commands received)")
+                    # Connection will be handled by the EthernetManager
+                    
+                # Small sleep to prevent CPU hogging
+                time.sleep(0.01)
+                    
+        except KeyboardInterrupt:
+            logger.info("ROV operation interrupted by user")
+        except Exception as e:
+            logger.error(f"Error in ROV operation: {e}")
+        finally:
+            self.shutdown()
     
     def _send_telemetry(self):
         """Send telemetry data to the connected client."""
-        if not self.client_socket:
+        if not self.ethernet.connected:
             return
             
         # Prepare telemetry data
@@ -803,7 +549,8 @@ class ROV:
             },
             "target_heading": self.target_heading,
             "pid_enabled": self.pid_enabled,
-            "heading_pid_enabled": self.heading_pid_enabled,  # Add this line
+            "heading_pid_enabled": self.heading_pid_enabled,
+            "pid_weight": self.pid_weight,
             "calibration": self.imu.get_calibration_status() if self.imu.available else (0, 0, 0, 0),
             "thrusters": [t.current_speed for t in self.thrusters],
             "pid_output": {
@@ -813,8 +560,9 @@ class ROV:
             }
         }
         
+        # Send telemetry via ethernet manager
         try:
-            self.client_socket.send(json.dumps(telemetry).encode('utf-8'))
+            self.ethernet._send_data(json.dumps(telemetry).encode('utf-8'))
         except Exception as e:
             logger.error(f"Error sending telemetry: {e}")
             
@@ -845,18 +593,8 @@ class ROV:
         if self.orientation_thread and self.orientation_thread.is_alive():
             self.orientation_thread.join(timeout=1.0)
         
-        # Close connections
-        if self.client_socket:
-            try:
-                self.client_socket.close()
-            except Exception:
-                pass
-                
-        if self.server_socket:
-            try:
-                self.server_socket.close()
-            except Exception:
-                pass
+        # Close network connections
+        self.ethernet.shutdown()
         
         # Close hardware
         logger.info("Deinitializing PCA9685...")
@@ -873,6 +611,10 @@ def main():
     parser = argparse.ArgumentParser(description='ROV Control System with PID Stabilization')
     parser.add_argument('--disable-pid', action='store_true', help='Disable PID stabilization')
     parser.add_argument('--disable-heading-pid', action='store_true', help='Disable only heading PID stabilization')
+    parser.add_argument('--pid-weight', type=float, default=1.0, 
+                      help='PID influence weight (0.0-1.0)')
+    parser.add_argument('--pid-calibration', type=str, default=DEFAULT_PID_CALIBRATION_FILE,
+                      help=f'Path to PID calibration file (default: {DEFAULT_PID_CALIBRATION_FILE})')
     parser.add_argument('--log-level', type=str, default='INFO',
                       choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
                       help='Logging level')
@@ -881,8 +623,17 @@ def main():
     # Set logging level
     logging.getLogger().setLevel(args.log_level)
     
-    # Create and run the ROV
-    rov = ROV(pid_enabled=not args.disable_pid)
+    # Validate and clamp PID weight
+    pid_weight = max(0.0, min(1.0, args.pid_weight))
+    if pid_weight != args.pid_weight:
+        logger.warning(f"PID weight clamped to valid range: {pid_weight}")
+    
+    # Create and run the ROV with calibration file
+    rov = ROV(
+        pid_enabled=not args.disable_pid, 
+        pid_weight=pid_weight,
+        calibration_file=args.pid_calibration
+    )
     
     # Apply heading-specific setting
     if args.disable_heading_pid:

@@ -59,15 +59,15 @@ class ElapsedTime:
         return time.time() - self._start_time
 
 class PID_Controller:
-    def __init__(self, *args):
+    def __init__(self, kp=0.08, ki=0.02, kd=0.05, a=0.7):
         self.runtime = ElapsedTime()
         self.tolerance = 0.0
         self.area = 0.0
 
-        self.kp = 0.0
-        self.kd = 0.0
-        self.ki = 0.0
-        self.a = 0.0 # Filter coefficient (0=no filter, 1=max filter)
+        self.kp = kp
+        self.kd = kd
+        self.ki = ki
+        self.a = a# Filter coefficient (0=no filter, 1=max filter)
 
         self.P = 0.0
         self.I = 0.0
@@ -81,21 +81,21 @@ class PID_Controller:
         self.error_change = 0.0
         self.error = 0.0
 
-        # Constructor overloads
-        if len(args) == 1:
-            self.kp = args[0]
-        elif len(args) == 2:
-            self.kp = args[0]
-            self.kd = args[1]
-        elif len(args) == 3:
-            self.kp = args[0]
-            self.kd = args[1]
-            self.ki = args[2]
-        elif len(args) == 4:
-            self.kp = args[0]
-            self.kd = args[1]
-            self.ki = args[2]
-            self.a = args[3]
+        # # Constructor overloads
+        # if len(args) == 1:
+        #     self.kp = args[0]
+        # elif len(args) == 2:
+        #     self.kp = args[0]
+        #     self.kd = args[1]
+        # elif len(args) == 3:
+        #     self.kp = args[0]
+        #     self.kd = args[1]
+        #     self.ki = args[2]
+        # elif len(args) == 4:
+        #     self.kp = args[0]
+        #     self.kd = args[1]
+        #     self.ki = args[2]
+        #     self.a = args[3]
 
     def PID_Power(self, curr_pos, target_pos):
         self.error = target_pos - curr_pos
@@ -1385,7 +1385,14 @@ class PIDSimulator:
             y = plot_area.top + i * grid_spacing_y
             pygame.draw.line(self.plot_surface, GRID_COLOR, (plot_area.left, y), (plot_area.right, y))
 
-
+        colors = {
+            'actual': (255, 255, 0),    # Yellow
+            'target': (0, 255, 0),      # Green
+            'p': (255, 100, 100),       # Light Red
+            'i': (100, 100, 255),       # Light Blue
+            'd': (255, 100, 255),       # Light Magenta
+            'output': (255, 255, 255)   # White
+        }
         # Plot the data if we have enough points
         if len(self.history['time']) > 1:
             axis_data = self.history[self.selected_controller]
@@ -1443,14 +1450,7 @@ class PIDSimulator:
 
 
             # --- Plotting ---
-            colors = {
-                'actual': (255, 255, 0),    # Yellow
-                'target': (0, 255, 0),      # Green
-                'p': (255, 100, 100),       # Light Red
-                'i': (100, 100, 255),       # Light Blue
-                'd': (255, 100, 255),       # Light Magenta
-                'output': (255, 255, 255)   # White
-            }
+            
             show_pid_components = pygame.key.get_pressed()[pygame.K_LCTRL]
 
             for key, color in colors.items():
@@ -1498,11 +1498,11 @@ class PIDSimulator:
         legend_x = plot_area.left
         legend_y = plot_area.bottom + 30
         legend_items = [('Actual', colors['actual']), ('Target', colors['target'])]
-        if show_pid_components:
-            legend_items.extend([
-                ('P Term', colors['p']), ('I Term', colors['i']),
-                ('D Term', colors['d']), ('Output', colors['output'])
-            ])
+        # if show_pid_components:
+        #     legend_items.extend([
+        #         ('P Term', colors['p']), ('I Term', colors['i']),
+        #         ('D Term', colors['d']), ('Output', colors['output'])
+        #     ])
 
         for name, color in legend_items:
             pygame.draw.rect(self.plot_surface, color, (legend_x, legend_y, 15, 10))

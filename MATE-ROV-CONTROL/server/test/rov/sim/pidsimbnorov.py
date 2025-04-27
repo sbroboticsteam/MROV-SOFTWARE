@@ -191,9 +191,87 @@ class ROVVisualizerFrame(OpenGLFrame):
         self.draw_connectors()
         self.draw_top_motors()
         self.draw_side_motors()
+        self.draw_front_indicator()  # Add this line to draw the front indicator
 
         glFlush() # Ensure commands are executed
         self.is_drawing = False
+
+    
+    # Add this new method
+    def draw_front_indicator(self):
+        """Draws arrows indicating the principal axes directions"""
+        if not self.q: return
+        
+        # Arrow parameters
+        arrow_length = plate_side * 0.7  # Length of the arrows
+        arrow_radius = 0.06  # Radius of the arrow shaft
+        head_length = 0.25  # Length of the arrow head
+        head_radius = 0.15  # Radius of the arrow head base
+        
+        # Define the 6 directions and their colors (RGB)
+        # Format: (axis name, direction vector, color)
+        axes = [
+            ("+X", (1, 0, 0), (0.0, 0.0, 1.0)),  # Blue for +X
+            ("-X", (-1, 0, 0), (1.0, 1.0, 0.0)),  # Yellow for -X
+            # ("+Y", (0, 1, 0), (0.0, 1.0, 0.0)),  # Green for +Y
+            # ("-Y", (0, -1, 0), (1.0, 0.0, 1.0)),  # Magenta for -Y
+            # ("+Z", (0, 0, 1), (1.0, 0.0, 0.0)),  # Red for +Z (original front)
+            # ("-Z", (0, 0, -1), (0.0, 1.0, 1.0)),  # Cyan for -Z
+        ]
+        
+        # Draw each axis arrow
+        for name, direction, color in axes:
+            glColor3fv(color)
+            
+            # Draw the arrow
+            glPushMatrix()
+            
+            # Position the base of the arrow slightly away from the ROV
+            # and pointing in the correct direction
+            dx, dy, dz = direction
+            base_offset = 0.1  # Small offset from ROV surface
+            
+            # Set position based on direction
+            if dx != 0:  # X axis arrows
+                glTranslatef(dx * (hs + base_offset), 0, 0)
+                # Rotate to align with X axis
+                glRotatef(90, 0, 1, 0) if dx < 0 else glRotatef(-90, 0, 1, 0)
+            elif dy != 0:  # Y axis arrows
+                glTranslatef(0, dy * (h_sep + base_offset), 0)
+                # Rotate to align with Y axis
+                glRotatef(180, 1, 0, 0) if dy < 0 else glRotatef(0, 0, 0, 0)
+            elif dz != 0:  # Z axis arrows
+                glTranslatef(0, 0, dz * (hs + base_offset))
+                # Rotate to align with Z axis
+                glRotatef(90, 1, 0, 0) if dz > 0 else glRotatef(-90, 1, 0, 0)
+            
+            # Draw the arrow shaft (cylinder)
+            gluCylinder(self.q, arrow_radius, arrow_radius, arrow_length - head_length, 12, 1)
+            
+            # Move to the end of the shaft to draw the arrow head (cone)
+            glTranslatef(0, 0, arrow_length - head_length)
+            
+            # Draw the arrow head (cone)
+            gluCylinder(self.q, head_radius, 0, head_length, 12, 1)
+            
+            # Add base cap for the arrow
+            glTranslatef(0, 0, -arrow_length + head_length)
+            gluDisk(self.q, 0, arrow_radius, 12, 1)
+            
+            glPopMatrix()
+            
+            # Add axis name label
+            # Position the label near the tip of the arrow
+            label_x = dx * (hs + arrow_length + 0.3)
+            label_y = dy * (h_sep + arrow_length + 0.3)
+            label_z = dz * (hs + arrow_length + 0.3)
+            
+            # Avoid positioning labels too close to each other
+            if dy == 0:  # X and Z axes
+                label_y -= 0.2  # Position slightly lower
+            
+            glRasterPos3f(label_x, label_y, label_z)
+
 
     def draw_plates(self):
         """Draws the top and bottom square plates"""

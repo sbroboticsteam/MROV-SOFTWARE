@@ -11,6 +11,29 @@ MODE1 = 0x00
 PRESCALE = 0xFE
 LED0_ON_L = 0x06
 
+def arcadeDrive3(x, y, rx, rT, lT) -> list[float]:
+    """Calculate motor values from controller inputs"""
+    PWM = rT - lT
+
+    frontLeft = y + x + rx  # 2
+    frontRight = y - x - rx  # 3
+    backRight = -y - x + rx  # 4  
+    backLeft = -y + x - rx  # 1
+    data = [-frontLeft, -frontRight, -backLeft, -backRight]
+    
+    # Normalize values if any exceed 1.0
+    max_val = max([abs(val) for val in data])
+    if max_val > 1.0:
+        data = [x/max_val for x in data]
+
+    # Add vertical thrusters
+    data.append(-PWM)
+    data.append(-PWM)
+    data.append(-PWM)
+    data.append(-PWM)
+            
+    return data
+
 class PCA9685:
     def __init__(self, bus_number=7, address=PCA9685_ADDRESS):
         self.bus = SMBus(bus_number)
@@ -149,62 +172,66 @@ class ESCController:
             esc._set_pulse_width(period)
 
 def main():
-
     esc_channels = [0, 7, 2, 5, 1, 4, 6, 3]
     pca = PCA9685(bus_number=7)
     pca.frequency = 50
     esc_controller = ESCController(esc_channels, pca)
     esc_controller.initialize_all()
     
-    # 1 Front Left
-    # 2 Front Left UP
-    # 3 Back Left
-    # 4 Back Left up
-    # 5 Front Right Up
-    # 6 Back Right
-    # 7 Back Right Up
-    # 8 Front Right
-
-    # motor_states = [-1, -1, 1, 1, 1,1,1,1]  # Example motor states
-    # esc_controller.set_all_states(motor_states)
-
-    # return
+    # Setup UDP server
     HOST = '192.168.1.237'
     PORT = 4891
 
-    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server.bind((HOST, PORT))
-    server.listen(5)
 
-    print(f"Server listening on {HOST}:{PORT}...")
+    print(f"UDP Server listening on {HOST}:{PORT}...")
 
     try:
         while True:
-            print("Waiting for a client connection...")
-            com_socket, addy = server.accept()
-            print(f"Connected to {addy}")
-            while True:
-                data = com_socket.recv(1024)
-                if not data:
-                    break
-                motor_values = data.decode('utf-8')
-                print(f"Received motor values: {motor_values}")
-                try:
-                    motor_values_json = motor_values.replace("'", '"')
-                    motor_values_dict = json.loads(motor_values_json)
-                    motor_states = motor_values_dict['motor_values']
-                    if isinstance(motor_states, list) and len(motor_states) == 8:
-                        # Update all ESCs
-                        esc_controller.set_all_states(motor_states)
-                        print("ESCs updated")
-                    else:
-                        print("Invalid motor values format. Expected a list of 8 floats/integers.")
-                except (json.JSONDecodeError, KeyError) as e:
-                    print(f"Error parsing motor values: {e}")
-            com_socket.send("Message received".encode('utf-8'))
-            com_socket.close()
-            print(f"Connection with {addy} ended.")
+            # Receive UDP packet
+            data, addr = server.recvfrom(1024)
+            if not data:
+                continue
+                
+            try:
+                # Parse JSON data
+                json_data = json.loads(data.decode('utf-8'))
+                
+                # Extract controller data
+                controller = json_data.get('controller', {})
+                commands = json_data.get('commands', {})
+                
+                print(f"Received controller data from {addr}")
+                
+                # Extract needed controller values
+                left_x = controller.get('left_stick_x', 0)
+                left_y = controller.get('left_stick_y', 0) 
+                right_x = controller.get('right_stick_x', 0)
+                right_trigger = controller.get('right_trigger', 0)
+                left_trigger = controller.get('left_trigger', 0)
+                
+                # Calculate motor values on Jetson
+                motor_states = arcadeDrive3(left_x, left_y, right_x, right_trigger, left_trigger)
+                
+                # Apply motor values to ESCs
+                if len(motor_states) == 8:
+                    esc_controller.set_all_states(motor_states)
+                    print("ESCs updated")
+                
+                # Process any commands (if needed)
+                # Example: if commands.get('arm_stowed', 0) == 1:
+                #     perform_stow_action()
+                
+                # Optional: Send acknowledgment
+                server.sendto("Message received".encode('utf-8'), addr)
+                
+            except json.JSONDecodeError as e:
+                print(f"Error parsing JSON: {e}")
+            except Exception as e:
+                print(f"Error processing data: {e}")
+                
     except KeyboardInterrupt:
         print("Server is shutting down...")
     finally:
