@@ -5,6 +5,7 @@ from Components.speedpanel import SpeedPanel
 from Components.camera import Webcam
 from Components.connectivity import Connectivity
 from Components.depth_time import DepthTimeWidget
+from Components.controller import ControllerSender
 # from Components.controller_sensitivity import ControllerSensitivity, AdjustableControllerSensivitity
 from Components.controller_sensitivity import ControllerSensitivity
 
@@ -119,6 +120,8 @@ class AdjustableWidget(QWidget):
             widget = ControllerSensitivity(self)
         elif self.title=='Depth-Time Graph':
             widget=DepthTimeWidget()
+        elif self.title=='Controller Sender':
+            widget=ControllerSender()
         # elif self.title=='Network Connection':
         #     widget=NetworkConnectionWidget()
         else:

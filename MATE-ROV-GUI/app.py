@@ -25,6 +25,8 @@ class DashboardPage(QWidget):
             widget.setGeometry(1000, 400, 350, 250)
         elif widget_type=="Controller Sensitivity":
             widget.setGeometry(1000, 700, 350, 250)
+        elif widget_type=="Controller Sender": 
+            widget.setGeometry(1000, 700, 400, 300)
         # elif widget_type=="Network Connection":
         #     widget.setGeometry(1000, 950, 350, 250)
 
@@ -178,7 +180,8 @@ class MainWindow(QMainWindow): # MainWindow class extends QMainWindow
             "Connectivity",
             "Speed Panel",
             "Depth-Time Graph",
-            'Network Connection'
+            'Network Connection',
+            "Controller Sender"
         ]
         self.header.widget_selector.addItems(self.widgets_list)
 
