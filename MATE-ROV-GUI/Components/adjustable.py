@@ -2,7 +2,7 @@ from PyQt5.QtWidgets import QApplication, QWidget, QHBoxLayout, QPushButton, QFr
 from PyQt5.QtCore import Qt, QPoint, pyqtSignal
 from PyQt5.QtGui import QPainter, QColor, QPainterPath, QCloseEvent
 from Components.speedpanel import SpeedPanel
-from Components.temp_camera import Camera
+from Components.camera import Webcam
 from Components.connectivity import Connectivity
 from Components.depth_time import DepthTimeWidget
 # from Components.controller_sensitivity import ControllerSensitivity, AdjustableControllerSensivitity
@@ -107,8 +107,12 @@ class AdjustableWidget(QWidget):
 
         if self.title == "Speed Panel":
             widget = SpeedPanel()
-        elif self.title == "Webcam":
-            widget = Camera()
+        elif self.title == "CSI 1":
+            widget = Webcam(5000, encoding='H264')
+        elif self.title == "CSI 2":
+            widget = Webcam(5001, encoding='H264')
+        elif self.title == "Endoscope":
+            widget = Webcam(5002, encoding='JPEG')
         elif self.title == "Connectivity":
             widget = Connectivity()
         elif self.title == "Controller Sensitivity":
@@ -153,6 +157,8 @@ class AdjustableWidget(QWidget):
             self.maximized = False
 
     def handleClose(self):
+        if isinstance(self.contentarea, Webcam):
+            self.contentarea.cancel()
         self.close()
     
     def closeEvent(self, event: QCloseEvent):

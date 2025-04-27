@@ -169,7 +169,10 @@ class MainWindow(QMainWindow): # MainWindow class extends QMainWindow
         layout.addWidget(self.pages)
 
         self.widgets_list=[
-            "Webcam",
+            #"Webcam",
+            "CSI 1", # our 3 camera feeds, adjust later
+            "CSI 2",
+            "Endoscope",
             "Controller Sensitivity",
             # "Auto Mode",
             "Connectivity",
@@ -200,10 +203,13 @@ class MainWindow(QMainWindow): # MainWindow class extends QMainWindow
             self.pages.setCurrentIndex(index)
             
     def addWidgetToCurrent(self, index):
+        widget_name=self.header.widget_selector.itemText(index)
+        if index==0 or not widget_name:return
         if self.pages.count() > 0:
             current_page = self.pages.currentWidget()
             widget_type = self.widgets_list[index]
             current_page.addWidget(widget_type)
+        self.header.widget_selector
     
     def populate_script_selector(self):
         current_dir = os.path.dirname(os.path.abspath(__file__))

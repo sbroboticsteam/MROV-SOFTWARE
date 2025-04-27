@@ -23,3 +23,6 @@ yarn-debug.log*
 yarn-error.log*
 
 Components/__pycache__/
+
+opencv/
+.venv/

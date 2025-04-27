@@ -68,7 +68,7 @@ class DepthTimeWidget(QWidget):
 
     def drawGraph(self):
         try:
-            with open('MATE-ROV-GUI\coordinates_data.json', 'r') as file:
+            with open('MATE-ROV-GUI/json_formats/coordinates_data.json', 'r') as file:
                 data=json.load(file)
                 self.updatePlot(data)
         except Exception as e:
