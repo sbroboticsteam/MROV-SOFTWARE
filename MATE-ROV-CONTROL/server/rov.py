@@ -285,7 +285,7 @@ class Arm: #TODO use mapping not buttons directly
         self.set_state(ArmState.STOWED)
         logger.info("Arm initialization complete")
         
-    def set_state(self, state: ArmState) -> bool:
+    def set_state(self, state: ArmState) -> bool: #do conditional ordering for the servos when doing set states
         """Set the arm to a predefined state"""
         if state not in ArmState:
             logger.error(f"Invalid arm state: {state}")
@@ -314,7 +314,7 @@ class Arm: #TODO use mapping not buttons directly
         logger.info(f"Arm now in {state.name} position")
         return True
         
-    def open_claw(self) -> None:
+    def open_claw(self) -> None: #bumpers for open and close
         """Open the claw"""
         self.servos["claw"].set_angle(0)  # 0° = open
         logger.info("Claw opened")
@@ -324,7 +324,7 @@ class Arm: #TODO use mapping not buttons directly
         self.servos["claw"].set_angle(180)  # 180° = closed
         logger.info("Claw closed")
         
-    def adjust_wrist(self, direction: int, step: int = 5) -> None: #TODO MAKEIT SO THAT IT IS HOLD TO MOVE
+    def adjust_wrist(self, direction: int, step: int = 5) -> None: #TODO MAKEIT SO THAT IT IS HOLD TO MOVE (dpads to be set states)
         """
         Adjust wrist rotation incrementally
         direction: -1 for left, 1 for right
