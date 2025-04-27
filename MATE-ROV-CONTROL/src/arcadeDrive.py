@@ -53,35 +53,35 @@ import sys
 #             out = [-1,1 if difference > 0 else -1,1 if difference > 0 else -1,-1]
 #     return out
     
-# def arcadeDrive3(x,y, rx, rT, lT) -> list[int]: #for strafing right left forward back turning
-#     # print(f"X: {x}")
-#     # print(f"Y: {y}")
-#     # print(f"RX: {rx}")
+def arcadeDrive3(x,y, rx, rT, lT) -> list[int]: #for strafing right left forward back turning
+    # print(f"X: {x}")
+    # print(f"Y: {y}")
+    # print(f"RX: {rx}")
     
-#     PWM = rT - lT
+    PWM = rT - lT
 
-#     frontLeft = y + x + rx #2
-#     frontRight = y - x - rx #3
-#     backRight = -y - x + rx #4  
-#     backLeft = -y + x - rx #1
-#     data = [-frontLeft,-frontRight,-backLeft,-backRight]
+    frontLeft = y + x + rx #2
+    frontRight = y - x - rx #3
+    backRight = -y - x + rx #4  
+    backLeft = -y + x - rx #1
+    data = [-frontLeft,-frontRight,-backLeft,-backRight]
     
-#     for val in data:
-#         absVal = abs(val)
-#         if absVal > 1.0:
-#             data = [x/absVal for x in data]
+    for val in data:
+        absVal = abs(val)
+        if absVal > 1.0:
+            data = [x/absVal for x in data]
             
-#         # maxVal = max(abs(x) for x in data)
-#         # if maxVal > 1.0:
-#         #     data = [x / maxVal for x in data]
+        # maxVal = max(abs(x) for x in data)
+        # if maxVal > 1.0:
+        #     data = [x / maxVal for x in data]
 
-#     data.append(-PWM)
-#     data.append(-PWM)
-#     data.append(-PWM)
-#     data.append(-PWM)
+    data.append(-PWM)
+    data.append(-PWM)
+    data.append(-PWM)
+    data.append(-PWM)
             
-#     # print(data)
-#     return data
+    # print(data)
+    return data
 
 def arcadeDrive6(input):
     ### Add Vectors is called before this in big control loop on jetson and is then output is parameter of this function
