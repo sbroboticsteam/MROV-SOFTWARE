@@ -7,6 +7,8 @@ import os, subprocess
 from PyQt5.QtCore import QThread, pyqtSignal
 import sys
 
+from Components.controller import ControllerSender  # Add this import
+
 class DashboardPage(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)

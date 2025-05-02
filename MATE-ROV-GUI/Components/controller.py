@@ -7,6 +7,8 @@ import pygame
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QGridLayout, QFrame
 from PyQt5.QtCore import QThread, pyqtSignal, Qt
 from PyQt5.QtGui import QColor
+from Components.controller_remap import ControllerRemappingWidget
+
 
 class ControllerThread(QThread):
     """Thread that reads Xbox controller input and emits RAW updates"""
@@ -132,17 +134,25 @@ class BroadcastThread(QThread):
         self.running = True
         self.broadcast_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         
-        target_ip = '192.168.1.237'
+        target_ip = '192.168.1.237'  # ROV IP address
         self.statusUpdate.emit(f"Sending controller data to {target_ip} on port {self.broadcast_port}")
         
         try:
             while self.running:
                 if self.controller_data:
-                    # Build the complete packet with controller data and any commands
+                    # Build the packet with controller data
                     packet = {
-                        "controller": self.controller_data,
-                        "commands": self.commands
+                        "controller": self.controller_data
                     }
+                    
+                    # Add remapping command directly at the root level if it exists
+                    if "remap" in self.commands:
+                        packet["remap"] = self.commands["remap"]  # Use "remap" not "remapping"
+                    
+                    # Add any other commands
+                    for cmd_name, cmd_value in self.commands.items():
+                        if cmd_name != "remap":  # Skip remap as we handled it specially
+                            packet[cmd_name] = cmd_value
                     
                     # Convert to JSON and send
                     json_data = json.dumps(packet)
@@ -159,7 +169,7 @@ class BroadcastThread(QThread):
                 time.sleep(0.05)  # 20Hz send rate
                 
         except Exception as e:
-            self.statusUpdate.emit(f"Send error: {e}")
+            self.statusUpdate.emit(f"Thread error: {e}")
         finally:
             if self.broadcast_socket:
                 self.broadcast_socket.close()
@@ -226,6 +236,10 @@ class ControllerSender(QWidget):
         # Start controller reading immediately
         self.start_controller_thread()
         self.start_broadcast_thread()
+        
+        # Connect remapping signals
+        self.remapping_widget.remapRequested.connect(self.on_remap_requested)
+        self.remapping_widget.resetRequested.connect(self.on_reset_requested)
     
     def setup_ui(self):
         layout = QVBoxLayout()
@@ -264,13 +278,45 @@ class ControllerSender(QWidget):
         
         layout.addWidget(values_frame)
         
+        # Add remapping widget
+        self.remapping_widget = ControllerRemappingWidget()
+        layout.addWidget(self.remapping_widget)
+        
         # Information display
-        info = QLabel("Broadcasting RAW controller data.\nMotor calculations done on Jetson.")
+        info = QLabel("Broadcasting controller data with mapping support.")
         info.setAlignment(Qt.AlignCenter)
         layout.addWidget(info)
         
         # Set main layout
         self.setLayout(layout)
+        
+    def on_remap_requested(self, source, target):
+        """Handle a request to remap a controller input"""
+        if self.broadcast_thread and self.broadcast_thread.isRunning():
+            # Set the remap command
+            remap_data = {
+                "source": source,
+                "target": target
+            }
+            self.broadcast_thread.set_command("remap", remap_data)
+            self.update_status(f"Remapped {source} to {target}")
+            
+            # Send the command immediately, then clear it
+            # This prevents the remapping command from being sent repeatedly
+            time.sleep(0.1)
+            self.broadcast_thread.clear_command("remap")
+
+    def on_reset_requested(self):
+        """Handle a request to reset all mappings"""
+        if self.broadcast_thread and self.broadcast_thread.isRunning():
+            # Set the reset command
+            remap_data = {"reset": True}
+            self.broadcast_thread.set_command("remap", remap_data)
+            self.update_status("Reset all controller mappings")
+            
+            # Send the command immediately, then clear it
+            time.sleep(0.1)
+            self.broadcast_thread.clear_command("remap")
     
     def start_controller_thread(self):
         """Initialize and start the controller thread"""

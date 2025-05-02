@@ -9,6 +9,9 @@ from Components.controller import ControllerSender
 # from Components.controller_sensitivity import ControllerSensitivity, AdjustableControllerSensivitity
 from Components.controller_sensitivity import ControllerSensitivity
 
+from Components.controller import ControllerSender
+
+
 # controls for minimizing, maximizing and closing widgets (like a window)
 class WindowControls(QWidget):
     minimizeClicked = pyqtSignal()
