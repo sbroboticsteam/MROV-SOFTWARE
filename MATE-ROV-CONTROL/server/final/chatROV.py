@@ -324,6 +324,10 @@ class ROV:
     def _process_control_data(self, control_data: Dict) -> None:
         """Process control data to update thruster speeds."""
         try:
+            if 'controller' in control_data:
+                pass 
+            if 'commands' in control_data:
+                pass
             if 'motor_values' in control_data:
                 motor_values = control_data['motor_values']
                 if isinstance(motor_values, list) and len(motor_values) == len(self.thrusters):

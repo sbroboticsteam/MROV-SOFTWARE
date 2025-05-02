@@ -83,6 +83,7 @@ import sys
 #     # print(data)
 #     return data
 
+
 def arcadeDrive6(input):
     ### Add Vectors is called before this in big control loop on jetson and is then output is parameter of this function
     
@@ -139,6 +140,8 @@ def controllerinput(x,y, rx, rT, lT):
     
     return data
 
+
+#??????
 def rotateVectors(power):
     
     x_rotated = (power[0] * (np.cos(power[5]) * np.cos(power[4])) +
