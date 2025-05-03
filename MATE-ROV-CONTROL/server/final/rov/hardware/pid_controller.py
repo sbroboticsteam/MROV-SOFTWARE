@@ -1,3 +1,16 @@
+import time
+import sys
+import numpy as np
+import logging
+import json
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.FileHandler("rov.log"), logging.StreamHandler()]
+)
+logger = logging.getLogger("ROV")
+
 class ElapsedTime:
     def __init__(self):
         self.reset()

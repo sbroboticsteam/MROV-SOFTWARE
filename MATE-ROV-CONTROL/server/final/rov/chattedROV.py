@@ -4,13 +4,13 @@ import threading
 import argparse
 
 
-from rov.hardware.pca9685 import PCA9685, PCA9685Channel
-from rov.hardware.thruster import Thruster
-from rov.hardware.servo import Servo, Arm, ArmState
-from rov.hardware.imu import IMUSensor
-from rov.hardware.controller import ControllerMapper
-from rov.hardware.ethernet_man import EthernetManager
-from rov.hardware.pid_controller import ChassisControl
+from hardware.pca9685 import PCA9685, PCA9685Channel
+from hardware.thruster import Thruster
+from hardware.servo import Servo, Arm, ArmState
+from hardware.imu import IMUSensor
+from hardware.controller import ControllerMapper
+from hardware.ethernet_man import EthernetManager
+from hardware.pid_controller import ChassisControl
 
 logging.basicConfig(
     level=logging.INFO,
