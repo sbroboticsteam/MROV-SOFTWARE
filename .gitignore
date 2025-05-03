@@ -1,1 +1,12 @@
 **/.vscode/
+/MATE-ROV-FLOAT/laptop/sim.py
+/MATE-ROV-GUI/Components/__pycache__/__init__.cpython-311.pyc
+/MATE-ROV-GUI/Components/__pycache__/adjustable.cpython-311.pyc
+/MATE-ROV-GUI/Components/__pycache__/camera.cpython-311.pyc
+/MATE-ROV-GUI/Components/__pycache__/connectivity.cpython-311.pyc
+/MATE-ROV-GUI/Components/__pycache__/controller.cpython-311.pyc
+/MATE-ROV-GUI/Components/__pycache__/controller_remap.cpython-311.pyc
+/MATE-ROV-GUI/Components/__pycache__/controller_sensitivity.cpython-311.pyc
+/MATE-ROV-GUI/Components/__pycache__/depth_time.cpython-311.pyc
+/MATE-ROV-GUI/Components/__pycache__/speedpanel.cpython-311.pyc
+/MATE-ROV-GUI/Components/__pycache__/temp_camera.cpython-311.pyc

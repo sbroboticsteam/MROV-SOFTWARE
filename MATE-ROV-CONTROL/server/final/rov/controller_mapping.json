@@ -1,0 +1,18 @@
+{
+  "left_stick_x": "left_stick_x",
+  "left_stick_y": "left_stick_y",
+  "right_stick_x": "right_stick_x",
+  "right_stick_y": "right_stick_y",
+  "left_trigger": "left_trigger",
+  "right_trigger": "right_trigger",
+  "a": "a",
+  "b": "b",
+  "x": "x",
+  "y": "y",
+  "lb": "lb",
+  "rb": "rb",
+  "back": "back",
+  "start": "start",
+  "dpad_x": "dpad_x",
+  "dpad_y": "dpad_y"
+}
