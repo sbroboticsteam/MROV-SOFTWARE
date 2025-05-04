@@ -109,7 +109,39 @@ def send_command(esp32_ip, command, laptop_ip=""):
     # Add to the send_command function in send_command.py
     elif command == "pid_toggle":
         url = f"http://{esp32_ip}/toggle_pid_control"
-
+    # Add this new command handler in the send_command function
+    elif command == "target":
+        try:
+            depth = input("Enter target depth in meters: ").strip()
+            if not depth or not depth.replace('.', '', 1).isdigit():
+                print("Invalid input. Please enter a positive number.")
+                return
+                
+            url = f"http://{esp32_ip}/set_target_depth?depth={depth}"
+            response = requests.get(url, timeout=10)
+            print("Response:", response.text)
+            return
+            
+        except Exception as e:
+            print("Error setting target depth:", e)
+            return
+    elif command == "interval":
+        try:
+            interval = input("Enter read interval in milliseconds: ").strip()
+            if not interval or not interval.isdigit() or int(interval) <= 0:
+                print("Invalid input. Please enter a positive number.")
+                return
+                    
+            url = f"http://{esp32_ip}/set_read_interval?ms={interval}"
+            response = requests.get(url, timeout=10)
+            print("Response:", response.text)
+            return
+                
+        except Exception as e:
+            print("Error setting read interval:", e)
+            return
+    elif command == "routine_pid":
+        url = f"http://{esp32_ip}/toggle_routine_pid"
     else:
         print("Invalid command!")
         return
@@ -129,15 +161,17 @@ def main():
     print("  vs  - Start velocity testing")
     print("  vst - Stop velocity testing")
     print("  st  - Stop float (and pump)")
-    print("  rs  - Start routine (descend to >=2.5m, hold >42 sec, then ascend)")
+    print("  rs  - Start routine (descend to >=TARGET DEPTH, hold > Routine Wait time, then ascend)")
     print("  a   - Float Ascend")
     print("  d   - Float Descend")
     print("  .   - Pump stop")
     print("  pid - Set PID parameters")
-    print("  vel - Set velocity limits")  # New command
-    # In the main() function of send_command.py, add this line to the available commands:
+    print("  vel - Set velocity limits")
     print("  wait - Set routine wait time (in seconds)")
-    print("  pid_toggle - Toggle PID control outside of routine mode") 
+    print("  pid_toggle - Toggle PID control outside of routine mode")
+    print("  routine_pid - Toggle PID control during routine wait phase") 
+    print("  target - Set target depth for PID control")
+    print("  interval - Set data read interval (in milliseconds)")
     print("  q   - Quit")
 
     while True:

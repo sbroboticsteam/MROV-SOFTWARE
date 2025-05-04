@@ -32,7 +32,7 @@
 #define PUMP_ASC_PIN  27   // Pump control pin for ascending (empty ballast)
 
 // -------------------- PID Control Variables --------------------
-#define TARGET_DEPTH 2.625  // Middle of our range (2.5 to 2.75)
+float TARGET_DEPTH = 2.625;  // Middle of our range (2.5 to 2.75)
 #define DEPTH_TOLERANCE 0.125  // ±0.125m from target (gives us 2.5 to 2.75 range)
 
 // PID coefficients - you'll need to tune these
@@ -243,6 +243,23 @@ void pumpAscend() {
 void pumpOff() {
   digitalWrite(PUMP_DESC_PIN, LOW);
   digitalWrite(PUMP_ASC_PIN, LOW);
+}
+// -------------------- /set_target_depth handler --------------------
+void handleSetTargetDepth() {
+  if (server.hasArg("depth")) {
+    float newDepth = server.arg("depth").toFloat();
+    // Optional: Add validation if needed
+    if (newDepth > 0.0 && newDepth < 10.0) {  // Reasonable depth range
+      TARGET_DEPTH = newDepth;
+      String response = "Target depth updated to " + String(TARGET_DEPTH) + " meters";
+      server.send(200, "text/plain", response);
+      Serial.println(response);
+    } else {
+      server.send(400, "text/plain", "Invalid depth value. Please provide a value between 0 and 10 meters.");
+    }
+  } else {
+    server.send(400, "text/plain", "Missing 'depth' parameter");
+  }
 }
 
 // -------------------- /set_pid handler --------------------
@@ -505,7 +522,7 @@ void TaskSensorAndSending(void * pvParameters) {
             // Within allowed velocity -> keep descending
             pumpDescend();
             // Check if target depth reached
-            if (currentDepth >= 2.5) {
+            if (currentDepth >= TARGET_DEPTH) {
               pumpOff();
               routineState = R_WAITING;
               routineWaitStart = currentMillis;
@@ -547,11 +564,14 @@ void TaskSensorAndSending(void * pvParameters) {
                             currentDepth, TARGET_DEPTH, pidOutput, pidError);
               
               // We also want to check if we're outside our allowed range
-              if (currentDepth < 2.5) {
-                Serial.println("WARNING: Depth too shallow (<2.5m)");
+              // Replace the hardcoded warning checks with these:
+              if (currentDepth < TARGET_DEPTH - DEPTH_TOLERANCE) {
+                Serial.printf("WARNING: Depth too shallow (<%0.2fm)\n", 
+                              TARGET_DEPTH - DEPTH_TOLERANCE);
               } 
-              else if (currentDepth > 2.75) {
-                Serial.println("WARNING: Depth too deep (>2.75m)");
+              else if (currentDepth > TARGET_DEPTH + DEPTH_TOLERANCE) {
+                Serial.printf("WARNING: Depth too deep (>%0.2fm)\n", 
+                              TARGET_DEPTH + DEPTH_TOLERANCE);
               }
             }
             break;
@@ -724,7 +744,8 @@ void setup() {
   server.on("/set_velocity", HTTP_GET, handleSetVelocity);  // New endpoint for velocity limits
   server.on("/set_wait_time", HTTP_GET, handleSetWaitTime);
   // Add this line with the other server.on calls in setup() (around line 690)
-server.on("/toggle_pid_control", HTTP_GET, handleTogglePidControl);
+  server.on("/toggle_pid_control", HTTP_GET, handleTogglePidControl);
+  server.on("/set_target_depth", HTTP_GET, handleSetTargetDepth);
 
   
   // NEW: Pump control endpoints
