@@ -1,0 +1,630 @@
+<?xml version="1.0" ?>
+<robot name="ROV_NoArmURDF" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+<xacro:include filename="$(find ROV_NoArmURDF_description)/urdf/materials.xacro" />
+<xacro:include filename="$(find ROV_NoArmURDF_description)/urdf/ROV_NoArmURDF.trans" />
+<xacro:include filename="$(find ROV_NoArmURDF_description)/urdf/ROV_NoArmURDF.gazebo" />
+<link name="base_link">
+  <inertial>
+    <origin xyz="-0.008849731467788568 0.0029630834154010556 -4.106584581762995e-05" rpy="0 0 0"/>
+    <mass value="3.285705148468138"/>
+    <inertia ixx="0.151251" iyy="0.137021" izz="0.28825" ixy="-6.7e-05" iyz="0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/base_link.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/base_link.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="VerticalThrusterSupportBeams_v1_1">
+  <inertial>
+    <origin xyz="-0.004490284322266835 0.0044898538266262555 0.10472144110117663" rpy="0 0 0"/>
+    <mass value="0.34092339371935965"/>
+    <inertia ixx="0.001286" iyy="0.001286" izz="7.1e-05" ixy="-3.1e-05" iyz="-0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.243664 0.240541 -0.000142" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/VerticalThrusterSupportBeams_v1_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="-0.243664 0.240541 -0.000142" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/VerticalThrusterSupportBeams_v1_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="VerticalThrusterSupportBeams_v1__1__1">
+  <inertial>
+    <origin xyz="-0.00449028432226431 -0.0044897148179048885 0.10472144110117698" rpy="0 0 0"/>
+    <mass value="0.34092339371935965"/>
+    <inertia ixx="0.001286" iyy="0.001286" izz="7.1e-05" ixy="3.1e-05" iyz="0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.243664 -0.246786 -0.000142" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/VerticalThrusterSupportBeams_v1__1__1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="-0.243664 -0.246786 -0.000142" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/VerticalThrusterSupportBeams_v1__1__1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="VerticalThrusterSupportBeams_v1__2__1">
+  <inertial>
+    <origin xyz="0.00449028432226431 0.0044898538266287535 0.10472144110117665" rpy="0 0 0"/>
+    <mass value="0.34092339371935965"/>
+    <inertia ixx="0.001286" iyy="0.001286" izz="7.1e-05" ixy="3.1e-05" iyz="-0.0" ixz="-0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.243664 0.240541 -0.000142" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/VerticalThrusterSupportBeams_v1__2__1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="0.243664 0.240541 -0.000142" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/VerticalThrusterSupportBeams_v1__2__1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="VerticalThrusterSupportBeams_v1__3__1">
+  <inertial>
+    <origin xyz="0.00449028432226628 -0.004489714817903001 0.10472144110117686" rpy="0 0 0"/>
+    <mass value="0.34092339371935965"/>
+    <inertia ixx="0.001286" iyy="0.001286" izz="7.1e-05" ixy="-3.1e-05" iyz="0.0" ixz="-0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.243664 -0.246786 -0.000142" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/VerticalThrusterSupportBeams_v1__3__1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="0.243664 -0.246786 -0.000142" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/VerticalThrusterSupportBeams_v1__3__1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="T200_v1_1">
+  <inertial>
+    <origin xyz="0.026842796838068117 0.04148821879737419 -5.405849581377464e-06" rpy="0 0 0"/>
+    <mass value="0.15065662889769457"/>
+    <inertia ixx="0.000156" iyy="0.000154" izz="0.000141" ixy="-1.8e-05" iyz="0.0" ixz="-0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.243664 -0.246786 -0.105142" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/T200_v1_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="-0.243664 -0.246786 -0.105142" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/T200_v1_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="T200_v1__1__1">
+  <inertial>
+    <origin xyz="0.026842796905950372 -0.04148807972076812 5.7466739573075465e-06" rpy="0 0 0"/>
+    <mass value="0.15065662889769457"/>
+    <inertia ixx="0.000156" iyy="0.000154" izz="0.000141" ixy="1.8e-05" iyz="0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.243664 0.240541 -0.105142" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/T200_v1__1__1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="-0.243664 0.240541 -0.105142" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/T200_v1__1__1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="T200_v1__2__1">
+  <inertial>
+    <origin xyz="-0.026842796838067784 0.041488218797373855 5.74667395759898e-06" rpy="0 0 0"/>
+    <mass value="0.15065662889769457"/>
+    <inertia ixx="0.000156" iyy="0.000154" izz="0.000141" ixy="1.8e-05" iyz="-0.0" ixz="-0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.243664 -0.246786 -0.105142" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/T200_v1__2__1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="0.243664 -0.246786 -0.105142" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/T200_v1__2__1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="T200_v1__3__1">
+  <inertial>
+    <origin xyz="-0.026842796838068006 -0.04148807978865032 -5.405849581571753e-06" rpy="0 0 0"/>
+    <mass value="0.15065662889769457"/>
+    <inertia ixx="0.000156" iyy="0.000154" izz="0.000141" ixy="-1.8e-05" iyz="-0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.243664 0.240541 -0.105142" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/T200_v1__3__1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="0.243664 0.240541 -0.105142" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/T200_v1__3__1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="T200_v1__4__1">
+  <inertial>
+    <origin xyz="-0.03416973472258203 -0.0341612791931985 -0.01985530397217916" rpy="0 0 0"/>
+    <mass value="0.15065662889769457"/>
+    <inertia ixx="0.000139" iyy="0.000139" izz="0.000173" ixy="-2e-06" iyz="-1e-06" ixz="-1e-06"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.234684 -0.237806 -0.171642" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/T200_v1__4__1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="-0.234684 -0.237806 -0.171642" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/T200_v1__4__1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="T200_v1__5__1">
+  <inertial>
+    <origin xyz="-0.03416184869756031 0.03416930422694381 -0.019855303972179633" rpy="0 0 0"/>
+    <mass value="0.15065662889769457"/>
+    <inertia ixx="0.000139" iyy="0.000139" izz="0.000173" ixy="2e-06" iyz="1e-06" ixz="-1e-06"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.234684 0.231561 -0.171642" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/T200_v1__5__1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="-0.234684 0.231561 -0.171642" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/T200_v1__5__1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="T200_v1__6__1">
+  <inertial>
+    <origin xyz="0.03416973472258239 0.034161418201922505 -0.01985530397217941" rpy="0 0 0"/>
+    <mass value="0.15065662889769457"/>
+    <inertia ixx="0.000139" iyy="0.000139" izz="0.000173" ixy="-2e-06" iyz="1e-06" ixz="1e-06"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.234684 0.231561 -0.171642" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/T200_v1__6__1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="0.234684 0.231561 -0.171642" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/T200_v1__6__1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="T200_v1__7__1">
+  <inertial>
+    <origin xyz="0.03416184869755931 -0.03416916521822144 -0.019855303972179245" rpy="0 0 0"/>
+    <mass value="0.15065662889769457"/>
+    <inertia ixx="0.000139" iyy="0.000139" izz="0.000173" ixy="2e-06" iyz="-1e-06" ixz="1e-06"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.234684 -0.237806 -0.171642" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/T200_v1__7__1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="0.234684 -0.237806 -0.171642" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/T200_v1__7__1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="TopPlate_v1_1">
+  <inertial>
+    <origin xyz="0.24782424120969015 0.24678346791049408 0.00016221345705774715" rpy="0 0 0"/>
+    <mass value="3.2351726296403394"/>
+    <inertia ixx="0.166436" iyy="0.151449" izz="0.317863" ixy="0.001482" iyz="5e-06" ixz="-1.4e-05"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.243664 0.240541 -0.210142" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/TopPlate_v1_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="0.243664 0.240541 -0.210142" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/TopPlate_v1_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="Thruster_Prop__v1_v1_1">
+  <inertial>
+    <origin xyz="0.008855266918812277 0.008859216174703977 2.2132056003293377e-06" rpy="0 0 0"/>
+    <mass value="0.008326303172342044"/>
+    <inertia ixx="3e-06" iyy="3e-06" izz="2e-06" ixy="1e-06" iyz="-0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.25586 0.297641 -0.105142" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/Thruster_Prop__v1_v1_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="-0.25586 0.297641 -0.105142" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/Thruster_Prop__v1_v1_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="Thruster_Prop__v1_v1__1__1">
+  <inertial>
+    <origin xyz="-0.008859684726002015 0.008854874478834207 2.2132056005513823e-06" rpy="0 0 0"/>
+    <mass value="0.008326303172342044"/>
+    <inertia ixx="3e-06" iyy="3e-06" izz="2e-06" ixy="-1e-06" iyz="0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.276959 -0.282788 -0.105142" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/Thruster_Prop__v1_v1__1__1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="-0.276959 -0.282788 -0.105142" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/Thruster_Prop__v1_v1__1__1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="Thruster_Prop__v1_v1__2__1">
+  <inertial>
+    <origin xyz="0.008855152941652955 0.008859406263183378 2.2132056006068934e-06" rpy="0 0 0"/>
+    <mass value="0.008326303172342044"/>
+    <inertia ixx="3e-06" iyy="3e-06" izz="2e-06" ixy="1e-06" iyz="-0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.276959 -0.282788 -0.105142" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/Thruster_Prop__v1_v1__2__1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="0.276959 -0.282788 -0.105142" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/Thruster_Prop__v1_v1__2__1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="Thruster_Prop__v1_v1__3__1">
+  <inertial>
+    <origin xyz="0.008859684726002126 -0.008854735470110398 2.2132056003570932e-06" rpy="0 0 0"/>
+    <mass value="0.008326303172342044"/>
+    <inertia ixx="3e-06" iyy="3e-06" izz="2e-06" ixy="-1e-06" iyz="-0.0" ixz="-0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.276959 0.276543 -0.105142" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/Thruster_Prop__v1_v1__3__1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="0.276959 0.276543 -0.105142" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/Thruster_Prop__v1_v1__3__1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="Thruster_Prop__v1_v1__4__1">
+  <inertial>
+    <origin xyz="-4.065704307998352e-06 -6.072537971635317e-07 -0.012526649787557992" rpy="0 0 0"/>
+    <mass value="0.008326303172342044"/>
+    <inertia ixx="2e-06" iyy="2e-06" izz="3e-06" ixy="-0.0" iyz="0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.200035 0.196913 -0.160229" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/Thruster_Prop__v1_v1__4__1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="0.200035 0.196913 -0.160229" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/Thruster_Prop__v1_v1__4__1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="Thruster_Prop__v1_v1__5__1">
+  <inertial>
+    <origin xyz="4.660800400901888e-07 -3.7855218295579363e-06 -0.01252664978755788" rpy="0 0 0"/>
+    <mass value="0.008326303172342044"/>
+    <inertia ixx="2e-06" iyy="2e-06" izz="3e-06" ixy="0.0" iyz="0.0" ixz="-0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.200035 -0.203158 -0.160229" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/Thruster_Prop__v1_v1__5__1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="0.200035 -0.203158 -0.160229" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/Thruster_Prop__v1_v1__5__1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="Thruster_Prop__v1_v1__6__1">
+  <inertial>
+    <origin xyz="1.1767581593602472e-06 -3.7855218282811798e-06 -0.012526649787557853" rpy="0 0 0"/>
+    <mass value="0.008326303172342044"/>
+    <inertia ixx="2e-06" iyy="2e-06" izz="3e-06" ixy="0.0" iyz="0.0" ixz="-0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.200035 -0.203158 -0.160229" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/Thruster_Prop__v1_v1__6__1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="-0.200035 -0.203158 -0.160229" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/Thruster_Prop__v1_v1__6__1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="Thruster_Prop__v1_v1__7__1">
+  <inertial>
+    <origin xyz="1.1767581593880028e-06 -3.4961999466065485e-06 -0.012526649787558214" rpy="0 0 0"/>
+    <mass value="0.008326303172342044"/>
+    <inertia ixx="2e-06" iyy="2e-06" izz="3e-06" ixy="0.0" iyz="0.0" ixz="-0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.200035 0.196913 -0.160229" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/Thruster_Prop__v1_v1__7__1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="-0.200035 0.196913 -0.160229" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/Thruster_Prop__v1_v1__7__1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="EboxV2_Assembly_Welds_v1_1">
+  <inertial>
+    <origin xyz="0.1249935000000255 -0.14196343049563875 0.08575293356700915" rpy="0 0 0"/>
+    <mass value="2.95500253978019"/>
+    <inertia ixx="0.034054" iyy="0.034054" izz="0.049082" ixy="0.0" iyz="0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.216531 -0.145086 -0.003142" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/EboxV2_Assembly_Welds_v1_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="0.216531 -0.145086 -0.003142" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find ROV_NoArmURDF_description)/meshes/EboxV2_Assembly_Welds_v1_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<joint name="Rigid 1" type="fixed">
+  <origin xyz="0.243664 -0.240541 0.000142" rpy="0 0 0"/>
+  <parent link="base_link"/>
+  <child link="VerticalThrusterSupportBeams_v1_1"/>
+</joint>
+
+<joint name="Rigid 2" type="fixed">
+  <origin xyz="0.243664 0.246786 0.000142" rpy="0 0 0"/>
+  <parent link="base_link"/>
+  <child link="VerticalThrusterSupportBeams_v1__1__1"/>
+</joint>
+
+<joint name="Rigid 3" type="fixed">
+  <origin xyz="-0.243664 -0.240541 0.000142" rpy="0 0 0"/>
+  <parent link="base_link"/>
+  <child link="VerticalThrusterSupportBeams_v1__2__1"/>
+</joint>
+
+<joint name="Rigid 4" type="fixed">
+  <origin xyz="-0.243664 0.246786 0.000142" rpy="0 0 0"/>
+  <parent link="base_link"/>
+  <child link="VerticalThrusterSupportBeams_v1__3__1"/>
+</joint>
+
+<joint name="Rigid 5" type="fixed">
+  <origin xyz="0.0 0.0 0.105" rpy="0 0 0"/>
+  <parent link="VerticalThrusterSupportBeams_v1__1__1"/>
+  <child link="T200_v1_1"/>
+</joint>
+
+<joint name="Rigid 6" type="fixed">
+  <origin xyz="0.0 0.0 0.105" rpy="0 0 0"/>
+  <parent link="VerticalThrusterSupportBeams_v1_1"/>
+  <child link="T200_v1__1__1"/>
+</joint>
+
+<joint name="Rigid 7" type="fixed">
+  <origin xyz="0.0 0.0 0.105" rpy="0 0 0"/>
+  <parent link="VerticalThrusterSupportBeams_v1__3__1"/>
+  <child link="T200_v1__2__1"/>
+</joint>
+
+<joint name="Rigid 8" type="fixed">
+  <origin xyz="0.0 0.0 0.105" rpy="0 0 0"/>
+  <parent link="VerticalThrusterSupportBeams_v1__2__1"/>
+  <child link="T200_v1__3__1"/>
+</joint>
+
+<joint name="Rigid 9" type="fixed">
+  <origin xyz="-0.00898 -0.00898 0.1715" rpy="0 0 0"/>
+  <parent link="VerticalThrusterSupportBeams_v1__1__1"/>
+  <child link="T200_v1__4__1"/>
+</joint>
+
+<joint name="Rigid 10" type="fixed">
+  <origin xyz="-0.00898 0.00898 0.1715" rpy="0 0 0"/>
+  <parent link="VerticalThrusterSupportBeams_v1_1"/>
+  <child link="T200_v1__5__1"/>
+</joint>
+
+<joint name="Rigid 11" type="fixed">
+  <origin xyz="0.00898 0.00898 0.1715" rpy="0 0 0"/>
+  <parent link="VerticalThrusterSupportBeams_v1__2__1"/>
+  <child link="T200_v1__6__1"/>
+</joint>
+
+<joint name="Rigid 12" type="fixed">
+  <origin xyz="0.00898 -0.00898 0.1715" rpy="0 0 0"/>
+  <parent link="VerticalThrusterSupportBeams_v1__3__1"/>
+  <child link="T200_v1__7__1"/>
+</joint>
+
+<joint name="Rigid 13" type="fixed">
+  <origin xyz="0.0 0.0 0.21" rpy="0 0 0"/>
+  <parent link="VerticalThrusterSupportBeams_v1__2__1"/>
+  <child link="TopPlate_v1_1"/>
+</joint>
+
+<joint name="Revolute 14" type="continuous">
+  <origin xyz="0.012196 -0.0571 0.0" rpy="0 0 0"/>
+  <parent link="T200_v1__1__1"/>
+  <child link="Thruster_Prop__v1_v1_1"/>
+  <axis xyz="0.707107 0.707107 0.0"/>
+</joint>
+
+<joint name="Revolute 15" type="continuous">
+  <origin xyz="0.033295 0.036002 0.0" rpy="0 0 0"/>
+  <parent link="T200_v1_1"/>
+  <child link="Thruster_Prop__v1_v1__1__1"/>
+  <axis xyz="0.707107 -0.707107 -0.0"/>
+</joint>
+
+<joint name="Revolute 16" type="continuous">
+  <origin xyz="-0.033295 0.036002 0.0" rpy="0 0 0"/>
+  <parent link="T200_v1__2__1"/>
+  <child link="Thruster_Prop__v1_v1__2__1"/>
+  <axis xyz="-0.707107 -0.707107 -0.0"/>
+</joint>
+
+<joint name="Revolute 17" type="continuous">
+  <origin xyz="-0.033295 -0.036002 0.0" rpy="0 0 0"/>
+  <parent link="T200_v1__3__1"/>
+  <child link="Thruster_Prop__v1_v1__3__1"/>
+  <axis xyz="-0.707107 0.707107 0.0"/>
+</joint>
+
+<joint name="Revolute 18" type="continuous">
+  <origin xyz="0.034649 0.034648 -0.011413" rpy="0 0 0"/>
+  <parent link="T200_v1__6__1"/>
+  <child link="Thruster_Prop__v1_v1__4__1"/>
+  <axis xyz="0.0 -0.0 1.0"/>
+</joint>
+
+<joint name="Revolute 19" type="continuous">
+  <origin xyz="0.034649 -0.034648 -0.011413" rpy="0 0 0"/>
+  <parent link="T200_v1__7__1"/>
+  <child link="Thruster_Prop__v1_v1__5__1"/>
+  <axis xyz="-0.0 -0.0 1.0"/>
+</joint>
+
+<joint name="Revolute 20" type="continuous">
+  <origin xyz="-0.034649 -0.034648 -0.011413" rpy="0 0 0"/>
+  <parent link="T200_v1__4__1"/>
+  <child link="Thruster_Prop__v1_v1__6__1"/>
+  <axis xyz="0.0 -0.0 1.0"/>
+</joint>
+
+<joint name="Revolute 21" type="continuous">
+  <origin xyz="-0.034649 0.034648 -0.011413" rpy="0 0 0"/>
+  <parent link="T200_v1__5__1"/>
+  <child link="Thruster_Prop__v1_v1__7__1"/>
+  <axis xyz="0.0 -0.0 1.0"/>
+</joint>
+
+<joint name="Rigid 22" type="fixed">
+  <origin xyz="-0.216531 0.145086 0.003142" rpy="0 0 0"/>
+  <parent link="base_link"/>
+  <child link="EboxV2_Assembly_Welds_v1_1"/>
+</joint>
+
+</robot>
