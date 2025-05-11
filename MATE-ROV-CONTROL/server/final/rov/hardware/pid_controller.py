@@ -119,8 +119,8 @@ class ChassisControl:
         self.pidX = PID_Controller(0, 0, 0, 0).set_name("X")
         self.pidY = PID_Controller(0, 0, 0, 0).set_name("Y")
         self.pidZ = PID_Controller(0, 0, 0, 0).set_name("Z")
-        self.pidRoll = PID_Controller(0.02, 0, 0, 0).set_name("Roll")
-        self.pidPitch = PID_Controller(0.02, 0, 0, 0).set_name ("Pitch")
+        self.pidRoll = PID_Controller(0.08, 0, 0, 0).set_name("Roll")
+        self.pidPitch = PID_Controller(0.1, 0, 0, 0).set_name ("Pitch")
         self.pidYaw = PID_Controller(0, 0, 0, 0).set_name("Yaw")
         
     def updateTarget(self, imuData, x, y, rx, ry, rT, lT):

@@ -80,7 +80,7 @@ class IMUSensor:
             
             # Apply calibration offset to roll value (2.69 degrees when level)
             roll += 2.69
-            pitch -= 8.44
+            pitch -= 2.44
             
             # Update last read values
             self.last_heading = heading

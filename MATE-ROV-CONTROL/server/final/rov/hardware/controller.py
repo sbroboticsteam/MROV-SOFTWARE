@@ -40,11 +40,48 @@ class ControllerMapper:
         'dpad_y': 'dpad_y'
     }
     
+    # filepath: /home/itouchedlogourt/Desktop/MROV-SOFTWARE/MATE-ROV-CONTROL/server/final/rov/hardware/controller.py
     def __init__(self):
         self.mapping = self.DEFAULT_MAPPING.copy()
-        self.config_file = "controller_mapping.json"
-        self.load_mapping()
         
+        self.config_file = "/home/itouchedlogourt/Desktop/MROV-SOFTWARE/MATE-ROV-CONTROL/server/final/rov/controller_mapping.json"
+        
+        self.load_mapping()
+
+    def set_mapping(self, source, target):
+        """Set a new mapping from source to target"""
+        # Translation dictionary from friendly names to internal names
+        friendly_to_internal = {
+            'strafe left/right': 'left_stick_x',
+            'foward/back': 'left_stick_y',
+            'turn right/left': 'right_stick_x',
+            'tilt foward/back': 'right_stick_y',
+            'down': 'left_trigger',
+            'up': 'right_trigger',
+            'action 0': 'a',
+            'action 1': 'b',
+            'stowed': 'x',
+            'fully out': 'y',
+            'out down': 'lb',
+            'down': 'rb',
+            'rotate right/left': 'dpad_x',
+            'open/close': 'dpad_y'
+            # Add any other mappings as needed
+        }
+        
+        # Translate BOTH source and target friendly names to internal names
+        internal_source = friendly_to_internal.get(source, source)
+        internal_target = friendly_to_internal.get(target, target)
+        
+        # Now check using the translated internal source name
+        if internal_source in self.mapping and internal_target in self.DEFAULT_MAPPING.keys():
+            self.mapping[internal_source] = internal_target
+            logger.info(f"Remapped '{source}' to '{target}' (internal: {internal_source} -> {internal_target})")
+            return True
+        else:
+            logger.error(f"Invalid mapping: '{source}' -> '{target}' (internal: {internal_source} -> {internal_target})")
+            return False
+    
     def load_mapping(self):
         """Load controller mapping from config file"""
         try:
@@ -89,16 +126,6 @@ class ControllerMapper:
             return False
             
         return True
-    
-    def set_mapping(self, source, target):
-        """Set a new mapping from source to target"""
-        if source in self.mapping and target in self.DEFAULT_MAPPING.keys():
-            self.mapping[source] = target
-            logger.info(f"Remapped '{source}' to '{target}'")
-            return True
-        else:
-            logger.error(f"Invalid mapping: {source} -> {target}")
-            return False
     
     def reset_mapping(self):
         """Reset mapping to default"""

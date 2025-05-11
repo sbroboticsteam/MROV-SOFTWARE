@@ -40,7 +40,11 @@ class ROV:
         #     name = self.thruster_names[i] if i < len(self.thruster_names) else f"Thruster{i}"
         #     self.thrusters.append(Thruster(channel, self.pca, name=name))
 
+        # self.thrusters_initialized = False
+        # self.b_button_press_time = 0
+
         self.thrusters = []
+        # self.imu = 0
 
         self.controller_mapper = ControllerMapper()
 
@@ -140,14 +144,27 @@ class ROV:
             time.sleep(0.01)
         logger.info("Orientation updater thread stopped")
     
+    def initialize_thrusters(self):
+        """Initialize all thrusters."""
+        if self.thrusters_initialized:
+            logger.info("Thrusters already initialized")
+            return
+            
+        logger.info("Initializing all thrusters...")
+        if self.thrusters:
+            for thruster in self.thrusters:
+                thruster.initialize()
+            self.thrusters_initialized = True
+            logger.info("All thrusters initialized successfully")
+
     def start(self) -> None:
         """Start the ROV system."""
         logger.info("Starting ROV system...")
         
-        # Initialize thrusters if any
-        if self.thrusters:
-            for thruster in self.thrusters:
-                thruster.initialize()
+        # # Initialize thrusters if any
+        # if self.thrusters:
+        #     for thruster in self.thrusters:
+        #         thruster.initialize()
 
         if self.imu.available:
             self.start_orientation_thread()
@@ -328,33 +345,51 @@ class ROV:
             prev_lb = self.prev_button_states.get('lb', 0)
             prev_rb = self.prev_button_states.get('rb', 0)
 
-            # ADD THIS CODE BLOCK HERE - Special handling for remapped buttons
+            # ADD THIS CODE BLOCK HERE - More complete handling for remapped buttons
             # Check if any button is mapped to trigger another button's function
             for source, target in self.controller_mapper.mapping.items():
-                if source in original_controller and original_controller[source] == 1:
-                    if target == 'a': a_button = 1
-                    elif target == 'b': b_button = 1
-                    elif target == 'x': x_button = 1
-                    elif target == 'y': y_button = 1
-                    elif target == 'lb': lb_button = 1
-                    elif target == 'rb': rb_button = 1
+                # Check if the source is in the original controller data AND is pressed
+                if source in original_controller:
+                    # If this source input is active in the original controller
+                    if original_controller[source] == 1:
+                        # Update the mapped button state accordingly
+                        if target == 'a': a_button = 1
+                        elif target == 'b': b_button = 1
+                        elif target == 'x': x_button = 1
+                        elif target == 'y': y_button = 1
+                        elif target == 'lb': lb_button = 1
+                        elif target == 'rb': rb_button = 1
                     
-                # Also update previous button states for proper edge detection
-                if source in original_controller and self.prev_button_states.get(source, 0) == 1:
-                    if target == 'a': prev_a = 1
-                    elif target == 'b': prev_b = 1
-                    elif target == 'x': prev_x = 1
-                    elif target == 'y': prev_y = 1
-                    elif target == 'lb': prev_lb = 1
-                    elif target == 'rb': prev_rb = 1
+                    # Also handle previous button states for edge detection
+                    if source in self.prev_button_states and self.prev_button_states.get(source, 0) == 1:
+                        # Update the previous mapped button state accordingly
+                        if target == 'a': prev_a = 1
+                        elif target == 'b': prev_b = 1
+                        elif target == 'x': prev_x = 1
+                        elif target == 'y': prev_y = 1
+                        elif target == 'lb': prev_lb = 1
+                        elif target == 'rb': prev_rb = 1
             
             # Process button inputs for arm control - each check is independent
             if a_button == 1:
                 self.arm.open_claw()
                 command_processed = True
+            # B button now used exclusively for thruster initialization
             if b_button == 1:
-                self.arm.close_claw()
-                command_processed = True
+                current_time = time.time()
+                
+                # First press, record time
+                if prev_b == 0:
+                    self.b_button_press_time = current_time
+                    logger.info("B button pressed - hold for 3 seconds to initialize thrusters")
+                
+                # Check if button has been held for 3+ seconds
+                if not self.thrusters_initialized and (current_time - self.b_button_press_time >= 3.0):
+                    logger.info("B button held for 3 seconds, initializing thrusters...")
+                    self.initialize_thrusters()
+                    # Reset timer to prevent repeated initialization
+                    self.b_button_press_time = current_time + 100  # Set far in the future
+                    command_processed = True
 
             # For state-changing buttons, only react on press (not hold)
             # and only if not already in that state
@@ -376,17 +411,25 @@ class ROV:
             # Process D-pad (hat) inputs for wrist rotation and claw - CHANGED FROM elif to if
             dpad_x = controller.get('dpad_x', 0)
             dpad_y = controller.get('dpad_y', 0)
+            prev_dpad_y = self.prev_button_states.get('dpad_y', 0)
             if dpad_x == -1:  # Left on D-pad
                 self.arm.adjust_wrist(-1)
                 command_processed = True
             if dpad_x == 1:  # Right on D-pad
                 self.arm.adjust_wrist(1)
                 command_processed = True
-            if dpad_y == -1:  # Down on D-pad
-                self.arm.adjust_claw(-1)
+
+
+            if dpad_y == -1:  # Down on D-pad - close claw while held
+                self.arm.adjust_claw(-1, step=0.2)
                 command_processed = True
-            if dpad_y == 1:  # Up on D-pad
-                self.arm.adjust_claw(1)
+            elif dpad_y == 1:  # Up on D-pad - open claw while held
+                self.arm.adjust_claw(1, step=0.3)
+                command_processed = True
+
+            # Stop claw when D-pad released from up/down
+            if dpad_y == 0 and (prev_dpad_y == 1 or prev_dpad_y == -1):
+                self.arm.stop_claw()  # Stop the claw when D-pad y-axis is released
                 command_processed = True
             
             # Update previous button states
@@ -396,7 +439,8 @@ class ROV:
                 'x': x_button,
                 'y': y_button,
                 'lb': lb_button,
-                'rb': rb_button
+                'rb': rb_button,
+                'dpad_y': dpad_y
             }
         
         # Handle motor_values if present
@@ -427,7 +471,7 @@ class ROV:
 
         # Move the arm to a safe position
         try:
-            self.arm.set_state(ArmState.STOWED)
+            self.arm.set_state(ArmState.FULLY_OUT)
             time.sleep(1)  # Wait for arm to reach position
         except Exception as e:
             logger.error(f"Error stowing arm during shutdown: {e}")

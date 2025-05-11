@@ -3,6 +3,14 @@ from hardware.pca9685 import PCA9685, PCA9685Channel
 import logging
 from time import sleep
 from typing import Dict
+import time
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.FileHandler("rov.log"), logging.StreamHandler()]
+)
+logger = logging.getLogger("ROV")
 
 # --------------------------- Thruster Class ---------------------------
 class Thruster:
@@ -12,8 +20,8 @@ class Thruster:
         self.pca = pca
         self.name = name
         self.STOP_PULSE = 1500
-        self.MIN_PULSE = 1300  # Reverse max pulse
-        self.MAX_PULSE = 1700  # Forward max pulse
+        self.MIN_PULSE = 1100  # Reverse max pulse
+        self.MAX_PULSE = 1700 # Forward max pulse
         self.FORWARD_MIN = 1525  # Minimum pulse to start forward motion
         self.REVERSE_MAX = 1475  # Maximum pulse to start reverse motion
         self.current_pulse = self.STOP_PULSE

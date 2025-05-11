@@ -46,6 +46,64 @@ class Servo:
         self.current_pulse = pulse_width
         time.sleep(0.001)  # Small delay to help register changes
 
+# Add this new class for 360-degree continuous rotation servos
+class ContinuousServo(Servo):
+    """Class for controlling continuous rotation servos"""
+    
+    def __init__(self, channel, pca, min_pulse=500, max_pulse=2500, name="unnamed", stop_pulse=1500):
+        super().__init__(channel, pca, min_pulse, max_pulse, name)
+        self.speed = 0  # Speed from -1 (full reverse) to 1 (full forward), 0 is stopped
+        self.stop_pulse = stop_pulse  # Calibrated stop pulse - 1536 based on calibration
+        
+    def set_speed(self, speed):
+        """Set the rotation speed of the servo.
+        
+        Args:
+            speed: Float from -1.0 (full reverse) to 1.0 (full forward), 0 is stopped
+        """
+        self.speed = max(-1.0, min(1.0, speed))  # Ensure speed is within bounds
+        
+        # If speed is very close to zero or exactly zero, use the calibrated stop pulse
+        if abs(self.speed) < 0.05:
+            self._set_pulse_width(self.stop_pulse)
+            logger.debug(f"{self.name} (Channel {self.channel}): Speed near zero - using calibrated stop pulse {self.stop_pulse}μs")
+        else:
+            # For non-zero speeds, use a modified mapping that accounts for the offset
+            if self.speed > 0:
+                # Map positive speeds from the calibrated stop to max_pulse
+                pulse_width = self.stop_pulse + (self.speed * (self.max_pulse - self.stop_pulse))
+            else:
+                # Map negative speeds from min_pulse to the calibrated stop
+                pulse_width = self.stop_pulse + (self.speed * (self.stop_pulse - self.min_pulse))
+                
+            self._set_pulse_width(pulse_width)
+            logger.debug(f"{self.name} (Channel {self.channel}): Speed set to {self.speed:.2f}")
+        
+    def stop(self):
+        """Stop the continuous rotation servo using calibrated stop pulse with smoother transition"""
+        # Get current speed before stopping
+        prev_speed = self.speed
+        
+        # For smoother stopping when coming from positive speed (which causes the jump)
+        if prev_speed > 0.3:
+            # Step down speed gradually if we were moving fast
+            intermediate_speed = prev_speed * 0.5
+            self._set_pulse_width(self.stop_pulse + (intermediate_speed * (self.max_pulse - self.stop_pulse)))
+            time.sleep(0.03)
+        
+        # Now fully stop
+        self.speed = 0
+        self._set_pulse_width(self.stop_pulse)
+        logger.debug(f"{self.name} (Channel {self.channel}): Stopped at {self.stop_pulse}μs")
+        
+    def calibrate_stop(self, pulse):
+        """Calibrate the stop pulse width for this specific servo"""
+        self.stop_pulse = pulse
+        logger.info(f"{self.name}: Stop pulse calibrated to {pulse}μs")
+        self.stop()  # Apply the new stop pulse
+
+# Then modify the Arm class to use the ContinuousServo for the claw
+
 # --------------------------- Arm State Enum ---------------------------
 class ArmState(Enum):
     """State enum for arm positions"""
@@ -59,31 +117,27 @@ class Arm:
     """Main class that controls all arm servos"""
     
     # Preset positions based on actual calibrated pulse values
-    # Converted from pulse values to angles using reverse calculation
+    # Modified to handle continuous rotation claw
     POSITIONS = {
         ArmState.STOWED: {
-            "claw": 180,     # Closed position
             "wrist": 0,      # Horizontal rotation
             "elbow": 100,    # Final stowed position for elbow
-            "shoulder": 0   # Final stowed position for shoulder
+            "shoulder": 0    # Final stowed position for shoulder
         },
         ArmState.FULLY_OUT: {
-            "claw": 0,       # Open position
             "wrist": 90,     # Vertical
             "elbow": 100,    # Down position (~1940μs)
-            "shoulder": 145  # Extended out (~1681μs)
+            "shoulder": 150  # Extended out (~1681μs)
         },
         ArmState.FULLY_DOWN: {
-            "claw": 0,       # Open position
             "wrist": 90,     # Vertical
             "elbow": 160,    # Down position (~1940μs)
-            "shoulder": 45  # Down position (~1186μs)
+            "shoulder": 90   # Down position (~1186μs)
         },
         ArmState.OUT_DOWN: {
-            "claw": 0,       # Open position
             "wrist": 90,     # Vertical
             "elbow": 160,    # Down position (~1940μs)
-            "shoulder": 145  # Extended out (~1681μs)
+            "shoulder": 150  # Extended out (~1681μs)
         }
     }
     
@@ -94,17 +148,19 @@ class Arm:
         
         # Create servo objects with correct channel assignments and names
         self.servos = {
-            "claw": Servo(3, pca, min_pulse=900, max_pulse=2100, name="Claw"),
             "wrist": Servo(2, pca, min_pulse=900, max_pulse=2000, name="Wrist"),
             "elbow": Servo(0, pca, min_pulse=900, max_pulse=2100, name="Elbow"),
             "shoulder": Servo(1, pca, min_pulse=900, max_pulse=2100, name="Shoulder")
         }
         
+        # Create continuous rotation servo for claw
+        self.claw = ContinuousServo(3, pca, min_pulse=500, max_pulse=2500, name="Claw", stop_pulse=1536)
+        
         # Store the current wrist angle for rotation control
         self.current_wrist_angle = 90  # Start at neutral/vertical
-        self.current_claw_angle = 180 # def closed
+        self.current_claw_speed = 0    # Start stopped
         
-        # Initialize to stowed position
+        # Initialize to the specified position
         self.set_state(ArmState.FULLY_OUT)
         
     def set_state(self, state):
@@ -136,6 +192,9 @@ class Arm:
                     
                 time.sleep(0.1)  # Small delay between servo movements
             
+            # Always stop the claw when changing arm positions for safety
+            self.claw.stop()
+            
         self.current_state = state
         logger.info(f"Arm now in {state.name} position")
         return True
@@ -148,49 +207,62 @@ class Arm:
             logger.info("Arm already in stowed position, no action taken")
             return
         
-        # First set claw and wrist to their stowed positions
-        logger.info("Step 1: Setting claw and wrist positions")
-        self.servos["claw"].set_angle(self.POSITIONS[ArmState.STOWED]["claw"])
+        # First set wrist to its stowed position and stop claw
+        logger.info("Step 1: Setting wrist position and stopping claw")
         self.servos["wrist"].set_angle(self.POSITIONS[ArmState.STOWED]["wrist"])
         self.current_wrist_angle = self.POSITIONS[ArmState.STOWED]["wrist"]
+        self.claw.stop()  # Make sure claw is stopped
         time.sleep(0.3)  # Wait for these servos to move
         
-        # Step 2: Move elbow down first for safety
+        # Rest of stowing sequence remains the same
         logger.info("Step 2: Moving elbow down")
         self.servos["elbow"].set_angle(160)  # Move elbow down (~1980μs)
-        time.sleep(0.5)  # Wait for elbow to complete movement
+        time.sleep(0.5)
         
-        # Step 3: Retract shoulder completely
         logger.info("Step 3: Retracting shoulder")
         self.servos["shoulder"].set_angle(0)  # Move shoulder in (~950μs)
-        time.sleep(0.8)  # Wait longer for shoulder to complete movement
+        time.sleep(0.8)
         
-        # Step 4: Set final elbow position
         logger.info("Step 4: Setting final elbow position")
         self.servos["elbow"].set_angle(100)  # Move elbow to final position
-        time.sleep(0.5)  # Wait for elbow to complete movement
-        
+        time.sleep(0.5)
         
         logger.info("Arm stow sequence completed successfully")
 
-    # def open_claw(self):
-    #     """Open the claw"""
-    #     self.servos["claw"].set_angle(0)  # 0° = open
-    #     print("Claw opened")
+    def open_claw(self):
+        """Open the claw (rotate in opening direction)"""
+        self.claw.set_speed(0.5)  # Adjust speed as needed for your servo
+        logger.info("Claw opening")
         
-    # def close_claw(self):
-    #     """Close the claw"""
-    #     self.servos["claw"].set_angle(180)  # 180° = closed
-    #     print("Claw closed")
+    def close_claw(self):
+        """Close the claw (rotate in closing direction)"""
+        self.claw.set_speed(-0.5)  # Negative for opposite direction
+        logger.info("Claw closing")
+        
+    def stop_claw(self):
+        """Stop claw rotation"""
+        self.claw.stop()
+        logger.info("Claw stopped")
 
-    def adjust_claw(self, direction, step=5):
-        new_angle = self.current_claw_angle + (direction * step)
-        new_angle = max(0, min(180, new_angle))  # Ensure within bounds
+    def adjust_claw(self, direction, step=0.18):
+        """Adjust claw rotation speed
         
-        if new_angle != self.current_claw_angle:
-            self.servos["claw"].set_angle(new_angle)
-            self.current_claw_angle = new_angle
-            print(f"claw rotated to {new_angle}°")
+        Args:
+            direction: -1 for closing, 1 for opening
+            step: Speed increment (0.1 = 10% speed change)
+        """
+        # For continuous servo, we change speed not position
+        new_speed = direction * step
+        
+        if direction > 0:
+            # Add smoother transition for opening (which causes the jump)
+            self.claw.set_speed(new_speed)
+            # Brief delay to let servo stabilize
+            time.sleep(0.01)
+        else:
+            # Regular speed setting for closing
+            self.claw.set_speed(new_speed)
+        logger.info(f"Claw rotating at speed {new_speed:.2f}")
         
     def adjust_wrist(self, direction, step=5):
         """
@@ -205,48 +277,4 @@ class Arm:
         if new_angle != self.current_wrist_angle:
             self.servos["wrist"].set_angle(new_angle)
             self.current_wrist_angle = new_angle
-            print(f"Wrist rotated to {new_angle}°")
-        
-    def process_controller_input(self, buttons, prev_buttons, hat, prev_hat):
-        """Process controller inputs to control the arm"""
-        # No inputs, do nothing
-        if not buttons or len(buttons) < 12:  # Need enough buttons for A, B, X, Y, LB, RB
-            return
-            
-        # # A button (index 0): Open claw
-        # if buttons[0] == 1:
-        #     self.open_claw()
-                
-        # # B button (index 1): Close claw
-        # if buttons[1] == 1:
-        #     self.close_claw()
-                
-        # X button (index 2): Stowed position
-        if buttons[2] != prev_buttons[2] and buttons[2] == 1:
-            self.set_state(ArmState.STOWED)
-                
-        # Y button (index 3): Fully out position
-        if buttons[3] != prev_buttons[3] and buttons[3] == 1:
-            self.set_state(ArmState.FULLY_OUT)
-                
-        # Right Bumper (index 5): Fully down position
-        if len(buttons) > 5 and buttons[5] != prev_buttons[5] and buttons[5] == 1:
-            self.set_state(ArmState.FULLY_DOWN)
-                
-        # Left Bumper (index 4): Out with elbow down position
-        if len(buttons) > 4 and buttons[4] != prev_buttons[4] and buttons[4] == 1:
-            self.set_state(ArmState.OUT_DOWN)
-                
-        # D-pad for continuous wrist rotation (hold to rotate)
-        if hat and len(hat) > 0:
-            if hat[0][0] == -1:  # Left on D-pad
-                self.adjust_wrist(-1)  # Rotate left
-            elif hat[0][0] == 1:  # Right on D-pad
-                self.adjust_wrist(1)   # Rotate right
-
-        # D-pad for continuous wrist rotation (hold to rotate)
-        if hat and len(hat) > 0:
-            if hat[0][1] == -1:  # Left on D-pad
-                self.adjust_claw(-1)  # Rotate left
-            elif hat[0][1] == 1:  # Right on D-pad
-                self.adjust_claw(1)   # Rotate right
+            logger.info(f"Wrist rotated to {new_angle}°")

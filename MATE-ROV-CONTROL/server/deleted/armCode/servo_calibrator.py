@@ -3,8 +3,9 @@ from time import sleep
 import json
 import time
 import tkinter as tk
-from tkinter import ttk, Scale, Label, Button, Frame, StringVar
+from tkinter import ttk, Scale, Label, Button, Frame, StringVar, IntVar, Checkbutton
 from enum import Enum
+import os
 
 # PCA9685 constants
 PCA9685_ADDRESS = 0x40
@@ -17,6 +18,7 @@ class PCA9685:
         self.bus = SMBus(bus_number)
         self.address = address
         self.channels = [PCA9685Channel(self, i) for i in range(16)]
+        self._frequency = 0
         self.reset()
 
     def reset(self):
@@ -82,32 +84,37 @@ class ServoPositionLogger:
     def __init__(self, log_file="servo_positions.log"):
         self.log_file = log_file
         self.current_positions = {
-            "armOne": {"angle": 0, "value": 0, "pulse_width": 0},
-            "armTwo": {"angle": 0, "value": 0, "pulse_width": 0},
-            "claw": {"angle": 0, "value": 0, "pulse_width": 0},
-            "rotate": {"angle": 0, "value": 0, "pulse_width": 0}
+            "shoulder": {"angle": 0, "value": 0, "pulse_width": 0},
+            "elbow": {"angle": 0, "value": 0, "pulse_width": 0},
+            "wrist": {"angle": 0, "value": 0, "pulse_width": 0},
+            "claw": {"speed": 0, "value": 0, "pulse_width": 0}
         }
         # Initialize log file
         with open(self.log_file, 'w') as f:
             f.write("Servo Position Log - Started at: " + time.strftime("%Y-%m-%d %H:%M:%S") + "\n")
             f.write("=" * 80 + "\n")
     
-    def log_position(self, servo_name, angle, value, pulse_width):
+    def log_position(self, servo_name, angle_or_speed, value, pulse_width):
         # Only log if there's actually a change
-        if (self.current_positions[servo_name]["angle"] != angle or
+        position_key = "speed" if servo_name == "claw" else "angle"
+        
+        if (self.current_positions[servo_name].get(position_key) != angle_or_speed or
             self.current_positions[servo_name]["value"] != value or
             self.current_positions[servo_name]["pulse_width"] != pulse_width):
             
             # Update current positions
-            self.current_positions[servo_name]["angle"] = angle
+            self.current_positions[servo_name][position_key] = angle_or_speed
             self.current_positions[servo_name]["value"] = value
             self.current_positions[servo_name]["pulse_width"] = pulse_width
             
             # Format the current time
             timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
             
-            # Create log message
-            log_message = f"[{timestamp}] {servo_name:8} - Angle: {angle:6.2f}° | Value: {value:6.2f} | Pulse Width: {pulse_width:6.2f}µs"
+            # Create log message (different format for continuous servo)
+            if servo_name == "claw":
+                log_message = f"[{timestamp}] {servo_name:8} - Speed: {angle_or_speed:6.2f} | Value: {value:6.2f} | Pulse Width: {pulse_width:6.2f}µs"
+            else:
+                log_message = f"[{timestamp}] {servo_name:8} - Angle: {angle_or_speed:6.2f}° | Value: {value:6.2f} | Pulse Width: {pulse_width:6.2f}µs"
             
             # Print to console
             print(log_message)
@@ -126,6 +133,7 @@ class Servo:
         self.name = name
         self.last_angle = None  # To store the last angle for logging
         self.last_value = None  # To store the last value for logging
+        self.logger = None
         
     def initialize(self):
         # Set to neutral position
@@ -146,7 +154,7 @@ class Servo:
         self._set_pulse_width(pulse_width)
         
         # Log the position if a logger is available
-        if hasattr(self, 'logger') and self.logger is not None:
+        if self.logger is not None:
             self.logger.log_position(self.name, angle, value, pulse_width)
         
     def set_angle(self, angle):
@@ -177,8 +185,44 @@ class Servo:
         value = (2 * (pulse_width - self.MIN_PULSE) / (self.MAX_PULSE - self.MIN_PULSE)) - 1
         angle = (value + 1) * 90
         # Log position if logger is available
-        if hasattr(self, 'logger') and self.logger is not None:
+        if self.logger is not None:
             self.logger.log_position(self.name, angle, value, pulse_width)
+
+# New class for continuous rotation servo
+class ContinuousServo(Servo):
+    """Class for controlling continuous rotation servos"""
+    
+    def __init__(self, channel, pca, min_pulse=900, max_pulse=2100, name="unnamed"):
+        super().__init__(channel, pca, min_pulse, max_pulse, name)
+        self.speed = 0  # Speed from -1 (full reverse) to 1 (full forward), 0 is stopped
+        
+    def set_speed(self, speed):
+        """Set the rotation speed of the servo.
+        
+        Args:
+            speed: Float from -1.0 (full reverse) to 1.0 (full forward), 0 is stopped
+        """
+        self.speed = max(-1.0, min(1.0, speed))  # Ensure speed is within bounds
+        pulse_width = self._map_value_to_pulse(self.speed)
+        self._set_pulse_width(pulse_width)
+        print(f"{self.name} (Channel {self.channel}): Speed set to {self.speed:.2f}")
+        
+        # Log the position if a logger is available
+        if self.logger is not None:
+            self.logger.log_position(self.name, self.speed, self.speed, pulse_width)
+        
+    def set_value(self, value, angle=None):
+        """Override to use speed instead of angle for continuous servos"""
+        self.set_speed(value)
+        
+    def set_angle(self, angle):
+        """Override to prevent using angle for continuous servos"""
+        print(f"Warning: Cannot set angle for continuous servo {self.name}. Use set_speed instead.")
+        
+    def stop(self):
+        """Stop the continuous rotation servo"""
+        self.set_speed(0)
+        print(f"{self.name} (Channel {self.channel}): Stopped")
 
 def angle_to_value(angle):
     """Convert an angle (0-180°) to a servo value (-1 to 1)."""
@@ -187,9 +231,13 @@ def angle_to_value(angle):
     return max(-1.0, min(1.0, value))
 
 class ServoCalibrator:
-    def __init__(self, master, servos):
+    def __init__(self, master, servos, continuous_servos=None):
         self.master = master
         self.servos = servos
+        self.continuous_servos = continuous_servos or {}
+        
+        # Combine regular and continuous servos for UI
+        self.all_servos = {**servos, **continuous_servos}
         
         master.title("Servo Calibrator")
         master.geometry("800x600")
@@ -226,24 +274,34 @@ class ServoCalibrator:
         
     def setup_angle_tab(self):
         # Create angle sliders for each servo
-        Label(self.angle_tab, text="Control servos by angle (0-180°)", font=("Arial", 12)).pack(pady=10)
+        Label(self.angle_tab, text="Control servos by angle (0-180°) and continuous servo by speed", font=("Arial", 12)).pack(pady=10)
         
         # Create a frame for each servo
-        for servo_name, servo in self.servos.items():
+        for servo_name, servo in self.all_servos.items():
             frame = Frame(self.angle_tab)
             frame.pack(fill="x", padx=10, pady=5)
             
-            Label(frame, text=f"{servo_name}:", width=10).pack(side="left")
+            # Different label for continuous servos
+            if servo_name in self.continuous_servos:
+                label_text = f"{servo_name} (speed):"
+            else:
+                label_text = f"{servo_name} (angle):"
+                
+            Label(frame, text=label_text, width=12).pack(side="left")
             
             # Current value display
             value_var = StringVar()
-            value_var.set("0°")
+            if servo_name in self.continuous_servos:
+                value_var.set("0.0")
+            else:
+                value_var.set("0°")
             value_label = Label(frame, textvariable=value_var, width=8)
             value_label.pack(side="right")
             
-            # Slider for angle
+            # Slider for angle or speed
             slider = Scale(frame, from_=0, to=180, orient="horizontal", 
-                          command=lambda val, s=servo, v=value_var: self.on_angle_change(s, val, v))
+                          command=lambda val, s=servo, v=value_var, name=servo_name: 
+                                  self.on_angle_or_speed_change(s, val, v, name in self.continuous_servos))
             slider.set(90)  # Start at middle position
             slider.pack(side="left", fill="x", expand=True)
             
@@ -252,7 +310,7 @@ class ServoCalibrator:
         Label(self.value_tab, text="Control servos by value (-1 to 1)", font=("Arial", 12)).pack(pady=10)
         
         # Create a frame for each servo
-        for servo_name, servo in self.servos.items():
+        for servo_name, servo in self.all_servos.items():
             frame = Frame(self.value_tab)
             frame.pack(fill="x", padx=10, pady=5)
             
@@ -275,7 +333,7 @@ class ServoCalibrator:
         Label(self.pulse_tab, text="Control servos by pulse width (µs)", font=("Arial", 12)).pack(pady=10)
         
         # Create a frame for each servo
-        for servo_name, servo in self.servos.items():
+        for servo_name, servo in self.all_servos.items():
             frame = Frame(self.pulse_tab)
             frame.pack(fill="x", padx=10, pady=5)
             
@@ -303,22 +361,18 @@ class ServoCalibrator:
         # Neutral position button
         Button(button_frame, text="Neutral", command=self.set_neutral).pack(side="left", padx=5)
         
-        # Predefined positions (can be adjusted as needed)
-        pos1_btn = Button(button_frame, text="ARM_ONE_FWD", 
-                         command=lambda: self.set_preset_position("ARM_ONE_FWD"))
-        pos1_btn.pack(side="left", padx=5)
+        # Predefined positions with improved labels
+        Button(button_frame, text="Stowed Position", 
+               command=lambda: self.set_preset_position("STOWED")).pack(side="left", padx=5)
         
-        pos2_btn = Button(button_frame, text="ARM_ONE_DWN", 
-                         command=lambda: self.set_preset_position("ARM_ONE_DWN"))
-        pos2_btn.pack(side="left", padx=5)
+        Button(button_frame, text="Fully Extended", 
+               command=lambda: self.set_preset_position("FULLY_OUT")).pack(side="left", padx=5)
         
-        pos3_btn = Button(button_frame, text="CLAW_OPEN", 
-                         command=lambda: self.set_preset_position("CLAW_OPEN"))
-        pos3_btn.pack(side="left", padx=5)
+        Button(button_frame, text="Fully Down", 
+               command=lambda: self.set_preset_position("FULLY_DOWN")).pack(side="left", padx=5)
         
-        pos4_btn = Button(button_frame, text="CLAW_CLOSED", 
-                         command=lambda: self.set_preset_position("CLAW_CLOSED"))
-        pos4_btn.pack(side="left", padx=5)
+        Button(button_frame, text="Stop Claw", 
+               command=self.stop_claw).pack(side="left", padx=5)
         
         # Frame for saving positions
         save_frame = Frame(self.presets_tab)
@@ -343,15 +397,27 @@ class ServoCalibrator:
         Button(export_frame, text="Export Positions", command=self.export_positions).pack(side="left", padx=5)
         Button(export_frame, text="Import Positions", command=self.import_positions).pack(side="left", padx=5)
     
-    def on_angle_change(self, servo, angle, value_var):
-        angle = float(angle)
-        servo.set_angle(angle)
-        value_var.set(f"{angle:.1f}°")
+    def on_angle_or_speed_change(self, servo, val, value_var, is_continuous):
+        val_float = float(val)
+        if is_continuous:
+            # Convert 0-180 to -1 to 1 for speed
+            speed = (val_float - 90) / 90
+            servo.set_speed(speed)
+            value_var.set(f"{speed:.2f}")
+        else:
+            servo.set_angle(val_float)
+            value_var.set(f"{val_float:.1f}°")
         
     def on_value_change(self, servo, scaled_value, value_var):
         # Convert slider value (-100 to 100) to servo value (-1 to 1)
         value = float(scaled_value) / 100.0
-        servo.set_value(value)
+        
+        # Handle differently based on servo type
+        if isinstance(servo, ContinuousServo):
+            servo.set_speed(value)
+        else:
+            servo.set_value(value)
+            
         value_var.set(f"{value:.2f}")
         
     def on_pulse_change(self, servo, pulse, value_var):
@@ -363,28 +429,68 @@ class ServoCalibrator:
         """Set all servos to neutral position"""
         for servo in self.servos.values():
             servo.set_pulse_width(1500)
+        
+        # Stop continuous servos
+        for servo in self.continuous_servos.values():
+            servo.set_speed(0)
+            
         self.status_var.set("All servos set to neutral position")
+        
+    def stop_claw(self):
+        """Stop the continuous rotation claw"""
+        if "claw" in self.continuous_servos:
+            self.continuous_servos["claw"].stop()
+            self.status_var.set("Claw stopped")
         
     def set_preset_position(self, preset_name):
         """Set predefined positions"""
-        if preset_name == "ARM_ONE_FWD":
-            self.servos["armOne"].set_angle(45)
-            self.status_var.set(f"Set armOne to {preset_name} position (45°)")
-        elif preset_name == "ARM_ONE_DWN":
-            self.servos["armOne"].set_angle(90)
-            self.status_var.set(f"Set armOne to {preset_name} position (90°)")
-        elif preset_name == "CLAW_OPEN":
-            self.servos["claw"].set_angle(180)
-            self.status_var.set(f"Set claw to {preset_name} position (180°)")
-        elif preset_name == "CLAW_CLOSED":
-            self.servos["claw"].set_angle(90)
-            self.status_var.set(f"Set claw to {preset_name} position (90°)")
+        if preset_name == "STOWED":
+            # Simulated arm stow sequence
+            if "wrist" in self.servos:
+                self.servos["wrist"].set_angle(0)
+                sleep(0.3)
+            if "elbow" in self.servos:
+                self.servos["elbow"].set_angle(160)
+                sleep(0.5)
+            if "shoulder" in self.servos:
+                self.servos["shoulder"].set_angle(0)
+                sleep(0.8)
+            if "elbow" in self.servos:
+                self.servos["elbow"].set_angle(100)
+            if "claw" in self.continuous_servos:
+                self.continuous_servos["claw"].stop()
+            self.status_var.set("Arm in stowed position")
+            
+        elif preset_name == "FULLY_OUT":
+            if "wrist" in self.servos:
+                self.servos["wrist"].set_angle(90)
+            if "elbow" in self.servos:
+                self.servos["elbow"].set_angle(100)
+            if "shoulder" in self.servos:
+                self.servos["shoulder"].set_angle(150)
+            self.status_var.set("Arm fully extended out")
+            
+        elif preset_name == "FULLY_DOWN":
+            if "wrist" in self.servos:
+                self.servos["wrist"].set_angle(90)
+            if "elbow" in self.servos:
+                self.servos["elbow"].set_angle(160)
+            if "shoulder" in self.servos:
+                self.servos["shoulder"].set_angle(90)
+            self.status_var.set("Arm fully down")
+            
         elif preset_name in self.saved_positions:
             # Load custom saved position
             position = self.saved_positions[preset_name]
             for servo_name, values in position.items():
                 if servo_name in self.servos:
                     self.servos[servo_name].set_pulse_width(values["pulse_width"])
+                elif servo_name in self.continuous_servos:
+                    if "speed" in values:
+                        self.continuous_servos[servo_name].set_speed(values["speed"])
+                    else:
+                        # For backward compatibility
+                        self.continuous_servos[servo_name].set_pulse_width(values["pulse_width"])
             self.status_var.set(f"Loaded saved position: {preset_name}")
             
     def save_position(self):
@@ -399,6 +505,14 @@ class ServoCalibrator:
         for servo_name, servo in self.servos.items():
             position[servo_name] = {
                 "angle": servo.last_angle,
+                "value": servo.last_value,
+                "pulse_width": servo.current_pulse
+            }
+            
+        # Save continuous servo positions with speed
+        for servo_name, servo in self.continuous_servos.items():
+            position[servo_name] = {
+                "speed": servo.speed,
                 "value": servo.last_value,
                 "pulse_width": servo.current_pulse
             }
@@ -462,25 +576,35 @@ def main():
     # Create a position logger
     position_logger = ServoPositionLogger()
     
-    # Initialize servos
+    # Initialize standard servos
     servos = {
-        "armOne": Servo(0, pca, min_pulse=900, max_pulse=2100, name="armOne"), #claw //500 - rest 2100 close fully
-        "armTwo": Servo(1, pca, min_pulse=900, max_pulse=2100, name="armTwo"), #rorate  //500 rest 1450 ish is vertical 2000
-        "claw": Servo(3, pca, min_pulse=900, max_pulse=2100, name="claw"), #arm2  //850 max up 1250 straight out 1600 down
-        "rotate": Servo(2, pca, min_pulse=900, max_pulse=2100, name="rotate") #arm1  //900 hidden away 1125 straight down 1600 straight out
+        "shoulder": Servo(1, pca, min_pulse=900, max_pulse=2100, name="shoulder"),
+        "elbow": Servo(0, pca, min_pulse=900, max_pulse=2100, name="elbow"),
+        "wrist": Servo(2, pca, min_pulse=900, max_pulse=2000, name="wrist")
+    }
+    
+    # Initialize continuous rotation servo for claw
+    continuous_servos = {
+        "claw": ContinuousServo(3, pca, min_pulse=900, max_pulse=2100, name="claw")
     }
     
     # Add logger to each servo
     for servo_name, servo in servos.items():
         servo.set_logger(position_logger)
     
+    for servo_name, servo in continuous_servos.items():
+        servo.set_logger(position_logger)
+    
     # Initialize all servos
     for servo_name, servo in servos.items():
         servo.initialize()
     
+    for servo_name, servo in continuous_servos.items():
+        servo.initialize()
+    
     # Create the Tkinter application
     root = tk.Tk()
-    app = ServoCalibrator(root, servos)
+    app = ServoCalibrator(root, servos, continuous_servos)
     
     try:
         root.mainloop()
@@ -490,6 +614,11 @@ def main():
         # Set all servos to neutral position and close the bus
         for servo in servos.values():
             servo.set_pulse_width(1500)
+        
+        # Stop continuous servos
+        for servo in continuous_servos.values():
+            servo.stop()
+            
         pca.deinit()
         print("PCA9685 bus closed")
 

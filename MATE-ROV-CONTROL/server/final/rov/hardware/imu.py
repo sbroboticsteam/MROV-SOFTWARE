@@ -11,7 +11,7 @@ logging.basicConfig(
 logger = logging.getLogger("ROV")
 
 try:
-    from bno055 import BNO055, BNO055_ADDRESS_A
+    from hardware.bno055 import BNO055, BNO055_ADDRESS_A
     BNO055_AVAILABLE = True
     logger.info("BNO055 module successfully imported")
 except ImportError:
@@ -74,7 +74,7 @@ class IMUSensor:
             
             # Apply offset correction: subtract 2.69 from roll value
             roll += 2.69
-            pitch -= 8.44
+            pitch -= 2.44
             
             # Update last read values
             self.last_heading = heading
