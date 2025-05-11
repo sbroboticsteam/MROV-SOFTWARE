@@ -41,26 +41,31 @@ class ROV:
         #     name = self.thruster_names[i] if i < len(self.thruster_names) else f"Thruster{i}"
         #     self.thrusters.append(Thruster(channel, self.pca, name=name))
 
-        self.thrusters_initialized = False
-        self.b_button_press_time = 0
+        # self.thrusters_initialized = False
+        # self.b_button_press_time = 0
 
-        # self.thrusters = []
+        self.thrusters = []
+        # self.imu = 0
 
         self.controller_mapper = ControllerMapper()
 
+        # Initialize sensors
         self.imu = IMUSensor()
-        self.depth_sensor = DepthSensor()
-        self.orientation_thread = None
-        self.depth_thread = None
-        self.depth_running = False
-        self.orientation_running = False
+        self.depth_sensor = DepthSensor()  # Already initialized
         
+        # Initialize sensor threads
+        self.orientation_thread = None
+        self.depth_thread = None  # New thread for depth sensor
+        self.orientation_running = False
+        self.depth_running = False  # Flag for depth sensor thread
+        
+        # Current sensor values
         self.current_heading = 0
         self.current_roll = 0
         self.current_pitch = 0
-        self.current_depth = 0.0 
-        self.current_depth_velocity = 0
-        self.depth_initialized = False
+        self.current_depth = 0  # New variable for current depth
+        self.current_depth_velocity = 0  # For velocity tracking
+        self.depth_initialized = False  # Flag to track if we've calibrated depth
 
         self.left_x = 0.0
         self.left_y = 0.0
@@ -127,7 +132,44 @@ class ROV:
             logger.info(f"Depth sensor calibrated at surface, Z target initialized to 0.0m")
             
         return True
-       
+    
+    def _depth_updater(self):
+        """Thread function to update depth data."""
+        logger.info("Depth updater thread running")
+        last_log_time = 0
+        log_interval = 1.0  # Log depth data every second
+        
+        while self.depth_running:
+            # Get depth data
+            depth_data = self.depth_sensor.get_all_data()
+            
+            with self.pid_lock:
+                self.current_depth = depth_data["depth"]  # Relative depth from calibration
+                self.current_depth_velocity = depth_data["velocity"]
+            
+            # Log depth data periodically
+            current_time = time.time()
+            if current_time - last_log_time > log_interval:
+                logger.info(f"Depth Data - Current: {self.current_depth:.3f}m, Velocity: {self.current_depth_velocity:.3f}m/s")
+                
+                # Add depth data to telemetry if a client is connected
+                if self.ethernet.connected:
+                    telemetry = {
+                        "depth": {
+                            "value": self.current_depth,
+                            "velocity": self.current_depth_velocity,
+                            "temperature": depth_data["temperature"],
+                            "target": self.chassis_control.z_target
+                        }
+                    }
+                    self.ethernet.send_telemetry(telemetry)
+                    
+                last_log_time = current_time
+            
+            # Small sleep to prevent overwhelming the CPU
+            time.sleep(0.02)
+        logger.info("Depth updater thread stopped")
+    
     def _orientation_updater(self):
         """Thread function to update orientation data."""
         logger.info("Orientation updater thread running")
@@ -172,43 +214,6 @@ class ROV:
             # Small sleep to prevent overwhelming the CPU
             time.sleep(0.01)
         logger.info("Orientation updater thread stopped")
-    
-    def _depth_updater(self):
-        """Thread function to update depth data."""
-        logger.info("Depth updater thread running")
-        last_log_time = 0
-        log_interval = 1.0  # Log depth data every second
-        
-        while self.depth_running:
-            # Get depth data
-            depth_data = self.depth_sensor.get_all_data()
-            
-            with self.pid_lock:
-                self.current_depth = depth_data["depth"]  # Relative depth from calibration
-                self.current_depth_velocity = depth_data["velocity"]
-            
-            # Log depth data periodically
-            current_time = time.time()
-            if current_time - last_log_time > log_interval:
-                logger.info(f"Depth Data - Current: {self.current_depth:.3f}m, Velocity: {self.current_depth_velocity:.3f}m/s")
-                
-                # Add depth data to telemetry if a client is connected
-                if self.ethernet.connected:
-                    telemetry = {
-                        "depth": {
-                            "value": self.current_depth,
-                            "velocity": self.current_depth_velocity,
-                            "temperature": depth_data["temperature"],
-                            "target": self.chassis_control.z_target
-                        }
-                    }
-                    self.ethernet.send_telemetry(telemetry)
-                    
-                last_log_time = current_time
-            
-            # Small sleep to prevent overwhelming the CPU
-            time.sleep(0.02)
-        logger.info("Depth updater thread stopped")
     
     def initialize_thrusters(self):
         """Initialize all thrusters."""
@@ -267,8 +272,9 @@ class ROV:
     def update_motor_states(self):
         """Update motor states based on control mode and PID."""
 
+        # Create data vector with available sensor data
         imu_data = [
-            0, 0, self.current_depth,  # X, Y, Z position defaults
+            0, 0, self.current_depth,  # X, Y, Z position - now includes depth
             self.current_roll,
             self.current_pitch,
             self.current_heading
@@ -279,13 +285,13 @@ class ROV:
             with self.pid_lock:
                 # Get current IMU data
                 imu_data = [
-                0, 0, self.current_depth,  # X, Y, Z position (not available from IMU, would need additional sensors)
+                0, 0, self.current_depth,  # Z now uses depth sensor data
                 self.current_roll,
                 self.current_pitch,
                 self.current_heading
                 ]
                 
-                # Log detailed IMU data for PID calculations
+                # Log detailed sensor data for PID calculations
                 logger.debug(f"PID Targets - Roll: 0.00°, Pitch: 0.00°, Yaw: {self.chassis_control.yaw_target:.2f}°, Depth: {self.chassis_control.z_target:.3f}m")
                 logger.debug(f"PID Current - Roll: {imu_data[3]:.2f}°, Pitch: {imu_data[4]:.2f}°, Heading: {imu_data[5]:.2f}°, Depth: {imu_data[2]:.3f}m")
                 
@@ -326,11 +332,12 @@ class ROV:
                 if i < len(self.final_motor_states):
                     thruster.set_speed(self.final_motor_states[i])
                 
+        # Update targets based on controller input
         self.chassis_control.updateTarget(
                         imu_data, self.left_x, self.left_y, self.right_x, self.right_y,
                         self.right_trigger, self.left_trigger
                     )
-        
+    
     def get_controller_mapping(self):
         """Return the current controller mapping for telemetry or UI"""
         return self.controller_mapper.get_current_mapping()
@@ -356,7 +363,8 @@ class ROV:
                 self.controller_mapper.save_mapping()
                 command_processed = True
                 return command_processed
-            
+                
+        # Handle depth target commands (new feature)
         if 'depth_target' in command_data:
             depth_target = command_data['depth_target']
             # Ensure the value is a valid depth
@@ -365,7 +373,7 @@ class ROV:
                 logger.info(f"Depth target explicitly set to {depth_target}m")
                 command_processed = True
         
-        # Handle the controller data format
+        # Handle controller data
         if 'controller' in command_data:
             # Apply mapping to the controller data
             original_controller = command_data['controller']
@@ -392,9 +400,22 @@ class ROV:
             if self.stabilization_enabled and (self.imu.available or self.depth_sensor.available):
                 with self.pid_lock:
                     imu_data = [0, 0, self.current_depth, self.current_roll, self.current_pitch, self.current_heading]
+                    
+                    # Modified target update approach for depth control
+                    # This implementation gradually adjusts depth target based on trigger values
+                    # to provide more precise depth control
+                    if abs(self.left_trigger) > 0.05 or abs(self.right_trigger) > 0.05:
+                        # Calculate Z adjustment based on trigger difference
+                        # Using smaller adjustment for finer control
+                        z_adjustment = (self.right_trigger - self.left_trigger) * 0.01  # Small adjustment per update
+                        self.chassis_control.z_target += z_adjustment
+                        if z_adjustment != 0:
+                            logger.debug(f"Depth target adjusted to {self.chassis_control.z_target:.3f}m")
+                    
+                    # Update the targets for other axes normally
                     self.chassis_control.updateTarget(
                         imu_data, self.left_x, self.left_y, self.right_x, self.right_y,
-                        self.right_trigger, self.left_trigger
+                        0, 0  # Pass 0 for triggers since we handled depth target separately
                     )
             else:
                 # Calculate motor values without PID
@@ -543,7 +564,7 @@ class ROV:
         logger.info("Shutting down ROV system...")
         self.running = False
         self.orientation_running = False
-        self.depth_running = False  # Stop depth thread
+        self.depth_running = False
         
         # Stop thrusters if any
         if self.thrusters:
@@ -561,14 +582,12 @@ class ROV:
         if self.orientation_thread and self.orientation_thread.is_alive():
             self.orientation_thread.join(timeout=1.0)
             
-        # Join depth thread
         if self.depth_thread and self.depth_thread.is_alive():
             self.depth_thread.join(timeout=1.0)
 
         if self.imu.available:
             self.imu.close()
             
-        # Close depth sensor
         if self.depth_sensor.available:
             self.depth_sensor.close()
 

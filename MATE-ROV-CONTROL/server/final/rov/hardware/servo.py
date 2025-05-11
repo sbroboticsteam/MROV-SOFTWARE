@@ -122,22 +122,26 @@ class Arm:
         ArmState.STOWED: {
             "wrist": 0,      # Horizontal rotation
             "elbow": 100,    # Final stowed position for elbow
-            "shoulder": 0    # Final stowed position for shoulder
+            "shoulder": 0,   # Final stowed position for shoulder
+            "claw_state": "closed"  # Keep claw closed when stowed
         },
         ArmState.FULLY_OUT: {
             "wrist": 90,     # Vertical
             "elbow": 100,    # Down position (~1940μs)
-            "shoulder": 150  # Extended out (~1681μs)
+            "shoulder": 150, # Extended out (~1681μs)
+            "claw_state": "open"   # Start with claw open when extended
         },
         ArmState.FULLY_DOWN: {
             "wrist": 90,     # Vertical
             "elbow": 160,    # Down position (~1940μs)
-            "shoulder": 90   # Down position (~1186μs)
+            "shoulder": 90,  # Down position (~1186μs)
+            "claw_state": "open"   # Start with claw open when down
         },
         ArmState.OUT_DOWN: {
             "wrist": 90,     # Vertical
             "elbow": 160,    # Down position (~1940μs)
-            "shoulder": 150  # Extended out (~1681μs)
+            "shoulder": 150, # Extended out (~1681μs)
+            "claw_state": "open"   # Start with claw open in this position
         }
     }
     
@@ -173,13 +177,37 @@ class Arm:
         
         # Special handling for stowed position
         if state == ArmState.STOWED:
+            # For stowed position, close claw first for safety
+            logger.info("Closing claw for stowed position...")
+            self.close_claw()
+            time.sleep(0.5)  # Give it time to close
+            self.stop_claw()  # Then stop the servo
+            time.sleep(0.1)
+            
             self._set_stowed_position()
         else:
             # Get the preset positions for this state
             positions = self.POSITIONS[state]
             
+            # First handle claw position if specified
+            if "claw_state" in positions:
+                if positions["claw_state"] == "open":
+                    logger.info("Setting claw to open position...")
+                    self.open_claw()
+                    time.sleep(0.5)  # Give it time to open
+                    self.stop_claw()
+                elif positions["claw_state"] == "closed":
+                    logger.info("Setting claw to closed position...")
+                    self.close_claw()
+                    time.sleep(0.5)  # Give it time to close
+                    self.stop_claw()
+            
             # Set each servo to its position with a small delay between each
             for servo_name, angle in positions.items():
+                # Skip claw_state as it's not a servo position
+                if servo_name == "claw_state":
+                    continue
+                    
                 # Skip wrist adjustment if already at target angle
                 if servo_name == "wrist" and abs(self.current_wrist_angle - angle) < 5:
                     continue
@@ -191,10 +219,7 @@ class Arm:
                     self.current_wrist_angle = angle
                     
                 time.sleep(0.1)  # Small delay between servo movements
-            
-            # Always stop the claw when changing arm positions for safety
-            self.claw.stop()
-            
+        
         self.current_state = state
         logger.info(f"Arm now in {state.name} position")
         return True
@@ -202,22 +227,23 @@ class Arm:
     def _set_stowed_position(self):
         """Special method to handle the stowing process in correct sequence"""
         logger.info("Beginning arm stow sequence...")
-
+        
         if(self.current_state == ArmState.STOWED): 
             logger.info("Arm already in stowed position, no action taken")
             return
         
-        # First set wrist to its stowed position and stop claw
-        logger.info("Step 1: Setting wrist position and stopping claw")
+        # First close claw for safety during stowing
+        logger.info("Step 1: Closing claw for stowed position")
+        self.close_claw()
+        time.sleep(0.5)  # Give it time to close
+        self.stop_claw()
+        time.sleep(0.1)
+        
+        # Now set wrist
+        logger.info("Step 2: Setting wrist position")
         self.servos["wrist"].set_angle(self.POSITIONS[ArmState.STOWED]["wrist"])
         self.current_wrist_angle = self.POSITIONS[ArmState.STOWED]["wrist"]
-        self.claw.stop()  # Make sure claw is stopped
         time.sleep(0.3)  # Wait for these servos to move
-        
-        # Rest of stowing sequence remains the same
-        logger.info("Step 2: Moving elbow down")
-        self.servos["elbow"].set_angle(160)  # Move elbow down (~1980μs)
-        time.sleep(0.5)
         
         logger.info("Step 3: Retracting shoulder")
         self.servos["shoulder"].set_angle(0)  # Move shoulder in (~950μs)
