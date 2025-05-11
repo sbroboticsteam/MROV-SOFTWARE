@@ -39,7 +39,7 @@ class ControllerRemappingWidget(QWidget):
         # Target selection
         mapping_layout.addWidget(QLabel("Target Function:"), 1, 0)
         self.target_combo = QComboBox()
-        self.populate_inputs(self.target_combo)
+        self.populate_target_inputs(self.target_combo)
         mapping_layout.addWidget(self.target_combo, 1, 1)
         
         layout.addWidget(mapping_frame)
@@ -106,6 +106,21 @@ class ControllerRemappingWidget(QWidget):
         ]
         combo.addItems(inputs)
     
+    def populate_target_inputs(self, combo):
+        """Populate the dropdown with controller inputs"""
+        inputs = [
+            # Analog inputs
+            'strafe left/right', 'foward/back', 'turn right/left', 'tilt foward/back',
+            'down', 'up',
+            
+            # Digital inputs
+            'action 0', 'action 1', 'stowed', 'fully out', 'out down', 'down', 'action 2', 'action 3',
+            
+            # D-pad
+            'rotate right/left', 'open/close'
+        ]
+        combo.addItems(inputs)
+        
     def on_remap_clicked(self):
         """Handle remap button click"""
         source = self.source_combo.currentText()
