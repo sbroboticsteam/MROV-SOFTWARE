@@ -8,10 +8,8 @@ from Components.depth_time import DepthTimeWidget
 from Components.controller import ControllerSender
 # from Components.controller_sensitivity import ControllerSensitivity, AdjustableControllerSensivitity
 from Components.controller_sensitivity import ControllerSensitivity
-
-from Components.controller import ControllerSender
-
-
+# Add imports for the individual camera widgets
+from Components.camera_widgets import USB1CameraWindow, USB2CameraWindow, ZEDCameraWindow
 # controls for minimizing, maximizing and closing widgets (like a window)
 class WindowControls(QWidget):
     minimizeClicked = pyqtSignal()
@@ -127,6 +125,34 @@ class AdjustableWidget(QWidget):
                 error_label.setStyleSheet("color: red; background-color: #ffeeee; padding: 10px;")
                 error_layout.addWidget(error_label)
                 widget = error_widget
+        # Add new camera widget types
+        elif self.title == "USB Camera 1":
+            try:
+                widget = USB1CameraWindow()
+                print("USB Camera 1 created successfully")
+            except Exception as e:
+                print(f"Error creating USB Camera 1: {e}")
+                import traceback
+                traceback.print_exc()
+                widget = self._create_error_widget(f"Error creating USB Camera 1: {str(e)}")
+        elif self.title == "USB Camera 2":
+            try:
+                widget = USB2CameraWindow()
+                print("USB Camera 2 created successfully")
+            except Exception as e:
+                print(f"Error creating USB Camera 2: {e}")
+                import traceback
+                traceback.print_exc()
+                widget = self._create_error_widget(f"Error creating USB Camera 2: {str(e)}")
+        elif self.title == "ZED Camera":
+            try:
+                widget = ZEDCameraWindow()
+                print("ZED Camera created successfully")
+            except Exception as e:
+                print(f"Error creating ZED Camera: {e}")
+                import traceback
+                traceback.print_exc()
+                widget = self._create_error_widget(f"Error creating ZED Camera: {str(e)}")
         elif self.title == "Connectivity":
             widget = Connectivity()
         elif self.title == "Controller Sensitivity":
@@ -149,7 +175,17 @@ class AdjustableWidget(QWidget):
         self.setLayout(self.mainlayout)
 
         self.resize(300, 200)
-   
+
+    def _create_error_widget(self, error_message):
+        """Create an error widget with the given message"""
+        error_widget = QWidget()
+        error_layout = QVBoxLayout(error_widget)
+        error_label = QLabel(error_message)
+        error_label.setStyleSheet("color: red; background-color: #ffeeee; padding: 10px;")
+        error_label.setWordWrap(True)
+        error_layout.addWidget(error_label)
+        return error_widget
+    
     def minimizeEvent(self):
         # if not minimized already, set height of widget to the title bar only
         if not self.minimized:
@@ -173,10 +209,14 @@ class AdjustableWidget(QWidget):
             self.maximized = False
 
     def handleClose(self):
-        if isinstance(self.contentarea, Webcam):
-            self.contentarea.cancel()
+        # Check if the content area has a close method
+        if hasattr(self.contentarea, 'close'):
+            try:
+                self.contentarea.close()
+            except Exception as e:
+                print(f"Error closing widget content: {e}")
         self.close()
-    
+        
     def closeEvent(self, event: QCloseEvent):
         if self.parent() and hasattr(self.parent, 'widgets'):
             if self in self.parent().widgets:

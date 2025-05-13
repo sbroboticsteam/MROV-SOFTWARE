@@ -176,7 +176,11 @@ class MainWindow(QMainWindow): # MainWindow class extends QMainWindow
             #"Webcam",
             # "CSI 1", # our 3 camera feeds, adjust later
             # "CSI 2",
-            "USB Camera",
+            # Update the list to include individual cameras
+            #"USB Camera",   # Keep the combined view
+            "USB Camera 1", # Individual USB camera 1
+            "USB Camera 2", # Individual USB camera 2
+            "ZED Camera",   # ZED camera
             "Endoscope",
             "Controller Sensitivity",
             # "Auto Mode",
