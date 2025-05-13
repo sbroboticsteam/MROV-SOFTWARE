@@ -37,28 +37,15 @@ class MainWindow(QtWidgets.QMainWindow):
         tabs = QtWidgets.QTabWidget()
         self.setCentralWidget(tabs)
 
-        # CSI 0 tab
-        desc0 = (
-            'udpsrc port=5000 caps="application/x-rtp,media=video,'
-            'clock-rate=90000,encoding-name=H264,payload=96" ! '
-            'rtpjitterbuffer latency=0 drop-on-latency=true ! rtph264depay ! '
-            'h264parse ! avdec_h264 ! videoconvert ! '
-            'd3dvideosink name=sink0 sync=false'
+        # Jetson USB camera stream (receiving via UDP)
+        # This is the same pipeline as in your usbcamera.bat but adapted for the Python API
+        udp_stream_desc = (
+            'udpsrc port=5004 caps="application/x-rtp,media=video,clock-rate=90000,encoding-name=JPEG,payload=26" ! '
+            'rtpjitterbuffer latency=0 drop-on-latency=true ! '
+            'rtpjpegdepay ! jpegdec ! videoconvert ! '
+            'd3dvideosink name=udp_sink sync=false'
         )
-        tabs.addTab(StreamTab(desc0, 'sink0'), "CSI 0")
-
-        # CSI 1 tab
-        desc1 = desc0.replace('port=5000', 'port=5001').replace('sink0', 'sink1')
-        tabs.addTab(StreamTab(desc1, 'sink1'), "CSI 1")
-
-        # Endoscope tab
-        desc2 = (
-            'udpsrc port=5002 caps="application/x-rtp,media=video,'
-            'clock-rate=90000,encoding-name=JPEG,payload=26" ! '
-            'rtpjitterbuffer latency=0 drop-on-latency=true ! rtpjpegdepay ! '
-            'jpegdec ! videoconvert ! d3dvideosink name=sink2 sync=false'
-        )
-        tabs.addTab(StreamTab(desc2, 'sink2'), "Endoscope")
+        tabs.addTab(StreamTab(udp_stream_desc, 'udp_sink'), "Jetson USB Camera")
 
     def closeEvent(self, event):
         # ensure all pipelines are torn down

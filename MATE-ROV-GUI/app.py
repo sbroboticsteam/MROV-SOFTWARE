@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QPushButton, QVBoxLayout, QLayout, QHBoxLayout, QComboBox, QStackedWidget, QMessageBox
-from Components.camera import Webcam
-from Components.temp_camera import Camera
+from Components.camera import MainWindow as CameraWindow
+# from Components.temp_camera import Camera
 #from Components.network import NetworkConnectionWidget
 from Components.adjustable import AdjustableWidget
 import os, subprocess
@@ -174,8 +174,9 @@ class MainWindow(QMainWindow): # MainWindow class extends QMainWindow
 
         self.widgets_list=[
             #"Webcam",
-            "CSI 1", # our 3 camera feeds, adjust later
-            "CSI 2",
+            # "CSI 1", # our 3 camera feeds, adjust later
+            # "CSI 2",
+            "USB Camera",
             "Endoscope",
             "Controller Sensitivity",
             # "Auto Mode",
@@ -208,13 +209,17 @@ class MainWindow(QMainWindow): # MainWindow class extends QMainWindow
             self.pages.setCurrentIndex(index)
             
     def addWidgetToCurrent(self, index):
-        widget_name=self.header.widget_selector.itemText(index)
-        if index==0 or not widget_name:return
+        widget_name = self.header.widget_selector.itemText(index)
+        print(f"DEBUG - addWidgetToCurrent: Selected {widget_name} at index {index}")
+        if not widget_name:
+            print("DEBUG - addWidgetToCurrent: Invalid selection, returning")
+            return
         if self.pages.count() > 0:
             current_page = self.pages.currentWidget()
             widget_type = self.widgets_list[index]
+            print(f"DEBUG - addWidgetToCurrent: Creating widget of type {widget_type}")
             current_page.addWidget(widget_type)
-        self.header.widget_selector
+        self.header.widget_selector.setCurrentIndex(0)  # Reset selection
     
     def populate_script_selector(self):
         current_dir = os.path.dirname(os.path.abspath(__file__))

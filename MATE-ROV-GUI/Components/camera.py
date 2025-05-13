@@ -1,276 +1,213 @@
-from PyQt5.QtWidgets import QWidget, QPushButton, QVBoxLayout, QLabel, QSizePolicy
-from PyQt5.QtCore import QThread, pyqtSignal, Qt, QSize, QMutex, QMutexLocker
-from PyQt5.QtGui import QPixmap, QImage, QResizeEvent, QColor
-import cv2
+import sys
+import gi
+gi.require_version('Gst', '1.0')
+gi.require_version('GstVideo', '1.0')
+from gi.repository import Gst, GstVideo
+from PyQt5 import QtWidgets, QtCore
 import os
-import time
 
-# Remove global rtsp_url
-# rtsp_url='http://localhost:3000/video'
+class VideoWidget(QtWidgets.QWidget):
+    def __init__(self):
+        super().__init__()
+        # must have a native window handle for GstVideoOverlay
+        self.setAttribute(QtCore.Qt.WA_NativeWindow)
+        self.setMinimumSize(320, 240)  # Smaller size for grid layout
 
+class CameraStream(QtWidgets.QWidget):
+    def __init__(self, pipeline_desc, label_text="Camera Feed"):
+        super().__init__()
+        self.video_widget = VideoWidget()
+        layout = QtWidgets.QVBoxLayout(self)
+        
+        # Add label for camera identification
+        self.label = QtWidgets.QLabel(label_text)
+        self.label.setAlignment(QtCore.Qt.AlignCenter)
+        self.label.setStyleSheet("font-weight: bold; background-color: #333; color: white; padding: 2px;")
+        layout.addWidget(self.label)
+        
+        # Add video widget where video will be embedded
+        layout.addWidget(self.video_widget)
+        layout.setStretch(1, 1)
 
-class Webcam(QWidget):
-    # Accept port and encoding instead of a single URL
-    def __init__(self, port, encoding='H264'): # Default to H264
-        super(Webcam, self).__init__()
-        self.port = port
-        self.encoding = encoding
-
-        self.layout = QVBoxLayout()
-
-        self.feedLabel = QLabel()
-        self.feedLabel.setAlignment(Qt.AlignCenter)
-        self.feedLabel.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.layout.addWidget(self.feedLabel)
-
-        placeholder = QPixmap(640, 480)
-        placeholder.fill(QColor(0, 0, 0))
-        self.feedLabel.setPixmap(placeholder)
-
-        button_layout = QVBoxLayout() # This layout wasn't used, removing addLayout later
-
-        self.startBtn = QPushButton("Start")
-        self.startBtn.clicked.connect(self.start)
-        self.startBtn.setStyleSheet("QPushButton { color: gray; }")
-        self.layout.addWidget(self.startBtn)
-
-        self.cancelBtn = QPushButton("Stop")
-        self.cancelBtn.clicked.connect(self.cancel)
-        self.cancelBtn.setStyleSheet("QPushButton { color: gray; }")
-        self.layout.addWidget(self.cancelBtn)
-
-        # Removed self.layout.addLayout(button_layout) as it wasn't populated
-
-        self.mutex = QMutex()
-        self.current_image = None
-        self.is_visible = True
-        self.aspect_ratio = 4 / 3 # Default, will be updated
-
-        # Instantiate the new GStreamerWorker
-        self.worker = GStreamerWorker(self.port, self.encoding)
-        self.worker.imageUpdate.connect(self.imageUpdateSlot)
-        self.worker.statusUpdate.connect(self.handleStatusUpdate) # Optional: Handle status messages
-        self.worker.start()
-
-        self.updateButtonStyles(True) # Assume starting initially
-
-        self.setLayout(self.layout)
-
-    def handleStatusUpdate(self, message):
-        # Optional: Display status messages somewhere, e.g., in a status bar or print
-        print(f"[{self.port} - {self.encoding}]: {message}")
-
-    def updateButtonStyles(self, isRunning):
-        """Update button colors based on whether the stream is running"""
-        if isRunning:
-            self.startBtn.setStyleSheet("QPushButton { color: gray; }")
-            self.startBtn.setEnabled(False) # Disable start when running
-            self.cancelBtn.setStyleSheet("QPushButton { color: red; font-weight: bold; }")
-            self.cancelBtn.setEnabled(True) # Enable stop when running
-        else:
-            self.startBtn.setStyleSheet("QPushButton { color: green; font-weight: bold; }")
-            self.startBtn.setEnabled(True) # Enable start when stopped
-            self.cancelBtn.setStyleSheet("QPushButton { color: gray; }")
-            self.cancelBtn.setEnabled(False) # Disable stop when stopped
-
-    def imageUpdateSlot(self, img):
-        if not self.is_visible:
-            return
         try:
-            with QMutexLocker(self.mutex):
-                # Check if received image is valid before processing
-                if img is None or img.isNull():
-                     print(f"[{self.port}] Received invalid image")
-                     return
-                self.current_image = img
-                # Update aspect ratio only if it hasn't been set or is default
-                if self.aspect_ratio == 4/3 and img.height() > 0:
-                    self.aspect_ratio = img.width() / img.height()
-
-            # Check label dimensions before scaling
-            if self.feedLabel.width() > 0 and self.feedLabel.height() > 0:
-                try:
-                    # Scale image while keeping aspect ratio
-                    scaled_img = img.scaled(
-                        self.feedLabel.size(), # Use label's QSize
-                        Qt.KeepAspectRatio,
-                        Qt.SmoothTransformation # Use smooth scaling
-                        )
-                    self.feedLabel.setPixmap(QPixmap.fromImage(scaled_img))
-                except Exception as e:
-                    print(f"[{self.port}] Error scaling image: {e}")
-            # else: # Optional: Handle case where label size is zero?
-            #     self.feedLabel.setPixmap(QPixmap.fromImage(img)) # Show original if not scaled
-
+            # Initialize GStreamer if needed
+            if not hasattr(Gst, 'is_initialized') or not Gst.is_initialized():
+                Gst.init(None)
+            
+            # Modify pipeline to use a sink that supports window handles
+            # First find which sink is available
+            available_sinks = []
+            for sink_name in ['d3dvideosink', 'glimagesink', 'ximagesink']:
+                element = Gst.ElementFactory.make(sink_name, None)
+                if element:
+                    available_sinks.append(sink_name)
+                    element = None
+            
+            if not available_sinks:
+                raise Exception("No suitable video sink found for embedding")
+            
+            # Use the first available sink
+            sink_name = available_sinks[0]
+            print(f"Using {sink_name} for embedding")
+            
+            # Replace autovideosink/fpsdisplaysink with the selected sink in the pipeline
+            modified_pipeline = pipeline_desc
+            for old_sink in ['autovideosink', 'fpsdisplaysink']:
+                if old_sink in modified_pipeline:
+                    modified_pipeline = modified_pipeline.replace(
+                        f"{old_sink} sync=false", 
+                        f"{sink_name} name=sink sync=false"
+                    )
+            
+            print(f"Creating pipeline: {modified_pipeline}")
+            self.pipeline = Gst.parse_launch(modified_pipeline)
+            
+            # Get the sink and set window handle
+            sink = self.pipeline.get_by_name("sink")
+            if not sink:
+                raise Exception(f"Could not find sink element in pipeline")
+            
+            # Use GstVideoOverlay interface to embed video
+            sink.set_window_handle(int(self.video_widget.winId()))
+            
+            # Setup bus for error messages
+            bus = self.pipeline.get_bus()
+            bus.add_signal_watch()
+            bus.connect('message', self.on_message)
+            
+            # Start playing
+            ret = self.pipeline.set_state(Gst.State.PLAYING)
+            if ret == Gst.StateChangeReturn.FAILURE:
+                print(f"Failed to start pipeline for {label_text}")
+                raise Exception("Failed to start pipeline")
+                
+            print(f"Pipeline started for {label_text}")
+            
         except Exception as e:
-            print(f"[{self.port}] Error in imageUpdateSlot: {e}")
+            print(f"Error creating GStreamer pipeline for {label_text}: {e}")
+            import traceback
+            traceback.print_exc()
+            
+            # Show error in UI
+            error_label = QtWidgets.QLabel(f"Camera Error: {str(e)}")
+            error_label.setStyleSheet("color: red; background-color: #ffeeee; padding: 10px;")
+            error_label.setAlignment(QtCore.Qt.AlignCenter)
+            error_label.setWordWrap(True)
+            layout.addWidget(error_label)
+    
+    def on_message(self, bus, message):
+        t = message.type
+        if t == Gst.MessageType.ERROR:
+            err, debug = message.parse_error()
+            print(f"GStreamer Error: {err}: {debug}")
+            self.label.setText(f"{self.label.text()} - Error")
+            self.label.setStyleSheet("font-weight: bold; background-color: #a00; color: white; padding: 2px;")
+            
+        elif t == Gst.MessageType.EOS:
+            print("End of stream")
+            
+        elif t == Gst.MessageType.STATE_CHANGED:
+            if message.src == self.pipeline:
+                old_state, new_state, pending_state = message.parse_state_changed()
+                print(f"Pipeline state changed from {old_state.value_nick} to {new_state.value_nick}")
 
-    def resizeEvent(self, event: QResizeEvent):
-        super().resizeEvent(event)
-        if not self.isVisible():
-            return
+    def close(self):
         try:
-            with QMutexLocker(self.mutex):
-                if self.current_image and not self.current_image.isNull() and self.feedLabel.width() > 0 and self.feedLabel.height() > 0:
-                    try:
-                        scaled_img = self.current_image.scaled(
-                            self.feedLabel.size(),
-                            Qt.KeepAspectRatio,
-                            Qt.SmoothTransformation
-                        )
-                        self.feedLabel.setPixmap(QPixmap.fromImage(scaled_img))
-                    except Exception as e:
-                        print(f"[{self.port}] Error scaling image during resize: {e}")
+            if hasattr(self, 'pipeline'):
+                self.pipeline.set_state(Gst.State.NULL)
         except Exception as e:
-            print(f"[{self.port}] Error in resizeEvent: {e}")
+            print(f"Error closing pipeline: {e}")
+        super().close()
 
-    def showEvent(self, event):
-        self.is_visible = True
-        # If worker isn't running when shown, try starting it
-        if not self.worker.isRunning():
-             self.start()
-        super().showEvent(event)
+class MainWindow(QtWidgets.QMainWindow):
+    def __init__(self):
+        super().__init__()
+        print("DEBUG - CameraWindow.__init__: Starting camera initialization")
+        try:
+            print("DEBUG - CameraWindow: Creating grid layout")
+            main_widget = QtWidgets.QWidget()
+            # Use a grid layout with 2 columns initially, can expand later
+            grid_layout = QtWidgets.QGridLayout(main_widget)
+            grid_layout.setSpacing(10)  # Add some spacing between cameras
+            self.setCentralWidget(main_widget)
 
-    def hideEvent(self, event):
-        self.is_visible = False
-        # Consider stopping the worker when hidden to save resources
-        # self.cancel() # Uncomment if you want to stop stream on hide
-        super().hideEvent(event)
+            print("DEBUG - CameraWindow: Checking GStreamer environment")
+            print(f"GST_PLUGIN_PATH: {os.environ.get('GST_PLUGIN_PATH', 'Not set')}")
+            print(f"GI_TYPELIB_PATH: {os.environ.get('GI_TYPELIB_PATH', 'Not set')}")
+            
+            # Initialize a list to store all camera widgets for cleanup
+            self.camera_widgets = []
+            
+            # 1. USB Camera (JPEG stream on port 5004)
+            usb_pipeline = (
+                'udpsrc port=5004 caps="application/x-rtp,media=video,clock-rate=90000,encoding-name=JPEG,payload=26" ! '
+                'rtpjitterbuffer latency=0 drop-on-latency=true ! '
+                'rtpjpegdepay ! jpegdec ! videoconvert ! videoflip method=counterclockwise ! '
+                'autovideosink sync=false'
+            )
 
-    def start(self):
-        if not self.worker.isRunning():
-            print(f"[{self.port}] Starting worker...")
-            # Ensure previous worker is cleaned up if necessary (should be handled by stop/close)
-            self.worker = GStreamerWorker(self.port, self.encoding)
-            self.worker.imageUpdate.connect(self.imageUpdateSlot)
-            self.worker.statusUpdate.connect(self.handleStatusUpdate)
-            self.worker.start()
-            self.updateButtonStyles(True)
-        else:
-             print(f"[{self.port}] Worker already running.")
+            usb_pipeline2 = (
+                'udpsrc port=5005 caps="application/x-rtp,media=video,clock-rate=90000,encoding-name=JPEG,payload=26" ! '
+                'rtpjitterbuffer latency=0 drop-on-latency=true ! '
+                'rtpjpegdepay ! jpegdec ! videoconvert ! videoflip method=counterclockwise ! '
+                'autovideosink sync=false'
+            )
+            usb_camera = CameraStream(usb_pipeline, "USB Camera")
+            grid_layout.addWidget(usb_camera, 0, 0)
+            self.camera_widgets.append(usb_camera)
 
-
-    def cancel(self):
-        if self.worker.isRunning():
-            print(f"[{self.port}] Stopping worker...")
-            self.worker.stop()
-            self.updateButtonStyles(False)
-            # Clear the label or show a placeholder when stopped
-            placeholder = QPixmap(self.feedLabel.width(), self.feedLabel.height())
-            placeholder.fill(QColor(0, 0, 0))
-            self.feedLabel.setPixmap(placeholder)
-            self.current_image = None # Reset current image
-        else:
-            print(f"[{self.port}] Worker already stopped.")
-
-
+            usb_camera2 = CameraStream(usb_pipeline2, "USB Camera 2")
+            grid_layout.addWidget(usb_camera2, 0, 1)
+            self.camera_widgets.append(usb_camera2)
+            
+            # 2. ZED Camera (H264 stream on port 5000)
+            # zed_pipeline = (
+            #     'udpsrc port=5000 caps="application/x-rtp, media=video, encoding-name=H264, payload=96" ! '
+            #     'rtph264depay ! h264parse ! avdec_h264 ! videoconvert ! '
+            #     'fpsdisplaysink sync=false'
+            # )
+            # zed_camera = CameraStream(zed_pipeline, "ZED Camera")
+            # grid_layout.addWidget(zed_camera, 0, 1)
+            # self.camera_widgets.append(zed_camera)
+            
+            # Setup for additional cameras - just add new ones to the grid
+            # Example of how to add more cameras in the future:
+            # camera3 = CameraStream(...pipeline..., "Camera 3")
+            # grid_layout.addWidget(camera3, 1, 0)  # row 1, col 0
+            # self.camera_widgets.append(camera3)
+            
+            # camera4 = CameraStream(...pipeline..., "Camera 4")
+            # grid_layout.addWidget(camera4, 1, 1)  # row 1, col 1
+            # self.camera_widgets.append(camera4)
+            
+            print("DEBUG - CameraWindow successfully initialized")
+            
+        except Exception as e:
+            print(f"DEBUG - Error creating camera window: {e}")
+            import traceback
+            traceback.print_exc()
+            
+            # Show error in UI
+            error_widget = QtWidgets.QWidget()
+            layout = QtWidgets.QVBoxLayout(error_widget)
+            error_label = QtWidgets.QLabel(f"Failed to initialize cameras: {str(e)}")
+            error_label.setWordWrap(True)
+            error_label.setStyleSheet("color: red; font-size: 14px; background-color: #ffeeee; padding: 10px;")
+            layout.addWidget(error_label)
+            self.setCentralWidget(error_widget)
+    
     def closeEvent(self, event):
-        print(f"[{self.port}] Close event called.")
-        self.cancel()
+        # Clean up pipelines
+        try:
+            for camera in self.camera_widgets:
+                camera.close()
+        except Exception as e:
+            print(f"Error closing pipelines: {e}")
         super().closeEvent(event)
 
-# Remove the old Worker class if it's not used elsewhere
-# class Worker(QThread): ...
-
-# Rename RTSPWorker to GStreamerWorker and modify it
-class GStreamerWorker(QThread):
-    imageUpdate = pyqtSignal(QImage)
-    statusUpdate = pyqtSignal(str)
-
-    def __init__(self, port, encoding='H264'):
-        super(GStreamerWorker, self).__init__()
-        self.port = port
-        self.encoding = encoding.upper() # Ensure uppercase for comparison
-        self.threadActive = False
-        self.pipeline_str = self._build_pipeline()
-
-    def _build_pipeline(self):
-        """Builds the GStreamer pipeline string for cv2.VideoCapture"""
-        if self.encoding == 'H264':
-            caps = "application/x-rtp,media=video,clock-rate=90000,encoding-name=H264,payload=96"
-            pipeline = (
-                f"udpsrc port={self.port} caps=\"{caps}\" ! "
-                # Match latency and drop-on-latency from multistream.bat
-                "rtpjitterbuffer latency=0 drop-on-latency=true ! " 
-                "rtph264depay ! h264parse ! avdec_h264 ! " 
-                "videoconvert ! video/x-raw,format=BGR ! " # Convert to BGR for OpenCV
-                # appsink is required for OpenCV, sync=false matches multistream.bat's autovideosink setting
-                "appsink drop=true sync=false" 
-            )
-        elif self.encoding == 'JPEG':
-            caps = "application/x-rtp,media=video,clock-rate=90000,encoding-name=JPEG,payload=26"
-            pipeline = (
-                f"udpsrc port={self.port} caps=\"{caps}\" ! "
-                # Match latency and drop-on-latency from multistream.bat
-                "rtpjitterbuffer latency=0 drop-on-latency=true ! " 
-                "rtpjpegdepay ! jpegdec ! " 
-                "videoconvert ! video/x-raw,format=BGR ! " # Convert to BGR for OpenCV
-                # appsink is required for OpenCV, sync=false matches multistream.bat's autovideosink setting
-                "appsink drop=true sync=false"
-            )
-        else:
-            self.statusUpdate.emit(f"Unsupported encoding: {self.encoding}")
-            return None
-        return pipeline
-
-    def run(self):
-        self.threadActive = True
-        if not self.pipeline_str:
-            self.statusUpdate.emit("Pipeline creation failed.")
-            self.threadActive = False
-            return
-
-        self.statusUpdate.emit(f"Connecting to UDP port {self.port}...")
-        print(f"Using pipeline: {self.pipeline_str}") # Debug print
-
-        # Use cv2.CAP_GSTREAMER flag
-        cam = cv2.VideoCapture(self.pipeline_str, cv2.CAP_GSTREAMER)
-
-        if not cam.isOpened():
-            self.statusUpdate.emit(f"Failed to open GStreamer pipeline on port {self.port}")
-            self.threadActive = False
-            return # Exit if pipeline fails to open
-
-        self.statusUpdate.emit(f"Pipeline opened successfully on port {self.port}")
-
-        while self.threadActive:
-            try:
-                ret, frame = cam.read()
-                if ret:
-                    # Frame is already BGR due to pipeline configuration
-                    # Convert BGR to RGB for QImage
-                    rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    h, w, ch = rgb_image.shape
-                    bytes_per_line = ch * w
-                    qt_image = QImage(rgb_image.data, w, h, bytes_per_line, QImage.Format_RGB888).copy()
-                    self.imageUpdate.emit(qt_image)
-                else:
-                    # Failed to grab frame, could be temporary or end of stream
-                    self.statusUpdate.emit(f"Failed to grab frame from port {self.port}. Retrying...")
-                    # Add a small delay to prevent busy-waiting if the stream is truly down
-                    time.sleep(0.1)
-                    # Optional: Try reopening the capture if it consistently fails
-                    # if not cam.isOpened():
-                    #    cam.release()
-                    #    cam = cv2.VideoCapture(self.pipeline_str, cv2.CAP_GSTREAMER)
-                    #    if not cam.isOpened():
-                    #        self.statusUpdate.emit(f"Failed to reopen pipeline on port {self.port}. Stopping.")
-                    #        self.threadActive = False
-
-
-            except Exception as e:
-                self.statusUpdate.emit(f"Error in GStreamerWorker loop: {e}")
-                time.sleep(0.5) # Wait a bit after an error
-
-        # Clean up
-        self.statusUpdate.emit(f"Releasing camera capture on port {self.port}")
-        if cam.isOpened():
-            cam.release()
-        self.statusUpdate.emit(f"Worker thread finished for port {self.port}")
-
-    def stop(self):
-        self.statusUpdate.emit(f"Stop requested for port {self.port}")
-        self.threadActive = False
-        # No need to explicitly quit/wait if the loop condition handles it
-        # self.quit()
-        # self.wait() # Wait might block if the loop is stuck, rely on threadActive
+if __name__ == '__main__':
+    app = QtWidgets.QApplication(sys.argv)
+    win = MainWindow()
+    win.resize(800, 600)
+    win.show()
+    sys.exit(app.exec_())

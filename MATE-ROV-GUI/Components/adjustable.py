@@ -2,7 +2,7 @@ from PyQt5.QtWidgets import QApplication, QWidget, QHBoxLayout, QPushButton, QFr
 from PyQt5.QtCore import Qt, QPoint, pyqtSignal
 from PyQt5.QtGui import QPainter, QColor, QPainterPath, QCloseEvent
 from Components.speedpanel import SpeedPanel
-from Components.camera import Webcam
+from Components.camera import MainWindow as CameraWindow
 from Components.connectivity import Connectivity
 from Components.depth_time import DepthTimeWidget
 from Components.controller import ControllerSender
@@ -111,12 +111,22 @@ class AdjustableWidget(QWidget):
 
         if self.title == "Speed Panel":
             widget = SpeedPanel()
-        elif self.title == "CSI 1":
-            widget = Webcam(5000, encoding='H264')
-        elif self.title == "CSI 2":
-            widget = Webcam(5001, encoding='H264')
-        elif self.title == "Endoscope":
-            widget = Webcam(5002, encoding='JPEG')
+        elif self.title == "USB Camera":
+            print("DEBUG - Creating CameraWindow for USB Camera")
+            try:
+                widget = CameraWindow()
+                print("DEBUG - CameraWindow created successfully")
+            except Exception as e:
+                print(f"DEBUG - Error creating CameraWindow: {e}")
+                import traceback
+                traceback.print_exc()
+                # Create a fallback widget with error information
+                error_widget = QWidget()
+                error_layout = QVBoxLayout(error_widget)
+                error_label = QLabel(f"Error creating camera: {str(e)}")
+                error_label.setStyleSheet("color: red; background-color: #ffeeee; padding: 10px;")
+                error_layout.addWidget(error_label)
+                widget = error_widget
         elif self.title == "Connectivity":
             widget = Connectivity()
         elif self.title == "Controller Sensitivity":
