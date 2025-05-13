@@ -14,7 +14,10 @@ class DataUpdateSignals(QObject):
     controller_update = pyqtSignal(dict)
     depth_update = pyqtSignal(dict)
     generic_update = pyqtSignal(str, dict)  # data_type, data
-
+    
+    
+    leak_update = pyqtSignal(dict)
+    
 class FileMonitorThread(QThread):
     """Monitor JSON files for changes"""
     file_changed = pyqtSignal(str, dict)  # file_type, data
@@ -284,6 +287,9 @@ class DataHandler:
     
     def _handle_websocket_message(self, data):
         """Handle WebSocket messages"""
+        if 'emergency' in data and data['emergency'] == True:
+            if hasattr(self.signals, 'emergency_update'):
+                self.signals.emergency_update.emit(data)
         if 'type' in data:
             data_type = data['type']
             payload = data.get('payload', {})
@@ -301,7 +307,17 @@ class DataHandler:
                 self.signals.controller_update.emit(payload)
             elif data_type == 'depth':
                 self.signals.depth_update.emit(payload)
-                
+            
+            
+            
+            
+            
+            if data_type == 'depth' and 'leak_sensor' in payload:
+                self.signals.leak_update.emit(payload['leak_sensor'])
+            
+            
+            
+            
             # Also emit a generic update
             self.signals.generic_update.emit(data_type, payload)
     

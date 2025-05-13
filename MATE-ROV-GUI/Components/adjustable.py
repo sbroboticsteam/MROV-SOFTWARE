@@ -6,6 +6,8 @@ from Components.camera import MainWindow as CameraWindow
 from Components.connectivity import Connectivity
 from Components.depth_time import DepthTimeWidget
 from Components.controller import ControllerSender
+
+from Components.leak import LeakSensor
 # from Components.controller_sensitivity import ControllerSensitivity, AdjustableControllerSensivitity
 from Components.controller_sensitivity import ControllerSensitivity
 # Add imports for the individual camera widgets
@@ -163,6 +165,25 @@ class AdjustableWidget(QWidget):
             widget=ControllerSender()
         # elif self.title=='Network Connection':
         #     widget=NetworkConnectionWidget()
+        
+        
+        
+        elif self.title == "Leak Sensor":
+            widget = LeakSensor()
+            # Store the widget in self.content before accessing it
+            self.content = widget
+            
+            # Connect signals if the parent has a data_handler
+            if hasattr(self.parent(), 'data_handler') and self.parent().data_handler:
+                # Connect to leak data updates
+                self.parent().data_handler.signals.leak_update.connect(self.content.update_status)
+                
+                # Connect to emergency alerts if the signal exists
+                if hasattr(self.parent().data_handler.signals, 'emergency_update'):
+                    self.parent().data_handler.signals.emergency_update.connect(self.content.update_from_emergency)
+                
+                # Connect to depth telemetry (which contains leak data in your ROV code)
+                self.parent().data_handler.signals.depth_update.connect(self.content.update_from_telemetry)
         else:
             widget = QWidget()
 

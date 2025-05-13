@@ -29,6 +29,8 @@ class DashboardPage(QWidget):
             widget.setGeometry(1000, 700, 350, 250)
         elif widget_type=="Controller Sender": 
             widget.setGeometry(1000, 700, 400, 300)
+        elif widget_type=="Leak Sensor": 
+            widget.setGeometry(400, 350, 300, 200)
         # elif widget_type=="Network Connection":
         #     widget.setGeometry(1000, 950, 350, 250)
 
@@ -188,7 +190,8 @@ class MainWindow(QMainWindow): # MainWindow class extends QMainWindow
             "Speed Panel",
             "Depth-Time Graph",
             'Network Connection',
-            "Controller Sender"
+            "Controller Sender",
+            "Leak Sensor"
         ]
         self.header.widget_selector.addItems(self.widgets_list)
 
