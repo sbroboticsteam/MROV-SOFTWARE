@@ -16,7 +16,7 @@ logger = logging.getLogger("ROV")
 # --------------------------- Ethernet Manager Class ---------------------------
 class EthernetManager:
     """Manages all network communications for the ROV using UDP"""
-    def __init__(self, control_ip: str = '192.168.1.237', control_port: int = 4891, camera_port: int = 8000):
+    def __init__(self, control_ip: str = '192.168.1.237', control_port: int = 4891, camera_port: int = 8000,telemetry_ip: str = '192.168.1.94', telemetry_port: int = 8001):
         self.control_ip = control_ip
         self.control_port = control_port
         self.camera_port = camera_port  # Add camera port
@@ -31,7 +31,78 @@ class EthernetManager:
         self.client_address = None  # Store the most recent client's address
         self.stream_processes = []  # Add stream processes list
         logger.info(f"Ethernet manager initialized with UDP control IP: {control_ip}:{control_port}, Camera port: {camera_port}")
-
+                # Add these new fields for dedicated telemetry
+        self.telemetry_ip = telemetry_ip
+        self.telemetry_port = telemetry_port
+        self.telemetry_running = False
+        self.telemetry_thread = None
+        self.telemetry_interval = 0.5  # Send telemetry every 5 seconds
+        self.latest_telemetry = {}
+        
+        # Start the dedicated telemetry thread
+        self.start_telemetry_sender()
+    
+    # Add this new method
+    def start_telemetry_sender(self) -> bool:
+        """Start a dedicated thread to send telemetry data periodically"""
+        if self.telemetry_running:
+            logger.warning("Telemetry sender already running")
+            return False
+            
+        try:
+            # Create a socket for sending telemetry
+            self.telemetry_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self.telemetry_running = True
+            self.telemetry_thread = threading.Thread(target=self._telemetry_sender)
+            self.telemetry_thread.daemon = True
+            self.telemetry_thread.start()
+            logger.info(f"Started telemetry sender thread to {self.telemetry_ip}:{self.telemetry_port}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to start telemetry sender: {e}")
+            return False
+    
+    # Add this new method
+    def _telemetry_sender(self) -> None:
+        """Thread function to periodically send telemetry data"""
+        logger.info(f"Telemetry sender thread running, sending to {self.telemetry_ip}:{self.telemetry_port} every {self.telemetry_interval}s")
+        
+        while self.telemetry_running:
+            try:
+                # If we have telemetry data, send it
+                if self.latest_telemetry:
+                    # Add timestamp and extra diagnostic info
+                    telemetry_data = self.latest_telemetry.copy()
+                    telemetry_data["timestamp"] = time.time()
+                    telemetry_data["rov_status"] = {
+                        "connected": self.connected,
+                        "client_ip": str(self.client_address[0]) if self.client_address else "None"
+                    }
+                    
+                    # Encode and send
+                    json_data = json.dumps(telemetry_data).encode('utf-8')
+                    self.telemetry_socket.sendto(json_data, (self.telemetry_ip, self.telemetry_port))
+                    logger.debug(f"Sent {len(json_data)} bytes of telemetry to {self.telemetry_ip}:{self.telemetry_port}")
+                else:
+                    logger.debug("No telemetry data available to send")
+                    
+                    # Send a minimal heartbeat packet even if no other telemetry
+                    heartbeat = {
+                        "heartbeat": True,
+                        "timestamp": time.time(),
+                        "rov_status": {
+                            "connected": self.connected,
+                            "client_ip": str(self.client_address[0]) if self.client_address else "None"
+                        }
+                    }
+                    json_data = json.dumps(heartbeat).encode('utf-8')
+                    self.telemetry_socket.sendto(json_data, (self.telemetry_ip, self.telemetry_port))
+            except Exception as e:
+                logger.error(f"Error in telemetry sender: {e}")
+            
+            # Sleep for the specified interval
+            time.sleep(self.telemetry_interval)
+            
     def start_control_server(self) -> bool:
         try:
             # Create UDP socket instead of TCP
@@ -231,9 +302,14 @@ class EthernetManager:
     def set_control_callback(self, callback) -> None:
         self.control_callback = callback
     
+    # Modify the existing send_telemetry method
     def send_telemetry(self, telemetry_data: dict) -> bool:
-        """Send telemetry data to the connected client"""
+        """Send telemetry data to the connected client and update latest telemetry"""
         try:
+            # Store the latest telemetry data for the dedicated sender
+            self.latest_telemetry.update(telemetry_data)
+            
+            # Also send immediately to the connected control client if available
             if self.connected and self.client_address:
                 json_data = json.dumps(telemetry_data).encode('utf-8')
                 self.control_socket.sendto(json_data, self.client_address)
@@ -241,9 +317,16 @@ class EthernetManager:
             return False
         except Exception as e:
             logger.error(f"Error sending telemetry: {e}")
-            self.connected = False
             return False
-    
+    # Don't forget to add cleanup to the existing methods
+    def close(self):
+        """Close all network connections"""
+        self.telemetry_running = False
+        if hasattr(self, 'telemetry_socket'):
+            try:
+                self.telemetry_socket.close()
+            except:
+                pass
     def shutdown(self) -> None:
         """Safely shutdown the ethernet manager."""
         self.running = False
