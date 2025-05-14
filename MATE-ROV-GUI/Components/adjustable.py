@@ -166,24 +166,35 @@ class AdjustableWidget(QWidget):
         # elif self.title=='Network Connection':
         #     widget=NetworkConnectionWidget()
         
-        
-        
         elif self.title == "Leak Sensor":
-            widget = LeakSensor()
-            # Store the widget in self.content before accessing it
-            self.content = widget
-            
-            # Connect signals if the parent has a data_handler
-            if hasattr(self.parent(), 'data_handler') and self.parent().data_handler:
-                # Connect to leak data updates
-                self.parent().data_handler.signals.leak_update.connect(self.content.update_status)
+            try:
+                widget = LeakSensor()
+                print("Leak sensor widget created successfully")
                 
-                # Connect to emergency alerts if the signal exists
-                if hasattr(self.parent().data_handler.signals, 'emergency_update'):
-                    self.parent().data_handler.signals.emergency_update.connect(self.content.update_from_emergency)
-                
-                # Connect to depth telemetry (which contains leak data in your ROV code)
-                self.parent().data_handler.signals.depth_update.connect(self.content.update_from_telemetry)
+                # Connect signals if the parent has a data_handler
+                if hasattr(self.parent(), 'data_handler') and self.parent().data_handler:
+                    print("Connecting leak sensor signals to data handler")
+                    # Connect to leak data updates
+                    self.parent().data_handler.signals.leak_update.connect(widget.update_status)
+                    print("Connected: leak_update → update_status")
+                    
+                    # Connect to emergency alerts
+                    if hasattr(self.parent().data_handler.signals, 'emergency_update'):
+                        self.parent().data_handler.signals.emergency_update.connect(widget.update_from_emergency)
+                        print("Connected: emergency_update → update_from_emergency")
+                    else:
+                        print("Warning: emergency_update signal not found")
+                    
+                    # Connect to telemetry (which may contain leak data)
+                    self.parent().data_handler.signals.telemetry_received.connect(widget.update_from_telemetry)
+                    print("Connected: telemetry_received → update_from_telemetry")
+                else:
+                    print("Warning: parent does not have data_handler, leak sensor will not receive updates")
+            except Exception as e:
+                import traceback
+                print(f"Error creating Leak Sensor widget: {e}")
+                traceback.print_exc()
+                widget = QWidget()  # Fallback empty widget
         else:
             widget = QWidget()
 

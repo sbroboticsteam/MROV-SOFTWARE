@@ -1,124 +1,142 @@
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QGroupBox, QProgressBar
-from PyQt5.QtCore import Qt, pyqtSignal, pyqtSlot
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QProgressBar
+from PyQt5.QtCore import Qt, pyqtSlot
 from PyQt5.QtGui import QColor, QPalette
 import time
 
 class LeakSensor(QWidget):
-    """Widget for displaying leak sensor status and alerts"""
-
-    def __init__(self):
-        super().__init__()
-        self.setup_ui()
+    """Widget to display leak sensor data"""
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
         self.leak_detected = False
-        self.last_update_time = 0
+        self.sensor_reading = 0
+        self.last_update = 0
+        self.setupUI()
         
-    def setup_ui(self):
-        layout = QVBoxLayout()
-        self.setLayout(layout)
+    def setupUI(self):
+        """Set up the UI components"""
+        layout = QVBoxLayout(self)
+        self.setStyleSheet("background-color: #2f3542;")
         
-        # Title
-        title = QLabel("Leak Detection System")
-        title.setStyleSheet("background-color: #2C3E50; color: white; padding: 5px; font-weight: bold;")
-        title.setAlignment(Qt.AlignCenter)
-        layout.addWidget(title)
+        # Add title
+        title_label = QLabel("Leak Detection System")
+        title_label.setAlignment(Qt.AlignCenter)
+        title_label.setStyleSheet("color: white; font-size: 16px; font-weight: bold; padding: 10px;")
+        layout.addWidget(title_label)
         
-        # Main content
-        content_layout = QVBoxLayout()
+        # Add status indicator
+        self.status_indicator = QLabel("NO LEAK DETECTED")
+        self.status_indicator.setAlignment(Qt.AlignCenter)
+        self.status_indicator.setStyleSheet(
+            "color: white; background-color: #27ae60; font-weight: bold; padding: 10px;"
+        )
+        layout.addWidget(self.status_indicator)
         
-        # Status indicator
-        self.status_label = QLabel("NO LEAK DETECTED")
-        self.status_label.setStyleSheet("background-color: #27AE60; color: white; padding: 15px; border-radius: 5px; font-weight: bold; font-size: 16px;")
-        self.status_label.setAlignment(Qt.AlignCenter)
-        content_layout.addWidget(self.status_label)
+        # Add sensor reading display
+        self.reading_label = QLabel("Sensor Reading:")
+        self.reading_label.setStyleSheet("color: white;")
+        layout.addWidget(self.reading_label)
         
-        # Sensor value
-        self.sensor_layout = QVBoxLayout()
-        self.sensor_label = QLabel("Sensor Reading:")
-        self.sensor_label.setAlignment(Qt.AlignLeft)
-        self.sensor_layout.addWidget(self.sensor_label)
+        # Progress bar for visual representation of sensor reading
+        self.reading_bar = QProgressBar()
+        self.reading_bar.setRange(0, 100)
+        self.reading_bar.setValue(0)
+        self.reading_bar.setTextVisible(True)
+        self.reading_bar.setFormat("%v%")
+        palette = QPalette()
+        palette.setColor(QPalette.Highlight, QColor("#27ae60"))  # Green color when no leak
+        self.reading_bar.setPalette(palette)
+        layout.addWidget(self.reading_bar)
         
-        # Progress bar for visual representation
-        self.sensor_bar = QProgressBar()
-        self.sensor_bar.setRange(0, 100)
-        self.sensor_bar.setValue(0)
-        self.sensor_bar.setTextVisible(True)
-        self.sensor_bar.setFormat("%v%")
-        self.sensor_layout.addWidget(self.sensor_bar)
-        content_layout.addLayout(self.sensor_layout)
+        # Last updated timestamp
+        self.last_updated_label = QLabel("Last updated: Never")
+        self.last_updated_label.setStyleSheet("color: white;")
+        self.last_updated_label.setAlignment(Qt.AlignRight)
+        layout.addWidget(self.last_updated_label)
         
-        # Last updated time
-        self.time_label = QLabel("Last updated: Never")
-        self.time_label.setAlignment(Qt.AlignRight)
-        content_layout.addWidget(self.time_label)
+        # Status message
+        self.status_message = QLabel("System operational")
+        self.status_message.setAlignment(Qt.AlignCenter)
+        self.status_message.setStyleSheet("color: white;")
+        layout.addWidget(self.status_message)
         
-        # Status info
-        self.status_info = QLabel("System operational")
-        self.status_info.setAlignment(Qt.AlignCenter)
-        content_layout.addWidget(self.status_info)
-        
-        container = QWidget()
-        container.setStyleSheet("background-color: #ECF0F1; border-radius: 5px;")
-        container.setLayout(content_layout)
-        layout.addWidget(container)
+        # Add some stretching to make the layout look better
+        layout.addStretch(1)
         
     @pyqtSlot(dict)
-    def update_from_telemetry(self, telemetry):
-        """Update the leak status from telemetry data"""
-        if 'depth' in telemetry and 'leak_sensor' in telemetry:
-            self.update_status(telemetry['leak_sensor'])
-            
+    def update_status(self, leak_data):
+        """Update the widget with new leak sensor data"""
+        if not leak_data:
+            return
+        print(f"LEAK WIDGET: Received update: {leak_data}")  # Add debug print
+        self.leak_detected = leak_data.get("leak_detected", False)
+        self.sensor_reading = int(leak_data.get("reading", 0) * 100)  # Convert to percentage
+        self.last_update = time.time()
+        
+        # Update UI based on leak status
+        if self.leak_detected:
+            self.status_indicator.setText("LEAK DETECTED!")
+            self.status_indicator.setStyleSheet(
+                "color: white; background-color: #e74c3c; font-weight: bold; padding: 10px;"
+            )
+            self.status_message.setText("IMMEDIATE ACTION REQUIRED")
+            # Set progress bar color to red
+            palette = QPalette()
+            palette.setColor(QPalette.Highlight, QColor("#e74c3c"))
+            self.reading_bar.setPalette(palette)
+        else:
+            self.status_indicator.setText("NO LEAK DETECTED")
+            self.status_indicator.setStyleSheet(
+                "color: white; background-color: #27ae60; font-weight: bold; padding: 10px;"
+            )
+            self.status_message.setText("System operational")
+            # Set progress bar color to green
+            palette = QPalette()
+            palette.setColor(QPalette.Highlight, QColor("#27ae60"))
+            self.reading_bar.setPalette(palette)
+        
+        # Update reading display
+        self.reading_bar.setValue(self.sensor_reading)
+        self.reading_label.setText(f"Sensor Reading: {self.sensor_reading}%")
+        
+        # Update timestamp
+        self.last_updated_label.setText(f"Last updated: {time.strftime('%H:%M:%S')}")
+    
+    @pyqtSlot(dict)
+    def update_from_telemetry(self, telemetry_data):
+        """Extract leak data from telemetry"""
+        if not telemetry_data:
+            return
+        
+        # Check if leak sensor data is in the telemetry
+        if "leak_sensor" in telemetry_data:
+            self.update_status(telemetry_data["leak_sensor"])
+    
     @pyqtSlot(dict)
     def update_from_emergency(self, emergency_data):
-        """Handle emergency notifications"""
-        if emergency_data.get('type') == 'leak_detected':
-            self.set_leak_detected(True)
-            message = emergency_data.get('message', 'EMERGENCY: WATER LEAK DETECTED!')
-            self.status_info.setText(message)
-    
-    def update_status(self, leak_data):
-        """Update the sensor display based on leak data"""
-        self.last_update_time = time.time()
-        self.time_label.setText(f"Last updated: {time.strftime('%H:%M:%S')}")
-        
-        # Check if we have valid data
-        if isinstance(leak_data, dict):
-            # Update detection status
-            detected = leak_data.get('detected', False)
-            self.set_leak_detected(detected)
+        """Handle emergency leak alerts"""
+        print(f"EMERGENCY RECEIVED: {emergency_data}")  # Debug print
+        if not emergency_data:
+            return
             
-            # Update sensor value if provided
-            if 'value' in leak_data:
-                value = leak_data['value']
-                threshold = leak_data.get('threshold', 500)
-                
-                # Scale to 0-100% for progress bar
-                percent = min(100, int((value / threshold) * 100))
-                self.sensor_bar.setValue(percent)
-                self.sensor_label.setText(f"Sensor Reading: {value} (Threshold: {threshold})")
-                
-                # Set color gradient based on value
-                if not detected:
-                    if percent < 50:
-                        color = "#27AE60"  # Green
-                    elif percent < 75:
-                        color = "#F39C12"  # Orange
-                    else:
-                        color = "#E67E22"  # Darker orange
-                    
-                    self.sensor_bar.setStyleSheet(f"QProgressBar::chunk {{ background: {color}; }}")
-                
-            # Update status info
-            status_msg = leak_data.get('status_message', 'Monitoring for water ingress')
-            self.status_info.setText(status_msg)
-    
-    def set_leak_detected(self, detected):
-        """Set the leak detection status"""
-        self.leak_detected = detected
-        
-        if detected:
-            self.status_label.setText("⚠️ LEAK DETECTED ⚠️")
-            self.status_label.setStyleSheet("background-color: #C0392B; color: white; padding: 15px; border-radius: 5px; font-weight: bold; font-size: 16px;")
-            self.sensor_bar.setStyleSheet("QProgressBar::chunk { background: #C0392B; }")
-        else:
-            self.status_label.setText("NO LEAK DETECTED")
-            self.status_label.setStyleSheet("background-color: #27AE60; color: white; padding: 15px; border-radius: 5px; font-weight: bold; font-size: 16px;")
+        # Check if this is a leak emergency
+        if emergency_data.get("type") == "leak_detected":
+            self.leak_detected = True
+            self.sensor_reading = 100  # Assume worst case
+            self.last_update = time.time()
+            
+            # Update UI to show emergency
+            self.status_indicator.setText("EMERGENCY: LEAK DETECTED!")
+            self.status_indicator.setStyleSheet(
+                "color: white; background-color: #e74c3c; font-weight: bold; padding: 10px;"
+            )
+            self.status_message.setText(emergency_data.get("message", "IMMEDIATE ACTION REQUIRED"))
+            
+            # Set progress bar to full and red
+            palette = QPalette()
+            palette.setColor(QPalette.Highlight, QColor("#e74c3c"))
+            self.reading_bar.setPalette(palette)
+            self.reading_bar.setValue(100)
+            
+            # Update timestamp
+            self.last_updated_label.setText(f"Emergency alert: {time.strftime('%H:%M:%S')}")

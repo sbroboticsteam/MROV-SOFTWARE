@@ -5,15 +5,18 @@ from Components.camera import MainWindow as CameraWindow
 from Components.adjustable import AdjustableWidget
 import os, subprocess
 from PyQt5.QtCore import QThread, pyqtSignal
+from Components.data_handler import DataHandler
 import sys
 
 from Components.controller import ControllerSender  # Add this import
 
 class DashboardPage(QWidget):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, data_handler=None):
         super().__init__(parent)
         self.widgets=[]
+        self.data_handler = data_handler
         self.setStyleSheet('background-color: #f0f0f0;')
+        print(f"DashboardPage received data_handler: {self.data_handler}")
 
     def addWidget(self, widget_type):
         widget=AdjustableWidget(widget_type, self)
@@ -140,6 +143,9 @@ class MainWindow(QMainWindow): # MainWindow class extends QMainWindow
     def __init__(self):
         super().__init__() # initialize class
         self.script_thread=None
+        self.data_handler = DataHandler(port = 8001)  # Initialize data handler
+        print(f"MainWindow created data_handler: {self.data_handler}")
+        self.data_handler.start()  # Start the data handler thread
         self.setWindowTitle("MATE ROV Dashboard") # setting the window title (what appears at the top of the window)
         self.setupUI()
         self.showMaximized() # show the window maximized (full screen)
@@ -206,7 +212,7 @@ class MainWindow(QMainWindow): # MainWindow class extends QMainWindow
 
     def addNewPage(self):
         page_num = self.pages.count() + 1
-        new_page = DashboardPage()
+        new_page = DashboardPage(data_handler=self.data_handler)
         self.pages.addWidget(new_page)
         self.header.page_selector.addItem(f"Page {page_num}")
         self.header.page_selector.setCurrentIndex(self.pages.count() - 1)
@@ -285,7 +291,15 @@ class MainWindow(QMainWindow): # MainWindow class extends QMainWindow
         self.header.run_script_btn.setText("Run Script")
         self.header.run_script_btn.setEnabled(True)
     
-
+    def closeEvent(self, event):
+        """Clean up resources before closing"""
+        # Stop data handler thread
+        if hasattr(self, 'data_handler') and self.data_handler.isRunning():
+            self.data_handler.stop()
+            self.data_handler.wait()
+        
+        # Call the original closeEvent
+        super().closeEvent(event)
 
 app = QApplication(sys.argv) # required to be called once for every PyQt5 app
 
