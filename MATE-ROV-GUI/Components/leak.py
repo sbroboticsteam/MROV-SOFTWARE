@@ -10,6 +10,7 @@ class LeakSensor(QWidget):
         super().__init__(parent)
         self.leak_detected = False
         self.sensor_reading = 0
+        self.raw_pin_state = None
         self.last_update = 0
         self.setupUI()
         
@@ -33,7 +34,7 @@ class LeakSensor(QWidget):
         layout.addWidget(self.status_indicator)
         
         # Add sensor reading display
-        self.reading_label = QLabel("Sensor Reading:")
+        self.reading_label = QLabel("Raw Pin State: Unknown")
         self.reading_label.setStyleSheet("color: white;")
         layout.addWidget(self.reading_label)
         
@@ -68,9 +69,23 @@ class LeakSensor(QWidget):
         """Update the widget with new leak sensor data"""
         if not leak_data:
             return
-        print(f"LEAK WIDGET: Received update: {leak_data}")  # Add debug print
-        self.leak_detected = leak_data.get("leak_detected", False)
-        self.sensor_reading = int(leak_data.get("reading", 0) * 100)  # Convert to percentage
+        
+        print(f"LEAK WIDGET: Received update: {leak_data}")  # Keep debug print
+        
+        # Get raw pin state first (this is most important)
+        self.raw_pin_state = leak_data.get("raw_pin_state")
+        
+        # Only update leak status if we have a raw pin state
+        if self.raw_pin_state is not None:
+            # Raw pin state 1 = HIGH = leak detected
+            # Raw pin state 0 = LOW = no leak
+            self.leak_detected = (self.raw_pin_state == 1)
+        else:
+            # Fall back to the processed leak_detected flag if raw_pin_state is not available
+            self.leak_detected = leak_data.get("leak_detected", False)
+        
+        # Set sensor reading based on raw pin state
+        self.sensor_reading = 100 if self.leak_detected else 0
         self.last_update = time.time()
         
         # Update UI based on leak status
@@ -97,7 +112,13 @@ class LeakSensor(QWidget):
         
         # Update reading display
         self.reading_bar.setValue(self.sensor_reading)
-        self.reading_label.setText(f"Sensor Reading: {self.sensor_reading}%")
+        
+        # Show raw pin state instead of percentage
+        if self.raw_pin_state is not None:
+            pin_text = f"Raw Pin State: {self.raw_pin_state} ({'HIGH = LEAK' if self.raw_pin_state == 1 else 'LOW = OK'})"
+            self.reading_label.setText(pin_text)
+        else:
+            self.reading_label.setText("Raw Pin State: Unknown")
         
         # Update timestamp
         self.last_updated_label.setText(f"Last updated: {time.strftime('%H:%M:%S')}")
@@ -108,19 +129,30 @@ class LeakSensor(QWidget):
         if not telemetry_data:
             return
         
-        # Check if leak sensor data is in the telemetry
+        # First check for direct leak sensor data
         if "leak_sensor" in telemetry_data:
             self.update_status(telemetry_data["leak_sensor"])
+            return
+            
+        # Also check for raw pin value that might be at the top level
+        if "leak_raw_value" in telemetry_data:
+            # Create a minimal leak data object with just the raw pin state
+            leak_data = {
+                "raw_pin_state": telemetry_data["leak_raw_value"],
+                "available": True
+            }
+            self.update_status(leak_data)
+            return
     
     @pyqtSlot(dict)
     def update_from_emergency(self, emergency_data):
         """Handle emergency leak alerts"""
-        print(f"EMERGENCY RECEIVED: {emergency_data}")  # Debug print
+        print(f"EMERGENCY RECEIVED: {emergency_data}")  # Keep debug print
         if not emergency_data:
             return
             
-        # Check if this is a leak emergency
-        if emergency_data.get("type") == "leak_detected":
+        # We'll still respond to emergencies, but only if we don't have direct pin readings
+        if self.raw_pin_state is None and emergency_data.get("type") == "leak_detected":
             self.leak_detected = True
             self.sensor_reading = 100  # Assume worst case
             self.last_update = time.time()

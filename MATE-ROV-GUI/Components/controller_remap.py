@@ -114,7 +114,7 @@ class ControllerRemappingWidget(QWidget):
             'down', 'up',
             
             # Digital inputs
-            'action 0', 'action 1', 'stowed', 'fully out', 'out down', 'down', 'action 2', 'action 3',
+            'action 0', 'action 1', 'action2', 'stowed', 'fully out', 'out down', 'action 3', 'action 4',
             
             # D-pad
             'rotate right/left', 'open/close'
