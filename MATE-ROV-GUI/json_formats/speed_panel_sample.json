@@ -1,0 +1,34 @@
+{
+    "speed": {
+      "x_axis": 65.3,
+      "y_axis": -23.7,
+      "z_axis": 12.5,
+      "rotation": 8.2
+    },
+    "motors": [
+      {
+        "id": 1,
+        "name": "front_left",
+        "power": 75.2,
+        "temperature": 28.4
+      },
+      {
+        "id": 2,
+        "name": "front_right",
+        "power": 72.5,
+        "temperature": 29.1
+      },
+      {
+        "id": 3,
+        "name": "back_left",
+        "power": -40.3,
+        "temperature": 27.8
+      },
+      {
+        "id": 4,
+        "name": "back_right",
+        "power": -42.6,
+        "temperature": 28.2
+      }
+    ]
+  }

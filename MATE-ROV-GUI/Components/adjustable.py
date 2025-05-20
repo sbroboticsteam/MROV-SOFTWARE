@@ -1,11 +1,17 @@
 from PyQt5.QtWidgets import QApplication, QWidget, QHBoxLayout, QPushButton, QFrame, QLabel, QVBoxLayout
 from PyQt5.QtCore import Qt, QPoint, pyqtSignal
-from PyQt5.QtGui import QPainter, QColor, QPainterPath
+from PyQt5.QtGui import QPainter, QColor, QPainterPath, QCloseEvent
 from Components.speedpanel import SpeedPanel
-from Components.temp_camera import Camera
+from Components.camera import MainWindow as CameraWindow
 from Components.connectivity import Connectivity
-# from Components.controller_sensitivity import ControllerSensitivity, AdjustableControllerSensivitity
+from Components.depth_time import DepthTimeWidget
+from Components.controller import ControllerSender
 
+from Components.leak import LeakSensor
+# from Components.controller_sensitivity import ControllerSensitivity, AdjustableControllerSensivitity
+from Components.controller_sensitivity import ControllerSensitivity
+# Add imports for the individual camera widgets
+from Components.camera_widgets import USB1CameraWindow, USB2CameraWindow, ZEDCameraWindow
 # controls for minimizing, maximizing and closing widgets (like a window)
 class WindowControls(QWidget):
     minimizeClicked = pyqtSignal()
@@ -95,7 +101,7 @@ class AdjustableWidget(QWidget):
         self.windowcontrols   = WindowControls()
         self.windowcontrols.minimizeClicked.connect(self.minimizeEvent)
         self.windowcontrols.maximizeClicked.connect(self.maximizeEvent)
-        self.windowcontrols.closeClicked.connect(self.closeEvent)
+        self.windowcontrols.closeClicked.connect(self.handleClose)
 
         titlelayout.addWidget(self.titlelabel)
         titlelayout.addStretch()
@@ -105,12 +111,90 @@ class AdjustableWidget(QWidget):
 
         if self.title == "Speed Panel":
             widget = SpeedPanel()
-        elif self.title == "Webcam":
-            widget = Camera()
+        elif self.title == "USB Camera":
+            print("DEBUG - Creating CameraWindow for USB Camera")
+            try:
+                widget = CameraWindow()
+                print("DEBUG - CameraWindow created successfully")
+            except Exception as e:
+                print(f"DEBUG - Error creating CameraWindow: {e}")
+                import traceback
+                traceback.print_exc()
+                # Create a fallback widget with error information
+                error_widget = QWidget()
+                error_layout = QVBoxLayout(error_widget)
+                error_label = QLabel(f"Error creating camera: {str(e)}")
+                error_label.setStyleSheet("color: red; background-color: #ffeeee; padding: 10px;")
+                error_layout.addWidget(error_label)
+                widget = error_widget
+        # Add new camera widget types
+        elif self.title == "USB Camera 1":
+            try:
+                widget = USB1CameraWindow()
+                print("USB Camera 1 created successfully")
+            except Exception as e:
+                print(f"Error creating USB Camera 1: {e}")
+                import traceback
+                traceback.print_exc()
+                widget = self._create_error_widget(f"Error creating USB Camera 1: {str(e)}")
+        elif self.title == "USB Camera 2":
+            try:
+                widget = USB2CameraWindow()
+                print("USB Camera 2 created successfully")
+            except Exception as e:
+                print(f"Error creating USB Camera 2: {e}")
+                import traceback
+                traceback.print_exc()
+                widget = self._create_error_widget(f"Error creating USB Camera 2: {str(e)}")
+        elif self.title == "ZED Camera":
+            try:
+                widget = ZEDCameraWindow()
+                print("ZED Camera created successfully")
+            except Exception as e:
+                print(f"Error creating ZED Camera: {e}")
+                import traceback
+                traceback.print_exc()
+                widget = self._create_error_widget(f"Error creating ZED Camera: {str(e)}")
         elif self.title == "Connectivity":
             widget = Connectivity()
         elif self.title == "Controller Sensitivity":
-            widget = QWidget()
+            widget = ControllerSensitivity(self)
+        elif self.title=='Depth-Time Graph':
+            widget=DepthTimeWidget()
+        elif self.title=='Controller Sender':
+            widget=ControllerSender()
+        # elif self.title=='Network Connection':
+        #     widget=NetworkConnectionWidget()
+        
+        elif self.title == "Leak Sensor":
+            try:
+                widget = LeakSensor()
+                print("Leak sensor widget created successfully")
+                
+                # Connect signals if the parent has a data_handler
+                if hasattr(self.parent(), 'data_handler') and self.parent().data_handler:
+                    print("Connecting leak sensor signals to data handler")
+                    # Connect to leak data updates
+                    self.parent().data_handler.signals.leak_update.connect(widget.update_status)
+                    print("Connected: leak_update → update_status")
+                    
+                    # Connect to emergency alerts
+                    if hasattr(self.parent().data_handler.signals, 'emergency_update'):
+                        self.parent().data_handler.signals.emergency_update.connect(widget.update_from_emergency)
+                        print("Connected: emergency_update → update_from_emergency")
+                    else:
+                        print("Warning: emergency_update signal not found")
+                    
+                    # Connect to telemetry (which may contain leak data)
+                    self.parent().data_handler.signals.telemetry_received.connect(widget.update_from_telemetry)
+                    print("Connected: telemetry_received → update_from_telemetry")
+                else:
+                    print("Warning: parent does not have data_handler, leak sensor will not receive updates")
+            except Exception as e:
+                import traceback
+                print(f"Error creating Leak Sensor widget: {e}")
+                traceback.print_exc()
+                widget = QWidget()  # Fallback empty widget
         else:
             widget = QWidget()
 
@@ -123,7 +207,17 @@ class AdjustableWidget(QWidget):
         self.setLayout(self.mainlayout)
 
         self.resize(300, 200)
-   
+
+    def _create_error_widget(self, error_message):
+        """Create an error widget with the given message"""
+        error_widget = QWidget()
+        error_layout = QVBoxLayout(error_widget)
+        error_label = QLabel(error_message)
+        error_label.setStyleSheet("color: red; background-color: #ffeeee; padding: 10px;")
+        error_label.setWordWrap(True)
+        error_layout.addWidget(error_label)
+        return error_widget
+    
     def minimizeEvent(self):
         # if not minimized already, set height of widget to the title bar only
         if not self.minimized:
@@ -145,6 +239,21 @@ class AdjustableWidget(QWidget):
             if self.og_geometry:
                 self.setGeometry(self.og_geometry)
             self.maximized = False
+
+    def handleClose(self):
+        # Check if the content area has a close method
+        if hasattr(self.contentarea, 'close'):
+            try:
+                self.contentarea.close()
+            except Exception as e:
+                print(f"Error closing widget content: {e}")
+        self.close()
+        
+    def closeEvent(self, event: QCloseEvent):
+        if self.parent() and hasattr(self.parent, 'widgets'):
+            if self in self.parent().widgets:
+                self.parent.widgets.remove(self)
+        event.accept()
 
 
     def is_near_border(self, pos):
