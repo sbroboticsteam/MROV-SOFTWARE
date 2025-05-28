@@ -1,3 +1,6 @@
 # Byte-compiled files 
 /pyenvMATE/
 /src/__pycache__/
+**/.vscode/
+**/*.log
+**/__pycache__/
