@@ -73,8 +73,8 @@ class IMUSensor:
             heading, roll, pitch = self.bno.get_euler()
             
             # Apply offset correction: subtract 2.69 from roll value
-            roll += 2.69
-            pitch -= 2.44
+            roll += 1
+            pitch -= 88.30
             
             # Update last read values
             self.last_heading = heading
@@ -120,7 +120,10 @@ class IMUSensor:
         """Close connection to the sensor."""
         if self.available and self.bno:
             try:
+                # Set available to False first to prevent new reads
+                self.available = False
                 self.bno.close()
+                self.bno = None
                 logger.info("IMU sensor connection closed")
             except Exception as e:
                 logger.error(f"Error closing IMU sensor: {e}")

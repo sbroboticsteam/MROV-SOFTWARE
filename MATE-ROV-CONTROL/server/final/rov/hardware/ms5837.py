@@ -40,7 +40,7 @@ UNITS_Kelvin     = 3
 class MS5837(object):
     
     # Registers
-    _MS5837_ADDR             = 0x76  
+    _MS5837_ADDR             = 0x76 
     _MS5837_RESET            = 0x1E
     _MS5837_ADC_READ         = 0x00
     _MS5837_PROM_READ        = 0xA0

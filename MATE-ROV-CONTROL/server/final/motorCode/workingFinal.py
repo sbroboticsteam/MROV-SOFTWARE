@@ -15,10 +15,10 @@ def arcadeDrive3(x, y, rx, rT, lT) -> list[float]:
     """Calculate motor values from controller inputs"""
     PWM = rT - lT
 
-    frontLeft = y + x + rx  # 2
-    frontRight = y - x - rx  # 3
-    backRight = -y - x + rx  # 4  
-    backLeft = -y + x - rx  # 1
+    frontLeft = -y + x + rx  # 2
+    frontRight = -y - x - rx  # 3
+    backRight = y - x + rx  # 4  
+    backLeft = y + x - rx  # 1
     data = [-frontLeft, -frontRight, -backLeft, -backRight]
     
     # Normalize values if any exceed 1.0
@@ -172,7 +172,7 @@ class ESCController:
             esc._set_pulse_width(period)
 
 def main():
-    esc_channels = [13, 9, 10, 8, 11, 14, 15, 12]
+    esc_channels = [12, 7, 6, 8, 9, 10, 13, 11]
     pca = PCA9685(bus_number=7)
     pca.frequency = 50
     esc_controller = ESCController(esc_channels, pca)

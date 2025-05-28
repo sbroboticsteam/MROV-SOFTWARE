@@ -60,10 +60,10 @@ class ControllerMapper:
             'up': 'right_trigger',
             'action 0': 'a',
             'action 1': 'b',
-            'stowed': 'x',
-            'fully out': 'y',
+            'action 2': 'x',
+            'stowed': 'y',
             'out down': 'lb',
-            'down': 'rb',
+            'fully_out': 'rb',
             'rotate right/left': 'dpad_x',
             'open/close': 'dpad_y'
             # Add any other mappings as needed

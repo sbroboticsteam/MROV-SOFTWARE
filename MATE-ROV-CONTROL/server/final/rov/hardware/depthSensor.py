@@ -1,34 +1,43 @@
 import time
 import logging
 from typing import Dict, Optional, Tuple
+import os
 
 logger = logging.getLogger("ROV")
 
 # Import the MS5837 sensor class with error handling
 try:
-    from rov.hardware.ms5837 import MS5837, MS5837_02BA, OSR_8192, DENSITY_SALTWATER
+    # First try to import from system packages
+    from ms5837 import MS5837, MS5837_02BA, OSR_8192, DENSITY_SALTWATER
     MS5837_AVAILABLE = True
-    logger.info("MS5837 module successfully imported")
+    logger.info("MS5837 module successfully imported from system package")
 except ImportError:
     try:
+        # Then try to import from the local hardware directory
         from hardware.ms5837 import MS5837, MS5837_02BA, OSR_8192, DENSITY_SALTWATER
         MS5837_AVAILABLE = True
-        logger.info("MS5837 module successfully imported")
+        logger.info("MS5837 module successfully imported from local hardware directory")
     except ImportError:
-        MS5837_AVAILABLE = False
-        logger.warning("Could not import MS5837 class. Depth sensor functionality will be limited.")
-        # Create dummy classes and constants for type checking
-        class MS5837:
-            pass
-        class MS5837_02BA:
-            pass
-        OSR_8192 = 5
-        DENSITY_SALTWATER = 1029
+        try:
+            # Try a relative import as a last resort
+            from .ms5837 import MS5837, MS5837_02BA, OSR_8192, DENSITY_SALTWATER
+            MS5837_AVAILABLE = True
+            logger.info("MS5837 module successfully imported using relative import")
+        except ImportError:
+            MS5837_AVAILABLE = False
+            logger.warning("Could not import MS5837 class. Depth sensor functionality will be limited.")
+            # Create dummy classes and constants for type checking
+            class MS5837:
+                pass
+            class MS5837_02BA:
+                pass
+            OSR_8192 = 5
+            DENSITY_SALTWATER = 1029
 
 class DepthSensor:
-    """Interface for the MS5837 depth sensor with velocity calculation."""
+    """Interface for the BAR02 Blue Robotics depth sensor with velocity calculation."""
     
-    def __init__(self, bus_number: int = 1):
+    def __init__(self, bus_number: int = 7):
         """Initialize the depth sensor.
         
         Args:
@@ -43,6 +52,7 @@ class DepthSensor:
         self.last_temperature = 0.0
         self.initial_depth = 0.0
         self.relative_depth = 0.0
+        self.last_altitude = 0.0
         
         # For rate limiting
         self.last_read_time = 0
@@ -62,25 +72,33 @@ class DepthSensor:
         # Create and initialize sensor if available
         if MS5837_AVAILABLE:
             try:
-                logger.info(f"Initializing MS5837 depth sensor on bus {bus_number}...")
-                self.sensor = MS5837_02BA(bus=bus_number)  # Use 02BA model as it's common in ROVs
+                logger.info(f"Initializing BAR02 depth sensor on bus {bus_number}...")
+                self.sensor = MS5837_02BA(bus=bus_number)  # BAR02 uses 30BA model
                 
                 if self.sensor.init():
                     # Configure for saltwater by default
                     self.sensor.setFluidDensity(DENSITY_SALTWATER)
                     self.available = True
                     self.is_initialized = True
-                    logger.info("MS5837 depth sensor initialized successfully")
+                    logger.info("BAR02 depth sensor initialized successfully")
                     
                     # Take an initial reading and calibrate
                     self._read_sensor()
                     self.calibrate_at_surface()
                 else:
-                    logger.error("Failed to initialize MS5837 depth sensor")
+                    logger.error("Failed to initialize BAR02 depth sensor")
             except Exception as e:
                 logger.error(f"Error initializing depth sensor: {e}")
         else:
-            logger.warning("MS5837 depth sensor not available. Using simulation mode.")
+            logger.warning("BAR02 depth sensor not available. Using simulation mode.")
+    def get_altitude(self) -> float:
+        """Get the current altitude reading in meters above MSL.
+        
+        Returns:
+            float: Current altitude in meters
+        """
+        self._read_sensor()
+        return self.last_altitude
     
     def calibrate_at_surface(self) -> None:
         """Set the current depth as the zero reference point (surface)."""
@@ -113,6 +131,7 @@ class DepthSensor:
         """
         self.depth_tolerance = tolerance
         logger.info(f"Depth tolerance set to ±{tolerance:.3f} m")
+        
 
     def get_depth(self) -> float:
         """Get the current depth reading, relative to the calibrated surface.
@@ -172,12 +191,13 @@ class DepthSensor:
         """Get all sensor readings in a dictionary.
         
         Returns:
-            Dict with depth, pressure, temperature, velocity, and error values
+            Dict with depth, pressure, temperature, velocity, error values, and altitude
         """
         self._read_sensor()
         return {
             "depth": self.relative_depth,
             "absolute_depth": self.last_depth,
+            "altitude": self.last_altitude,
             "pressure": self.last_pressure,
             "temperature": self.last_temperature,
             "velocity": self.current_velocity,
@@ -207,6 +227,7 @@ class DepthSensor:
                 
                 # Update current readings
                 self.last_depth = self.sensor.depth()
+                self.last_altitude = self.sensor.altitude()
                 self.last_pressure = self.sensor.pressure()
                 self.last_temperature = self.sensor.temperature()
                 
@@ -255,6 +276,7 @@ def main():
             data = depth_sensor.get_all_data()
             
             print(f"Depth: {data['depth']:.3f} m")
+            print(f"Altitude: {data['altitude']:.3f} m")
             print(f"Pressure: {data['pressure']:.2f} mbar")
             print(f"Temperature: {data['temperature']:.2f} °C")
             print(f"Velocity: {data['velocity']:.3f} m/s")

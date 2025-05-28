@@ -1,0 +1,98 @@
+2025-05-11 23:48:08,298 - IMU_TEST - INFO - BNO055 module successfully imported
+2025-05-11 23:48:08,306 - IMU_TEST - INFO - Starting continuous IMU test on bus 7
+2025-05-11 23:48:08,306 - IMU_TEST - INFO - Initializing BNO055 sensor...
+2025-05-11 23:48:09,021 - IMU_TEST - INFO - BNO055 Initialized Successfully.
+2025-05-11 23:48:10,023 - IMU_TEST - INFO - Initial Calibration: Sys=0, Gyro=3, Accel=0, Mag=0
+2025-05-11 23:48:10,024 - IMU_TEST - INFO - IMU sensor initialized successfully
+2025-05-11 23:48:10,024 - IMU_TEST - INFO - Test will run continuously. Press Ctrl+C to stop.
+2025-05-11 23:48:10,025 - IMU_TEST - INFO - Time: 0.00s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:10,025 - IMU_TEST - INFO - Calibration Status - Sys: 0/3, Gyro: 3/3, Accel: 0/3, Mag: 0/3
+2025-05-11 23:48:10,126 - IMU_TEST - INFO - Time: 0.10s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:10,229 - IMU_TEST - INFO - Time: 0.20s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:10,333 - IMU_TEST - INFO - Time: 0.31s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:10,434 - IMU_TEST - INFO - Time: 0.41s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:10,536 - IMU_TEST - INFO - Time: 0.51s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:10,637 - IMU_TEST - INFO - Time: 0.61s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:10,738 - IMU_TEST - INFO - Time: 0.71s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:10,839 - IMU_TEST - INFO - Time: 0.81s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:10,940 - IMU_TEST - INFO - Time: 0.92s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:11,042 - IMU_TEST - INFO - Time: 1.02s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:11,145 - IMU_TEST - INFO - Time: 1.12s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:11,248 - IMU_TEST - INFO - Time: 1.22s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:11,350 - IMU_TEST - INFO - Time: 1.33s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:11,451 - IMU_TEST - INFO - Time: 1.43s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:11,552 - IMU_TEST - INFO - Time: 1.53s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:11,654 - IMU_TEST - INFO - Time: 1.63s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:11,755 - IMU_TEST - INFO - Time: 1.73s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:11,856 - IMU_TEST - INFO - Time: 1.83s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:11,957 - IMU_TEST - INFO - Time: 1.93s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:12,060 - IMU_TEST - INFO - Time: 2.04s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:12,163 - IMU_TEST - INFO - Time: 2.14s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:12,266 - IMU_TEST - INFO - Time: 2.24s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:12,367 - IMU_TEST - INFO - Time: 2.34s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:12,468 - IMU_TEST - INFO - Time: 2.44s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:12,570 - IMU_TEST - INFO - Time: 2.55s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:12,671 - IMU_TEST - INFO - Time: 2.65s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:12,772 - IMU_TEST - INFO - Time: 2.75s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:12,874 - IMU_TEST - INFO - Time: 2.85s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:12,975 - IMU_TEST - INFO - Time: 2.95s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:13,076 - IMU_TEST - INFO - Time: 3.05s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:13,178 - IMU_TEST - INFO - Time: 3.15s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:13,279 - IMU_TEST - INFO - Time: 3.25s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:13,380 - IMU_TEST - INFO - Time: 3.36s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:13,483 - IMU_TEST - INFO - Time: 3.46s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:13,585 - IMU_TEST - INFO - Time: 3.56s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:13,686 - IMU_TEST - INFO - Time: 3.66s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:13,788 - IMU_TEST - INFO - Time: 3.76s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:13,889 - IMU_TEST - INFO - Time: 3.86s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:13,991 - IMU_TEST - INFO - Time: 3.97s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:14,094 - IMU_TEST - INFO - Time: 4.07s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:14,197 - IMU_TEST - INFO - Time: 4.17s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:14,298 - IMU_TEST - INFO - Time: 4.27s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:14,400 - IMU_TEST - INFO - Time: 4.38s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:14,501 - IMU_TEST - INFO - Time: 4.48s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:14,602 - IMU_TEST - INFO - Time: 4.58s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:14,704 - IMU_TEST - INFO - Time: 4.68s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:14,805 - IMU_TEST - INFO - Time: 4.78s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:14,906 - IMU_TEST - INFO - Time: 4.88s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:15,010 - IMU_TEST - INFO - Time: 4.99s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:15,113 - IMU_TEST - INFO - Time: 5.09s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:15,114 - IMU_TEST - INFO - Calibration Status - Sys: 0/3, Gyro: 3/3, Accel: 0/3, Mag: 0/3
+2025-05-11 23:48:15,215 - IMU_TEST - INFO - Time: 5.19s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:15,317 - IMU_TEST - INFO - Time: 5.29s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:15,419 - IMU_TEST - INFO - Time: 5.39s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:15,522 - IMU_TEST - INFO - Time: 5.50s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:15,625 - IMU_TEST - INFO - Time: 5.60s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:15,727 - IMU_TEST - INFO - Time: 5.70s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:15,828 - IMU_TEST - INFO - Time: 5.80s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:15,930 - IMU_TEST - INFO - Time: 5.91s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:16,031 - IMU_TEST - INFO - Time: 6.01s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:16,133 - IMU_TEST - INFO - Time: 6.11s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:16,236 - IMU_TEST - INFO - Time: 6.21s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:16,339 - IMU_TEST - INFO - Time: 6.31s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:16,442 - IMU_TEST - INFO - Time: 6.42s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:16,543 - IMU_TEST - INFO - Time: 6.52s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:16,644 - IMU_TEST - INFO - Time: 6.62s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:16,746 - IMU_TEST - INFO - Time: 6.72s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:16,847 - IMU_TEST - INFO - Time: 6.82s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:16,948 - IMU_TEST - INFO - Time: 6.92s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:17,049 - IMU_TEST - INFO - Time: 7.02s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:17,151 - IMU_TEST - INFO - Time: 7.13s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:17,253 - IMU_TEST - INFO - Time: 7.23s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:17,357 - IMU_TEST - INFO - Time: 7.33s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:17,458 - IMU_TEST - INFO - Time: 7.43s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:17,560 - IMU_TEST - INFO - Time: 7.54s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:17,663 - IMU_TEST - INFO - Time: 7.64s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:17,766 - IMU_TEST - INFO - Time: 7.74s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:17,869 - IMU_TEST - INFO - Time: 7.84s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:17,971 - IMU_TEST - INFO - Time: 7.95s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:18,073 - IMU_TEST - INFO - Time: 8.05s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:18,174 - IMU_TEST - INFO - Time: 8.15s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:18,275 - IMU_TEST - INFO - Time: 8.25s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:18,377 - IMU_TEST - INFO - Time: 8.35s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:18,480 - IMU_TEST - INFO - Time: 8.46s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:18,583 - IMU_TEST - INFO - Time: 8.56s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:18,686 - IMU_TEST - INFO - Time: 8.66s | Heading: 359.94° | Roll: -0.19° | Pitch: 0.50°
+2025-05-11 23:48:18,761 - IMU_TEST - INFO - Test interrupted by user
+2025-05-11 23:48:18,762 - IMU_TEST - INFO - IMU sensor connection closed
+2025-05-11 23:48:18,762 - IMU_TEST - INFO - IMU test completed

@@ -12,6 +12,7 @@ from hardware.controller import ControllerMapper
 from hardware.ethernet_man import EthernetManager
 from hardware.pid_controller import ChassisControl
 from hardware.depthSensor import DepthSensor
+from hardware.leak_sensor import LeakSensor
 
 logging.basicConfig(
     level=logging.INFO,
@@ -25,41 +26,45 @@ class ROV:
     """Minimal ROV system for testing thruster functionality and Ethernet communication."""
     
     def __init__(self, stabilization_enabled=True):
+        self.start_time = time.time()
         logger.info("Initializing ROV...")
         self.pca = PCA9685(bus_number=7)
         self.pca.frequency = 50
         
         #UNCOMMENT FOR IT TO WORK WITH TRUSTERS
         # Create thruster objects using a predefined channel map
-        # self.thruster_channels = [13, 9, 10, 8, 11, 14, 12, 15]
-        # self.thruster_names = [
-        #     "FrontLeft", "FrontRight", "BackLeft", "BackRight",
-        #     "FrontLeftUp", "FrontRightUp", "BackRightUp", "BackLeftUp"
-        # ]
-        # self.thrusters = []
-        # for i, channel in enumerate(self.thruster_channels):
-        #     name = self.thruster_names[i] if i < len(self.thruster_names) else f"Thruster{i}"
-        #     self.thrusters.append(Thruster(channel, self.pca, name=name))
+        # esc_channels = [13, 9, 10, 8, 11, 14, 15, 12]
+        # esc_channels = [11, 13, 9, 7, 8, 12, 6, 10] (Crash out)
+        self.thruster_channels = [11, 13, 9, 7, 8, 12, 6, 10] 
+        self.thruster_names = [
+            "FrontLeft", "FrontRight", "BackLeft", "BackRight",
+            "FrontLeftUp", "FrontRightUp", "BackRightUp", "BackLeftUp"
+        ]
+        self.thrusters = []
+        for i, channel in enumerate(self.thruster_channels):
+            name = self.thruster_names[i] if i < len(self.thruster_names) else f"Thruster{i}"
+            self.thrusters.append(Thruster(channel, self.pca, name=name))
 
         self.thrusters_initialized = False
         self.b_button_press_time = 0
 
         # self.thrusters = []
+        # self.imu = 0
+        self.leak_sensor = LeakSensor(pin=22, callback=self._leak_detected_callback)
 
         self.controller_mapper = ControllerMapper()
 
         self.imu = IMUSensor()
         self.depth_sensor = DepthSensor()
         self.orientation_thread = None
+        self.orientation_running = False
         self.depth_thread = None
         self.depth_running = False
-        self.orientation_running = False
         
         self.current_heading = 0
         self.current_roll = 0
         self.current_pitch = 0
-        self.current_depth = 0.0 
-        self.current_depth_velocity = 0
+        self.current_depth = 0.0
         self.depth_initialized = False
 
         self.left_x = 0.0
@@ -78,7 +83,14 @@ class ROV:
         self.stabilization_enabled = stabilization_enabled and (self.imu.available or self.depth_sensor.available)
         
         # Initialize Ethernet Manager for network communication
-        self.ethernet = EthernetManager(control_ip='192.168.1.237', control_port=4891)
+        # In the __init__ method of the ROV class, update the EthernetManager initialization
+        self.ethernet = EthernetManager(
+            control_ip='192.168.1.237',  # ROV's IP
+            control_port=4891,           # Control port
+            camera_port=8000,            # Camera stream port
+            telemetry_ip='192.168.1.142', # Your laptop's IP 
+            telemetry_port=8001          # Dedicated telemetry port
+        )
         self.ethernet.set_control_callback(self.process_command)
         
         self.base_motor_states = [0.0] * 8
@@ -93,19 +105,114 @@ class ROV:
             logger.info("PID stabilization is DISABLED")
         logger.info("Minimal ROV initialization complete")
 
-    def start_orientation_thread(self):
-        """Start a thread to continuously update orientation data."""
-        if not self.imu.available:
-            logger.warning("IMU not available, orientation thread not started")
-            return False
-            
-        self.orientation_running = True
-        self.orientation_thread = threading.Thread(target=self._orientation_updater)
-        self.orientation_thread.daemon = True
-        self.orientation_thread.start()
-        logger.info("Orientation update thread started")
-        return True
+    def _leak_detected_callback(self):
+        """Called when a leak is detected"""
+        logger.critical("ROV LEAK DETECTED! Initiating emergency procedures!")
+        
+        # Send alert to all possible clients
+        emergency_data = {
+            "emergency": True,
+            "type": "leak_detected",
+            "timestamp": time.time(),
+            "message": "WATER LEAK DETECTED! Take immediate action!"
+        }
+     
+        # Try to send alert to connected client
+        if self.ethernet.connected:
+            self.ethernet.send_telemetry(emergency_data)
     
+    def send_full_telemetry(self):
+        """Collect and send complete telemetry data"""
+        if not self.ethernet:
+            return
+        
+        # Get current time
+        current_time = time.time()
+        
+        # Collect all available sensor data
+        telemetry = {
+            "timestamp": current_time,
+            "system": {
+                "uptime": current_time - self.start_time,
+                "voltage": 12.0,  # Replace with actual voltage if available
+            }
+        }
+        
+        # Always include leak sensor data
+        if hasattr(self, 'leak_sensor'):
+            leak_status = self.leak_sensor.get_status()
+            telemetry["leak_sensor"] = leak_status
+            
+            # Add direct raw pin state for immediate feedback
+            telemetry["leak_raw_value"] = leak_status.get("raw_pin_state", None)
+                    
+            # Add an emergency flag if leak is detected
+            if leak_status.get("leak_detected", False):
+                telemetry["emergency"] = {
+                    "type": "leak_detected",
+                    "message": "WATER LEAK DETECTED! Take immediate action!"
+                }
+        
+        # Always include IMU data if available
+        if hasattr(self, 'imu') and self.imu.available:
+            try:
+                heading, roll, pitch, sys, gyro, accel, mag = self.imu.get_orientation_data()
+                telemetry["imu"] = {
+                    "heading": heading,
+                    "roll": roll,
+                    "pitch": pitch,
+                    "calibration": {
+                        "sys": sys,
+                        "gyro": gyro,
+                        "accel": accel,
+                        "mag": mag
+                    }
+                }
+            except Exception as e:
+                # Fall back to basic orientation if detailed data fails
+                try:
+                    heading, roll, pitch = self.imu.get_orientation()
+                    telemetry["imu"] = {
+                        "heading": heading,
+                        "roll": roll,
+                        "pitch": pitch,
+                        "calibration": {
+                            "sys": 0,
+                            "gyro": 0,
+                            "accel": 0,
+                            "mag": 0
+                        }
+                    }
+                except:
+                    telemetry["imu"] = {"error": "Failed to get IMU data"}
+        
+        # Rest of your existing telemetry collection...
+        
+        # Add depth data if available
+        if hasattr(self, 'depth_sensor') and self.depth_sensor.available:
+            depth_data = self.depth_sensor.get_all_data()
+            telemetry["depth"] = {
+                "value": self.current_depth,
+                "velocity": self.current_depth_velocity if hasattr(self, 'current_depth_velocity') else 0,
+                "temperature": depth_data.get("temperature", 0),
+                "target": self.chassis_control.z_target if hasattr(self, 'chassis_control') else 0
+            }
+        
+        # Add thruster data if available
+        if hasattr(self, 'thrusters') and self.thrusters:
+            thruster_data = {}
+            for i, thruster in enumerate(self.thrusters):
+                name = self.thruster_names[i] if i < len(self.thruster_names) else f"Thruster{i}"
+                thruster_data[name] = {
+                    "power": thruster.current_power if hasattr(thruster, 'current_power') else 0,
+                    "pulse": thruster.current_pulse if hasattr(thruster, 'current_pulse') else 1500
+                }
+            telemetry["thrusters"] = thruster_data
+        
+        # Send the collected telemetry
+        self.ethernet.send_telemetry(telemetry)
+        logger.debug("Full telemetry data sent")
+                
     def start_depth_thread(self):
         """Start a thread to continuously update depth data."""
         if not self.depth_sensor.available:
@@ -127,52 +234,7 @@ class ROV:
             logger.info(f"Depth sensor calibrated at surface, Z target initialized to 0.0m")
             
         return True
-       
-    def _orientation_updater(self):
-        """Thread function to update orientation data."""
-        logger.info("Orientation updater thread running")
-        last_log_time = 0
-        log_interval = 1.0  # Log IMU data every second
-        
-        while self.orientation_running:
-            heading, roll, pitch = self.imu.get_orientation()
-            
-            with self.pid_lock:
-                self.current_heading = heading
-                self.current_roll = roll
-                self.current_pitch = pitch
-            
-            # Log IMU data periodically
-            current_time = time.time()
-            if current_time - last_log_time > log_interval:
-                # Get calibration status
-                sys, gyro, accel, mag = self.imu.get_calibration_status()
-                # logger.info(f"IMU Data - Heading: {heading:.2f}°, Roll: {roll:.2f}°, Pitch: {pitch:.2f}°")
-                # logger.info(f"IMU Calibration - Sys: {sys}/3, Gyro: {gyro}/3, Accel: {accel}/3, Mag: {mag}/3")
-                
-                # Add IMU data to telemetry if a client is connected
-                if self.ethernet.connected:
-                    telemetry = {
-                        "imu": {
-                            "heading": heading,
-                            "roll": roll,
-                            "pitch": pitch,
-                            "calibration": {
-                                "sys": sys,
-                                "gyro": gyro,
-                                "accel": accel,
-                                "mag": mag
-                            }
-                        }
-                    }
-                    self.ethernet.send_telemetry(telemetry)
-                    
-                last_log_time = current_time
-            
-            # Small sleep to prevent overwhelming the CPU
-            time.sleep(0.01)
-        logger.info("Orientation updater thread stopped")
-    
+
     def _depth_updater(self):
         """Thread function to update depth data."""
         logger.info("Depth updater thread running")
@@ -185,22 +247,21 @@ class ROV:
             
             with self.pid_lock:
                 self.current_depth = depth_data["depth"]  # Relative depth from calibration
-                self.current_depth_velocity = depth_data["velocity"]
             
             # Log depth data periodically
             current_time = time.time()
             if current_time - last_log_time > log_interval:
-                logger.info(f"Depth Data - Current: {self.current_depth:.3f}m, Velocity: {self.current_depth_velocity:.3f}m/s")
+                logger.info(f"Depth Data - Current: {self.current_depth:.3f}m")
                 
                 # Add depth data to telemetry if a client is connected
                 if self.ethernet.connected:
                     telemetry = {
                         "depth": {
                             "value": self.current_depth,
-                            "velocity": self.current_depth_velocity,
                             "temperature": depth_data["temperature"],
                             "target": self.chassis_control.z_target
-                        }
+                        },
+                        "leak_sensor": self.leak_sensor.get_status()
                     }
                     self.ethernet.send_telemetry(telemetry)
                     
@@ -209,6 +270,75 @@ class ROV:
             # Small sleep to prevent overwhelming the CPU
             time.sleep(0.02)
         logger.info("Depth updater thread stopped")
+    
+    def start_orientation_thread(self):
+        """Start a thread to continuously update orientation data."""
+        if not self.imu.available:
+            logger.warning("IMU not available, orientation thread not started")
+            return False
+            
+        self.orientation_running = True
+        self.orientation_thread = threading.Thread(target=self._orientation_updater)
+        self.orientation_thread.daemon = True
+        self.orientation_thread.start()
+        logger.info("Orientation update thread started")
+        return True
+    
+    def _orientation_updater(self):
+        """Thread function to update orientation data."""
+        logger.info("Orientation updater thread running")
+        last_log_time = 0
+        log_interval = 1.0  # Log IMU data every second
+        
+        while self.orientation_running:
+            try:
+                # Check if IMU is still available before accessing it
+                if not self.imu.available:
+                    logger.warning("IMU no longer available, stopping orientation thread")
+                    break   
+                heading, roll, pitch = self.imu.get_orientation()
+                
+                with self.pid_lock:
+                    self.current_heading = heading
+                    self.current_roll = roll
+                    self.current_pitch = pitch
+                
+                # Log IMU data periodically
+                current_time = time.time()
+                if current_time - last_log_time > log_interval:
+                    # Get calibration status
+                    sys, gyro, accel, mag = self.imu.get_calibration_status()
+                    # logger.info(f"IMU Data - Heading: {heading:.2f}°, Roll: {roll:.2f}°, Pitch: {pitch:.2f}°")
+                    # logger.info(f"IMU Calibration - Sys: {sys}/3, Gyro: {gyro}/3, Accel: {accel}/3, Mag: {mag}/3")
+                    
+                    # Add IMU data to telemetry if a client is connected
+                    if self.ethernet.connected:
+                        telemetry = {
+                            "imu": {
+                                "heading": heading,
+                                "roll": roll,
+                                "pitch": pitch,
+                                "calibration": {
+                                    "sys": sys,
+                                    "gyro": gyro,
+                                    "accel": accel,
+                                    "mag": mag
+                                }
+                            }
+                        }
+                        self.ethernet.send_telemetry(telemetry)
+                        
+                    last_log_time = current_time
+            except Exception as e:
+                # Only log if thread is still supposed to be running
+                if self.orientation_running:
+                    logger.error(f"Error reading orientation: {e}")
+                else:
+                    # Thread is shutting down, just break the loop
+                    break
+            # Small sleep to prevent overwhelming the CPU
+            time.sleep(0.01)
+        logger.info("Orientation updater thread stopped")
     
     def initialize_thrusters(self):
         """Initialize all thrusters."""
@@ -227,7 +357,7 @@ class ROV:
         """Start the ROV system."""
         logger.info("Starting ROV system...")
         
-        # # Initialize thrusters if any
+        # Initialize thrusters if any
         # if self.thrusters:
         #     for thruster in self.thrusters:
         #         thruster.initialize()
@@ -237,7 +367,10 @@ class ROV:
             
         if self.depth_sensor.available:
             self.start_depth_thread()
-            
+        
+         # Start leak sensor monitoring
+        self.leak_sensor.start_monitoring()
+        
         self.ethernet.start_control_server()
         self.running = True
         self._main_loop()
@@ -269,8 +402,8 @@ class ROV:
 
         imu_data = [
             0, 0, self.current_depth,  # X, Y, Z position defaults
-            self.current_roll,
             self.current_pitch,
+            self.current_roll,
             self.current_heading
         ]
         
@@ -280,14 +413,14 @@ class ROV:
                 # Get current IMU data
                 imu_data = [
                 0, 0, self.current_depth,  # X, Y, Z position (not available from IMU, would need additional sensors)
-                self.current_roll,
                 self.current_pitch,
+                self.current_roll,
                 self.current_heading
                 ]
                 
                 # Log detailed IMU data for PID calculations
-                logger.debug(f"PID Targets - Roll: 0.00°, Pitch: 0.00°, Yaw: {self.chassis_control.yaw_target:.2f}°, Depth: {self.chassis_control.z_target:.3f}m")
-                logger.debug(f"PID Current - Roll: {imu_data[3]:.2f}°, Pitch: {imu_data[4]:.2f}°, Heading: {imu_data[5]:.2f}°, Depth: {imu_data[2]:.3f}m")
+                logger.info(f"PID Targets - Roll: 0.00°, Pitch: 0.00°, Yaw: {self.chassis_control.yaw_target:.2f}°, Depth: {self.chassis_control.z_target:.3f}m")
+                logger.info(f"PID Current - Roll: {imu_data[3]:.2f}°, Pitch: {imu_data[4]:.2f}°, Heading: {imu_data[5]:.2f}°, Depth: {imu_data[2]:.3f}m")
                 
                 # Calculate PID corrections - each individual PID controller will now log its details
                 pid_corrections = self.chassis_control.PIDcorrection(imu_data)
@@ -301,8 +434,9 @@ class ROV:
 
                 vectorret = self.chassis_control.addVectors(controller, pid_corrections)
                 # logger.debug(f"Combined Vector: [{', '.join([f'{x:.2f}' for x in vectorret])}]")
-
+                
                 # Convert PID corrections to motor adjustments
+                rotateVector = self.chassis_control.rotateVectors(controller)
                 self.final_motor_states = self.chassis_control.arcadeDrive6(vectorret)
                 # logger.debug(f"Final Motor Values: [{', '.join([f'{x:.2f}' for x in self.final_motor_states])}]")
                 
@@ -356,14 +490,6 @@ class ROV:
                 self.controller_mapper.save_mapping()
                 command_processed = True
                 return command_processed
-            
-        if 'depth_target' in command_data:
-            depth_target = command_data['depth_target']
-            # Ensure the value is a valid depth
-            if isinstance(depth_target, (int, float)) and 0 <= depth_target <= 10:
-                self.chassis_control.z_target = float(depth_target)
-                logger.info(f"Depth target explicitly set to {depth_target}m")
-                command_processed = True
         
         # Handle the controller data format
         if 'controller' in command_data:
@@ -391,7 +517,7 @@ class ROV:
             # Update PID targets if stabilization is enabled
             if self.stabilization_enabled and (self.imu.available or self.depth_sensor.available):
                 with self.pid_lock:
-                    imu_data = [0, 0, self.current_depth, self.current_roll, self.current_pitch, self.current_heading]
+                    imu_data = [0, 0, self.current_depth, self.current_pitch, self.current_roll, self.current_heading]
                     self.chassis_control.updateTarget(
                         imu_data, self.left_x, self.left_y, self.right_x, self.right_y,
                         self.right_trigger, self.left_trigger
@@ -475,27 +601,27 @@ class ROV:
             # For state-changing buttons, now using if instead of elif
             # and removing the state check which causes issues with remapping
             if x_button == 1 and prev_x == 0:  # Removed state check
-                self.arm.set_state(ArmState.STOWED)
+                # self.arm.set_state(ArmState.STOWED)
                 command_processed = True
             if y_button == 1 and prev_y == 0:  # Removed state check
-                self.arm.set_state(ArmState.FULLY_OUT)
+                self.arm.set_state(ArmState.STOWED)
                 command_processed = True
             if lb_button == 1 and prev_lb == 0:  # Removed state check
                 self.arm.set_state(ArmState.OUT_DOWN)
                 command_processed = True
             if rb_button == 1 and prev_rb == 0:  # Removed state check
-                self.arm.set_state(ArmState.FULLY_DOWN)
+                self.arm.set_state(ArmState.FULLY_OUT)
                 command_processed = True
 
-            # Process D-pad (hat) inputs for wrist rotation and claw - CHANGED FROM elif to if
             dpad_x = controller.get('dpad_x', 0)
             dpad_y = controller.get('dpad_y', 0)
             prev_dpad_y = self.prev_button_states.get('dpad_y', 0)
+            prev_dpad_x = self.prev_button_states.get('dpad_x', 0)
             if dpad_x == -1:  # Left on D-pad
-                self.arm.adjust_wrist(-1)
+                self.arm.adjust_wrist(-1, step=0.2)
                 command_processed = True
             if dpad_x == 1:  # Right on D-pad
-                self.arm.adjust_wrist(1)
+                self.arm.adjust_wrist(1, step=0.3)
                 command_processed = True
 
 
@@ -507,9 +633,9 @@ class ROV:
                 command_processed = True
 
             # Stop claw when D-pad released from up/down
-            if dpad_y == 0 and (prev_dpad_y == 1 or prev_dpad_y == -1):
-                self.arm.stop_claw()  # Stop the claw when D-pad y-axis is released
-                command_processed = True
+            # if dpad_y == 0 and (prev_dpad_y == 1 or prev_dpad_y == -1):
+            #     self.arm.stop_claw()  # Stop the claw when D-pad y-axis is released
+            #     command_processed = True
             
             # Update previous button states
             self.prev_button_states = {
@@ -519,7 +645,8 @@ class ROV:
                 'y': y_button,
                 'lb': lb_button,
                 'rb': rb_button,
-                'dpad_y': dpad_y
+                'dpad_y': dpad_y,
+                'dpad_x': dpad_x
             }
         
         # Handle motor_values if present
@@ -543,7 +670,7 @@ class ROV:
         logger.info("Shutting down ROV system...")
         self.running = False
         self.orientation_running = False
-        self.depth_running = False  # Stop depth thread
+        self.depth_running = False 
         
         # Stop thrusters if any
         if self.thrusters:
@@ -552,25 +679,31 @@ class ROV:
 
         # Move the arm to a safe position
         try:
-            self.arm.set_state(ArmState.FULLY_OUT)
+            self.arm.set_state(ArmState.STOWED)
             time.sleep(1)  # Wait for arm to reach position
         except Exception as e:
             logger.error(f"Error stowing arm during shutdown: {e}")
 
         # Clean up other resources
         if self.orientation_thread and self.orientation_thread.is_alive():
-            self.orientation_thread.join(timeout=1.0)
-            
-        # Join depth thread
+            self.orientation_thread.join(timeout=2.0)
+            if self.orientation_thread.is_alive():
+                logger.warning("Orientation thread did not stop cleanly")
+        
         if self.depth_thread and self.depth_thread.is_alive():
-            self.depth_thread.join(timeout=1.0)
+            self.depth_thread.join(timeout=2.0)
+            if self.depth_thread.is_alive():
+                logger.warning("Depth thread did not stop cleanly")
+            
 
         if self.imu.available:
             self.imu.close()
             
-        # Close depth sensor
         if self.depth_sensor.available:
             self.depth_sensor.close()
+        
+        if hasattr(self, 'leak_sensor') and self.leak_sensor.available:
+            self.leak_sensor.close()
 
         self.ethernet.shutdown()
         self.pca.deinit()
@@ -588,6 +721,20 @@ def main():
     logging.getLogger().setLevel(args.log_level)
     
     rov = ROV(stabilization_enabled=not args.disable_stabilization)
+    
+     # Start a thread to periodically send full telemetry
+    def telemetry_sender():
+        while True:
+            try:
+                rov.send_full_telemetry()
+            except Exception as e:
+                logger.error(f"Error in telemetry sender: {e}")
+            time.sleep(5)  # Send every 5 seconds
+    
+    telemetry_thread = threading.Thread(target=telemetry_sender)
+    telemetry_thread.daemon = True
+    telemetry_thread.start()
+    
     try:
         rov.start()
     except KeyboardInterrupt:

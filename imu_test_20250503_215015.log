@@ -1,0 +1,4 @@
+2025-05-03 21:50:15,061 - IMU_TEST - WARNING - Could not import BNO055 class. IMU functionality will be limited.
+2025-05-03 21:50:15,068 - IMU_TEST - INFO - Starting continuous IMU test on bus 7
+2025-05-03 21:50:15,068 - IMU_TEST - WARNING - BNO055 not available. Orientation sensing disabled.
+2025-05-03 21:50:15,068 - IMU_TEST - ERROR - IMU sensor not available. Test aborted.

@@ -79,8 +79,8 @@ class ESC:
         self.channel = channel
         self.pca = pca
         self.STOP_PULSE = 1500
-        self.MIN_PULSE = 1100
-        self.MAX_PULSE = 1900
+        self.MIN_PULSE = 500
+        self.MAX_PULSE = 2500
         # Each ESC starts at the 1500µs neutral pulse
         self.current_pulse = self.STOP_PULSE
 
@@ -126,7 +126,9 @@ def main():
     print("All ESCs initialized to neutral. Ready for testing.")
     print("\nCommands:")
     print("  <channel>: Test the specified channel at 1700 pulse width")
+    print("  <channel> <pulse>: Test the specified channel with custom pulse width (1100-1900)")
     print("  <channel>.stop: Stop the specified channel (back to 1500)")
+    print("  s: Stop ALL channels (emergency stop)")
     print("  quit: Exit the program")
     
     try:
@@ -135,8 +137,15 @@ def main():
             
             if cmd == "quit":
                 break
+            
+            # New command to stop all motors
+            elif cmd == "s":
+                print("EMERGENCY STOP - Setting all ESCs to neutral...")
+                for channel, esc in esc_dict.items():
+                    esc.set_pulse(1500)
+                print("All motors stopped.")
                 
-            if "." in cmd:
+            elif "." in cmd:
                 parts = cmd.split(".")
                 if len(parts) == 2 and parts[0].isdigit() and parts[1] == "stop":
                     channel = int(parts[0])
@@ -145,11 +154,26 @@ def main():
                         esc_dict[channel].set_pulse(1500)
                     else:
                         print("Invalid channel number. Use 0-15.")
+            elif " " in cmd:  # Check for channel and pulse format
+                parts = cmd.split()
+                if len(parts) == 2 and parts[0].isdigit() and parts[1].isdigit():
+                    channel = int(parts[0])
+                    pulse = int(parts[1])
+                    if 0 <= channel <= 5:
+                        if 500 <= pulse <= 2500:
+                            print(f"Testing channel {channel} at {pulse} pulse width")
+                            esc_dict[channel].set_pulse(pulse)
+                        else:
+                            print("Invalid pulse width. Use values between 1100-1900.")
+                    else:
+                        print("Invalid channel number. Use 0-15.")
+                else:
+                    print("Invalid command format. Use '<channel> <pulse>'")
             elif cmd.isdigit():
                 channel = int(cmd)
                 if 0 <= channel <= 15:
                     print(f"Testing channel {channel} at 1700 pulse width")
-                    esc_dict[channel].set_pulse(1700)
+                    esc_dict[channel].set_pulse(1100)
                 else:
                     print("Invalid channel number. Use 0-15.")
             else:
@@ -168,8 +192,9 @@ def main():
 
 if __name__ == '__main__':
     main()
-
+#esc_channels = [12, 7, 6, 8, 9, 10, 13, 11]
 #esc_channels = [13, 9, 10, 8, 11, 14, 15, 12]
+#esc_channels = [9, 10, 7, 11, 6, 8, 13, 12]
 # self.thruster_names = [
 #     "FrontLeft", "FrontRight", "BackLeft", "BackRight",
 #     "FrontLeftUp", "FrontRightUp", "BackRightUp", "BackLeftUp"

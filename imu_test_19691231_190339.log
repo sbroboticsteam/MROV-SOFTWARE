@@ -1,0 +1,64 @@
+1969-12-31 19:03:39,425 - IMU_TEST - INFO - BNO055 module successfully imported
+1969-12-31 19:03:39,433 - IMU_TEST - INFO - Starting continuous IMU test on bus 7
+1969-12-31 19:03:39,433 - IMU_TEST - INFO - Initializing BNO055 sensor...
+1969-12-31 19:03:40,147 - IMU_TEST - INFO - BNO055 Initialized Successfully.
+1969-12-31 19:03:41,150 - IMU_TEST - INFO - Initial Calibration: Sys=0, Gyro=0, Accel=0, Mag=0
+1969-12-31 19:03:41,152 - IMU_TEST - INFO - IMU sensor initialized successfully
+1969-12-31 19:03:41,152 - IMU_TEST - INFO - Test will run continuously. Press Ctrl+C to stop.
+1969-12-31 19:03:41,152 - IMU_TEST - INFO - Time: 0.00s | Heading: 359.69° | Roll: 1.25° | Pitch: 2.87°
+1969-12-31 19:03:41,152 - IMU_TEST - INFO - Calibration Status - Sys: 0/3, Gyro: 0/3, Accel: 0/3, Mag: 0/3
+1969-12-31 19:03:41,254 - IMU_TEST - INFO - Time: 0.10s | Heading: 359.62° | Roll: 1.19° | Pitch: 2.81°
+1969-12-31 19:03:41,355 - IMU_TEST - INFO - Time: 0.20s | Heading: 359.69° | Roll: 1.19° | Pitch: 2.75°
+1969-12-31 19:03:41,457 - IMU_TEST - INFO - Time: 0.30s | Heading: 359.69° | Roll: 1.25° | Pitch: 2.50°
+1969-12-31 19:03:41,560 - IMU_TEST - INFO - Time: 0.41s | Heading: 359.69° | Roll: 1.31° | Pitch: 2.25°
+1969-12-31 19:03:41,663 - IMU_TEST - INFO - Time: 0.51s | Heading: 359.69° | Roll: 1.25° | Pitch: 2.25°
+1969-12-31 19:03:41,765 - IMU_TEST - INFO - Time: 0.61s | Heading: 359.69° | Roll: 1.31° | Pitch: 2.25°
+1969-12-31 19:03:41,866 - IMU_TEST - INFO - Time: 0.71s | Heading: 359.81° | Roll: 1.44° | Pitch: 2.25°
+1969-12-31 19:03:41,968 - IMU_TEST - INFO - Time: 0.82s | Heading: 359.88° | Roll: 1.44° | Pitch: 2.12°
+1969-12-31 19:03:42,070 - IMU_TEST - INFO - Time: 0.92s | Heading: 359.81° | Roll: 1.44° | Pitch: 1.94°
+1969-12-31 19:03:42,173 - IMU_TEST - INFO - Time: 1.02s | Heading: 359.81° | Roll: 1.44° | Pitch: 1.75°
+1969-12-31 19:03:42,275 - IMU_TEST - INFO - Time: 1.12s | Heading: 359.81° | Roll: 1.44° | Pitch: 1.62°
+1969-12-31 19:03:42,378 - IMU_TEST - INFO - Time: 1.23s | Heading: 359.81° | Roll: 1.44° | Pitch: 1.50°
+1969-12-31 19:03:42,479 - IMU_TEST - INFO - Time: 1.33s | Heading: 359.81° | Roll: 1.44° | Pitch: 1.44°
+1969-12-31 19:03:42,580 - IMU_TEST - INFO - Time: 1.43s | Heading: 359.81° | Roll: 1.44° | Pitch: 1.31°
+1969-12-31 19:03:42,682 - IMU_TEST - INFO - Time: 1.53s | Heading: 359.81° | Roll: 1.56° | Pitch: 1.19°
+1969-12-31 19:03:42,783 - IMU_TEST - INFO - Time: 1.63s | Heading: 359.81° | Roll: 1.88° | Pitch: 0.94°
+1969-12-31 19:03:42,884 - IMU_TEST - INFO - Time: 1.73s | Heading: 359.88° | Roll: 2.31° | Pitch: 0.62°
+1969-12-31 19:03:42,986 - IMU_TEST - INFO - Time: 1.83s | Heading: 359.81° | Roll: 2.69° | Pitch: 0.31°
+1969-12-31 19:03:43,087 - IMU_TEST - INFO - Time: 1.93s | Heading: 359.81° | Roll: 2.88° | Pitch: 0.19°
+1969-12-31 19:03:43,188 - IMU_TEST - INFO - Time: 2.04s | Heading: 359.81° | Roll: 2.94° | Pitch: 0.31°
+1969-12-31 19:03:43,289 - IMU_TEST - INFO - Time: 2.14s | Heading: 359.81° | Roll: 2.88° | Pitch: 0.56°
+1969-12-31 19:03:43,391 - IMU_TEST - INFO - Time: 2.24s | Heading: 359.69° | Roll: 2.75° | Pitch: 0.94°
+1969-12-31 19:03:43,492 - IMU_TEST - INFO - Time: 2.34s | Heading: 359.69° | Roll: 2.69° | Pitch: 1.31°
+1969-12-31 19:03:43,594 - IMU_TEST - INFO - Time: 2.44s | Heading: 359.69° | Roll: 2.69° | Pitch: 1.69°
+1969-12-31 19:03:43,695 - IMU_TEST - INFO - Time: 2.54s | Heading: 359.69° | Roll: 2.63° | Pitch: 2.00°
+1969-12-31 19:03:43,796 - IMU_TEST - INFO - Time: 2.64s | Heading: 359.69° | Roll: 2.44° | Pitch: 2.12°
+1969-12-31 19:03:43,897 - IMU_TEST - INFO - Time: 2.75s | Heading: 359.69° | Roll: 2.13° | Pitch: 2.12°
+1969-12-31 19:03:43,999 - IMU_TEST - INFO - Time: 2.85s | Heading: 359.75° | Roll: 1.81° | Pitch: 2.06°
+1969-12-31 19:03:44,100 - IMU_TEST - INFO - Time: 2.95s | Heading: 359.88° | Roll: 1.56° | Pitch: 1.94°
+1969-12-31 19:03:44,201 - IMU_TEST - INFO - Time: 3.05s | Heading: 359.81° | Roll: 1.56° | Pitch: 1.75°
+1969-12-31 19:03:44,304 - IMU_TEST - INFO - Time: 3.15s | Heading: 359.75° | Roll: 1.50° | Pitch: 1.69°
+1969-12-31 19:03:44,407 - IMU_TEST - INFO - Time: 3.25s | Heading: 359.75° | Roll: 1.50° | Pitch: 1.75°
+1969-12-31 19:03:44,508 - IMU_TEST - INFO - Time: 3.36s | Heading: 359.75° | Roll: 1.50° | Pitch: 1.81°
+1969-12-31 19:03:44,609 - IMU_TEST - INFO - Time: 3.46s | Heading: 359.75° | Roll: 1.50° | Pitch: 1.81°
+1969-12-31 19:03:44,711 - IMU_TEST - INFO - Time: 3.56s | Heading: 359.75° | Roll: 1.50° | Pitch: 1.81°
+1969-12-31 19:03:44,812 - IMU_TEST - INFO - Time: 3.66s | Heading: 359.75° | Roll: 1.50° | Pitch: 1.81°
+1969-12-31 19:03:44,913 - IMU_TEST - INFO - Time: 3.76s | Heading: 359.75° | Roll: 1.50° | Pitch: 1.75°
+1969-12-31 19:03:45,015 - IMU_TEST - INFO - Time: 3.86s | Heading: 359.75° | Roll: 1.44° | Pitch: 1.75°
+1969-12-31 19:03:45,119 - IMU_TEST - INFO - Time: 3.97s | Heading: 359.75° | Roll: 1.44° | Pitch: 1.75°
+1969-12-31 19:03:45,221 - IMU_TEST - INFO - Time: 4.07s | Heading: 359.75° | Roll: 1.44° | Pitch: 1.75°
+1969-12-31 19:03:45,323 - IMU_TEST - INFO - Time: 4.17s | Heading: 359.75° | Roll: 1.44° | Pitch: 1.75°
+1969-12-31 19:03:45,424 - IMU_TEST - INFO - Time: 4.27s | Heading: 359.81° | Roll: 1.50° | Pitch: 1.75°
+1969-12-31 19:03:45,525 - IMU_TEST - INFO - Time: 4.37s | Heading: 359.88° | Roll: 1.56° | Pitch: 1.75°
+1969-12-31 19:03:45,627 - IMU_TEST - INFO - Time: 4.47s | Heading: 359.88° | Roll: 1.56° | Pitch: 1.75°
+1969-12-31 19:03:45,729 - IMU_TEST - INFO - Time: 4.58s | Heading: 359.88° | Roll: 1.56° | Pitch: 1.75°
+1969-12-31 19:03:45,832 - IMU_TEST - INFO - Time: 4.68s | Heading: 359.88° | Roll: 1.56° | Pitch: 1.69°
+1969-12-31 19:03:45,935 - IMU_TEST - INFO - Time: 4.78s | Heading: 359.88° | Roll: 1.56° | Pitch: 1.50°
+1969-12-31 19:03:46,036 - IMU_TEST - INFO - Time: 4.88s | Heading: 359.81° | Roll: 1.56° | Pitch: 1.19°
+1969-12-31 19:03:46,137 - IMU_TEST - INFO - Time: 4.99s | Heading: 359.81° | Roll: 1.56° | Pitch: 0.94°
+1969-12-31 19:03:46,238 - IMU_TEST - INFO - Time: 5.09s | Heading: 359.81° | Roll: 1.56° | Pitch: 0.94°
+1969-12-31 19:03:46,239 - IMU_TEST - INFO - Calibration Status - Sys: 0/3, Gyro: 0/3, Accel: 0/3, Mag: 0/3
+1969-12-31 19:03:46,340 - IMU_TEST - INFO - Time: 5.19s | Heading: 359.94° | Roll: 1.56° | Pitch: 1.12°
+1969-12-31 19:03:46,361 - IMU_TEST - INFO - Test interrupted by user
+1969-12-31 19:03:46,361 - IMU_TEST - INFO - IMU sensor connection closed
+1969-12-31 19:03:46,362 - IMU_TEST - INFO - IMU test completed

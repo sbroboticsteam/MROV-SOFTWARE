@@ -79,8 +79,8 @@ class IMUSensor:
             heading, roll, pitch = self.bno.get_euler()
             
             # Apply calibration offset to roll value (2.69 degrees when level)
-            roll += 2.69
-            pitch -= 2.44
+            roll += 1
+            pitch -= 88.30
             
             # Update last read values
             self.last_heading = heading

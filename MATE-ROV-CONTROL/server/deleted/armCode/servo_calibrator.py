@@ -578,14 +578,14 @@ def main():
     
     # Initialize standard servos
     servos = {
-        "shoulder": Servo(1, pca, min_pulse=900, max_pulse=2100, name="shoulder"),
-        "elbow": Servo(0, pca, min_pulse=900, max_pulse=2100, name="elbow"),
-        "wrist": Servo(2, pca, min_pulse=900, max_pulse=2000, name="wrist")
+        "shoulder": Servo(0, pca, min_pulse=900, max_pulse=2100, name="shoulder"),
+        "elbow": Servo(2, pca, min_pulse=900, max_pulse=2100, name="elbow"),
+        "wrist": Servo(3, pca, min_pulse=900, max_pulse=2000, name="wrist")
     }
     
     # Initialize continuous rotation servo for claw
     continuous_servos = {
-        "claw": ContinuousServo(3, pca, min_pulse=900, max_pulse=2100, name="claw")
+        "claw": ContinuousServo(1, pca, min_pulse=900, max_pulse=2100, name="claw")
     }
     
     # Add logger to each servo

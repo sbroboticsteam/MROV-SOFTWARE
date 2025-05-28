@@ -111,12 +111,16 @@ class LeakSensor:
             dict: Dictionary with sensor status
         """
         if not self.available:
-            return {"available": False, "leak_detected": False}
+            return {"available": False, "leak_detected": False, "raw_pin_state": None}
+            
+        # Add the raw pin state directly from GPIO
+        raw_pin_state = GPIO.input(self.pin)
             
         return {
             "available": True,
             "leak_detected": self.leak_detected,
-            "pin": self.pin
+            "pin": self.pin,
+            "raw_pin_state": raw_pin_state  # 0 or 1 directly from GPIO
         }
     
     def close(self):

@@ -1,0 +1,32 @@
+2025-05-14 04:21:25,048 - IMU_TEST - INFO - BNO055 module successfully imported
+2025-05-14 04:21:25,055 - IMU_TEST - INFO - Starting continuous IMU test on bus 7
+2025-05-14 04:21:25,055 - IMU_TEST - INFO - Initializing BNO055 sensor...
+2025-05-14 04:21:25,771 - IMU_TEST - INFO - BNO055 Initialized Successfully.
+2025-05-14 04:21:26,774 - IMU_TEST - INFO - Initial Calibration: Sys=0, Gyro=3, Accel=0, Mag=0
+2025-05-14 04:21:26,776 - IMU_TEST - INFO - IMU sensor initialized successfully
+2025-05-14 04:21:26,777 - IMU_TEST - INFO - Test will run continuously. Press Ctrl+C to stop.
+2025-05-14 04:21:26,777 - IMU_TEST - INFO - Time: 0.00s | Heading: 0.00° | Roll: 0.00° | Pitch: -0.24°
+2025-05-14 04:21:26,777 - IMU_TEST - INFO - Calibration Status - Sys: 0/3, Gyro: 3/3, Accel: 0/3, Mag: 0/3
+2025-05-14 04:21:26,879 - IMU_TEST - INFO - Time: 0.10s | Heading: 0.00° | Roll: 0.00° | Pitch: -0.24°
+2025-05-14 04:21:26,980 - IMU_TEST - INFO - Time: 0.20s | Heading: 0.00° | Roll: 0.00° | Pitch: -0.24°
+2025-05-14 04:21:27,081 - IMU_TEST - INFO - Time: 0.30s | Heading: 0.00° | Roll: 0.00° | Pitch: -0.24°
+2025-05-14 04:21:27,182 - IMU_TEST - INFO - Time: 0.41s | Heading: 0.00° | Roll: 0.00° | Pitch: -0.24°
+2025-05-14 04:21:27,285 - IMU_TEST - INFO - Time: 0.51s | Heading: 0.00° | Roll: 0.00° | Pitch: -0.24°
+2025-05-14 04:21:27,388 - IMU_TEST - INFO - Time: 0.61s | Heading: 0.00° | Roll: 0.00° | Pitch: -0.24°
+2025-05-14 04:21:27,490 - IMU_TEST - INFO - Time: 0.71s | Heading: 0.00° | Roll: 0.00° | Pitch: -0.24°
+2025-05-14 04:21:27,592 - IMU_TEST - INFO - Time: 0.81s | Heading: 0.00° | Roll: 0.00° | Pitch: -0.24°
+2025-05-14 04:21:27,693 - IMU_TEST - INFO - Time: 0.92s | Heading: 0.00° | Roll: 0.00° | Pitch: -0.24°
+2025-05-14 04:21:27,794 - IMU_TEST - INFO - Time: 1.02s | Heading: 0.00° | Roll: 0.00° | Pitch: -0.24°
+2025-05-14 04:21:27,895 - IMU_TEST - INFO - Time: 1.12s | Heading: 0.00° | Roll: 0.00° | Pitch: -0.24°
+2025-05-14 04:21:27,996 - IMU_TEST - INFO - Time: 1.22s | Heading: 0.00° | Roll: 0.00° | Pitch: -0.24°
+2025-05-14 04:21:28,097 - IMU_TEST - INFO - Time: 1.32s | Heading: 0.00° | Roll: 0.00° | Pitch: -0.24°
+2025-05-14 04:21:28,200 - IMU_TEST - INFO - Time: 1.42s | Heading: 0.00° | Roll: 0.00° | Pitch: -0.24°
+2025-05-14 04:21:28,302 - IMU_TEST - INFO - Time: 1.53s | Heading: 0.00° | Roll: 0.00° | Pitch: -0.24°
+2025-05-14 04:21:28,405 - IMU_TEST - INFO - Time: 1.63s | Heading: 0.00° | Roll: 0.00° | Pitch: -0.24°
+2025-05-14 04:21:28,507 - IMU_TEST - INFO - Time: 1.73s | Heading: 0.00° | Roll: 0.00° | Pitch: -0.24°
+2025-05-14 04:21:28,608 - IMU_TEST - INFO - Time: 1.83s | Heading: 0.00° | Roll: 0.00° | Pitch: -0.24°
+2025-05-14 04:21:28,710 - IMU_TEST - INFO - Time: 1.93s | Heading: 0.00° | Roll: 0.00° | Pitch: -0.24°
+2025-05-14 04:21:28,811 - IMU_TEST - INFO - Time: 2.03s | Heading: 0.00° | Roll: 0.00° | Pitch: -0.24°
+2025-05-14 04:21:28,868 - IMU_TEST - INFO - Test interrupted by user
+2025-05-14 04:21:28,868 - IMU_TEST - INFO - IMU sensor connection closed
+2025-05-14 04:21:28,868 - IMU_TEST - INFO - IMU test completed

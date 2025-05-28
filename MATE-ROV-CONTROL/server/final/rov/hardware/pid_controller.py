@@ -119,8 +119,8 @@ class ChassisControl:
         self.pidX = PID_Controller(0, 0, 0, 0).set_name("X")
         self.pidY = PID_Controller(0, 0, 0, 0).set_name("Y")
         self.pidZ = PID_Controller(0, 0, 0, 0).set_name("Z")
-        self.pidRoll = PID_Controller(0.08, 0, 0, 0).set_name("Roll")
-        self.pidPitch = PID_Controller(0.1, 0, 0, 0).set_name ("Pitch")
+        self.pidRoll = PID_Controller(0.09, 0, 0, 0).set_name("Roll")
+        self.pidPitch = PID_Controller(0.15, 0, 0, 0).set_name ("Pitch")
         self.pidYaw = PID_Controller(0, 0, 0, 0).set_name("Yaw")
         
     def updateTarget(self, imuData, x, y, rx, ry, rT, lT):
@@ -156,8 +156,8 @@ class ChassisControl:
         planar_back_left = input_vector[1] +input_vector[0] - input_vector[5]
 
         # Inverse Kinematics for Vertical Thrusters (Depth and Roll-Pitch Corrections)
-        vertical_front_left = -input_vector[2] - input_vector[3] + input_vector[4]
-        vertical_front_right = -input_vector[2] + input_vector[3] + input_vector[4]
+        vertical_front_left = -input_vector[2] + input_vector[3] + input_vector[4]
+        vertical_front_right = -input_vector[2] - input_vector[3] + input_vector[4]
         vertical_back_right = -input_vector[2] - input_vector[3] - input_vector[4]
         vertical_back_left = -input_vector[2] + input_vector[3] - input_vector[4]
 
@@ -185,27 +185,6 @@ class ChassisControl:
         data = [x, y, vert, 0, ry, rx]  # [x, y, z, roll, pitch, yaw]
         return data
     
-    def PIDcorrection(self, imuData):
-        """
-        Calculate PID corrections based on IMU data.
-        imuData: [x, y, z, roll, pitch, yaw] from IMU sensor
-        """
-        # Calculate power adjustments for each axis
-        powerX = self.pidX.PID_Power(imuData[0], self.x_target)
-        powerY = self.pidY.PID_Power(imuData[1], self.y_target)
-        powerZ = self.pidZ.PID_Power(imuData[2], self.z_target)
-        
-        # For stability, try to keep roll and pitch at 0
-        powerRoll = self.pidRoll.PID_Power(imuData[3], self.roll_target)  # Always target level
-        powerPitch = -self.pidPitch.PID_Power(imuData[4], self.pitch_target) 
-        
-        # Yaw needs to match the target heading
-        powerYaw = self.pidYaw.PID_Power(imuData[5], self.yaw_target)
-        
-        power = [powerX, powerY, powerZ, powerRoll, powerPitch, powerYaw]
-        return power
-
-    #fix later
     def rotateVectors(self, power):
         """
         Rotate power vectors according to current orientation.
@@ -228,3 +207,24 @@ class ChassisControl:
                     power[2] * (np.cos(pitch_rad) * np.cos(roll_rad)))
         
         return [x_rotated, y_rotated, z_rotated, power[3], power[4], power[5]]
+    
+    def PIDcorrection(self, imuData):
+        """
+        Calculate PID corrections based on IMU data.
+        imuData: [x, y, z, roll, pitch, yaw] from IMU sensor
+        """
+        # Calculate power adjustments for each axis
+        powerX = self.pidX.PID_Power(imuData[0], self.x_target)
+        powerY = self.pidY.PID_Power(imuData[1], self.y_target)
+        powerZ = self.pidZ.PID_Power(imuData[2], self.z_target)
+        
+        # For stability, try to keep roll and pitch at 0
+        powerRoll = self.pidRoll.PID_Power(imuData[3], self.roll_target)  # Always target level
+        powerPitch = -self.pidPitch.PID_Power(imuData[4], self.pitch_target) 
+        
+        # Yaw needs to match the target heading
+        powerYaw = self.pidYaw.PID_Power(imuData[5], self.yaw_target)
+        
+        power = [powerX, powerY, powerZ, powerRoll, powerPitch, powerYaw]
+        rotated = self.rotateVectors(power)
+        return rotated
