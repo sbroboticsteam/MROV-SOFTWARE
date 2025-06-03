@@ -137,7 +137,7 @@ class Arm:
             "wrist": 900,     # Vertical
             "elbow": 1900,    # Down position (~1940μs)
             "shoulder": 1620, # Extended out (~1681μs)
-            "claw": 1300   # Start with claw open when extended
+            "claw":2000   # Start with claw open when extended
         },
         ArmState.FULLY_OUT: {
             "elbow": 1460,    # Down position (~1940μs)
@@ -151,7 +151,7 @@ class Arm:
         # },
         ArmState.OUT_DOWN: {
             "elbow": 1900,    # Down position (~1940μs)
-            "shoulder": 1425, # Extended out (~1681μs)
+            "shoulder": 1425, # Extended out (~1681μs)t
             # "claw_state": "open"   # Start with claw open in this position
         }
     }
@@ -166,7 +166,7 @@ class Arm:
             "wrist": Servo(5, pca, min_pulse=900, max_pulse=1800, name="Wrist"),
             "elbow": Servo(2, pca, min_pulse=900, max_pulse=2100, name="Elbow"),
             "shoulder": Servo(4, pca, min_pulse=900, max_pulse=2100, name="Shoulder"),
-            "claw": Servo(3, pca, min_pulse=1100, max_pulse=2050, name="Claw")
+            "claw": Servo(3, pca, min_pulse=1630, max_pulse=2050, name="Claw")
         }
         
         # # Create continuous rotation servo for claw
