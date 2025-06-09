@@ -11,7 +11,7 @@ from Components.leak import LeakSensor
 # from Components.controller_sensitivity import ControllerSensitivity, AdjustableControllerSensivitity
 from Components.controller_sensitivity import ControllerSensitivity
 # Add imports for the individual camera widgets
-from Components.camera_widgets import USB1CameraWindow, USB2CameraWindow, ZEDCameraWindow
+from Components.camera_widgets import USB1CameraWindow, USB2CameraWindow, ZEDCameraWindow, Camera360Window, Interactive360CameraWindow, Interactive360View
 # controls for minimizing, maximizing and closing widgets (like a window)
 class WindowControls(QWidget):
     minimizeClicked = pyqtSignal()
@@ -146,6 +146,24 @@ class AdjustableWidget(QWidget):
                 import traceback
                 traceback.print_exc()
                 widget = self._create_error_widget(f"Error creating USB Camera 2: {str(e)}")
+        elif self.title == "360 Camera":
+            try:
+                widget = Camera360Window()
+                print("360 Camera created successfully")
+            except Exception as e:
+                print(f"Error creating 360 Camera: {e}")
+                import traceback
+                traceback.print_exc()
+                widget = self._create_error_widget(f"Error creating 360 Camera: {str(e)}")
+        elif self.title == "Interactive 360° Camera":
+            try:
+                widget = Interactive360CameraWindow()
+                print("Interactive 360° Camera created successfully")
+            except Exception as e:
+                print(f"Error creating Interactive 360° Camera: {e}")
+                import traceback
+                traceback.print_exc()
+                widget = self._create_error_widget(f"Error creating Interactive 360° Camera: {str(e)}")
         elif self.title == "ZED Camera":
             try:
                 widget = ZEDCameraWindow()

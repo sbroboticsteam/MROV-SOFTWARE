@@ -79,6 +79,12 @@ class CameraSetupDialog(QDialog):
         self.usb2_port.setRange(1000, 65535)
         self.usb2_port.setValue(5005)  # Default port
         form_layout.addRow("USB Camera 2 Port:", self.usb2_port)
+
+        # Add 360 camera port field
+        self.camera_360_port = QSpinBox()
+        self.camera_360_port.setRange(1000, 65535)
+        self.camera_360_port.setValue(5001)  # Default port
+        form_layout.addRow("360 Camera Port:", self.camera_360_port)
         
         layout.addLayout(form_layout)
         
@@ -115,11 +121,13 @@ class CameraSetupDialog(QDialog):
             client_socket.connect((rov_ip, camera_port))
             
             # Prepare configuration
+            # Prepare configuration
             self.config = {
                 "client_ip": self.ip_combo.currentText(),
                 "zed_port": self.zed_port.value(),
                 "usb0_port": self.usb0_port.value(),
-                "usb2_port": self.usb2_port.value()
+                "usb2_port": self.usb2_port.value(),
+                "camera_360_port": self.camera_360_port.value()  # Add this line
             }
             
             # Send configuration
@@ -146,7 +154,8 @@ class CameraSetupDialog(QDialog):
                     f"Camera streams have been configured successfully.\n\n"
                     f"ZED Camera: {self.config['client_ip']}:{self.config['zed_port']}\n"
                     f"USB Camera 1: {self.config['client_ip']}:{self.config['usb0_port']}\n"
-                    f"USB Camera 2: {self.config['client_ip']}:{self.config['usb2_port']}"
+                    f"USB Camera 2: {self.config['client_ip']}:{self.config['usb2_port']}\n"
+                    f"360 Camera: {self.config['client_ip']}:{self.config['camera_360_port']}"  # Add this line
                 )
                 self.accept()
             else:
@@ -196,6 +205,7 @@ def main():
         print(f"ZED Camera Port: {dialog.config.get('zed_port')}")
         print(f"USB Camera 1 Port: {dialog.config.get('usb0_port')}")
         print(f"USB Camera 2 Port: {dialog.config.get('usb2_port')}")
+        print(f"360 Camera Port: {dialog.config.get('camera_360_port')}")  # Add this line
         
         # This is crucial - give the ROV time to set up the streams before returning
         print("Waiting for streams to initialize...")

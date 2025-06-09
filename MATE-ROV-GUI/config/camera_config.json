@@ -1,6 +1,7 @@
 {
-  "client_ip": "192.168.1.142",
+  "client_ip": "192.168.50.142",
   "zed_port": 5000,
   "usb0_port": 5004,
-  "usb2_port": 5005
+  "usb2_port": 5005,
+  "camera_360_port": 5001
 }

@@ -189,6 +189,8 @@ class MainWindow(QMainWindow): # MainWindow class extends QMainWindow
             "USB Camera 1", # Individual USB camera 1
             "USB Camera 2", # Individual USB camera 2
             "ZED Camera",   # ZED camera
+            "360 Camera",  # Add 360 camera
+            "Interactive 360° Camera",
             "Endoscope",
             "Controller Sensitivity",
             # "Auto Mode",

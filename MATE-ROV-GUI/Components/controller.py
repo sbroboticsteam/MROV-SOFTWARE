@@ -134,7 +134,7 @@ class BroadcastThread(QThread):
         self.running = True
         self.broadcast_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         
-        target_ip = '192.168.1.237'  # ROV IP address
+        target_ip = '192.168.50.41'  # ROV IP address
         self.statusUpdate.emit(f"Sending controller data to {target_ip} on port {self.broadcast_port}")
         
         try:

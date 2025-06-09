@@ -16,7 +16,7 @@ class DataSignals(QObject):
 class DataHandler(QThread):
     """Handles data reception from the ROV and distributes it to UI components"""
     
-    def __init__(self, ip="192.168.1.237", port=8001):
+    def __init__(self, ip="192.168.50.41", port=8001):
         super().__init__()
         self.ip = ip
         self.port = port

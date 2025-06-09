@@ -19,7 +19,8 @@ class CameraConfig(QObject):
             "client_ip": self._get_local_ip(),
             "zed_port": 5000,
             "usb0_port": 5004,
-            "usb2_port": 5005
+            "usb2_port": 5005, 
+            "camera_360_port": 5001  # Add 360 camera port
         }
         
         # Load saved configuration if available
@@ -84,6 +85,12 @@ class CameraConfig(QObject):
                 'rtpjitterbuffer latency=0 drop-on-latency=true ! '
                 'rtpjpegdepay ! jpegdec ! videoconvert ! videoflip method=counterclockwise ! '
                 'autovideosink sync=false'
+            )
+        elif camera_type == "camera_360":
+            return (
+                f'udpsrc port={self.config["camera_360_port"]} caps="application/x-rtp,media=video,encoding-name=H264,payload=96" ! '
+                'rtpjitterbuffer latency=0 drop-on-latency=true ! rtph264depay ! '
+                'avdec_h264 ! videoconvert ! autovideosink sync=false'
             )
         else:
             raise ValueError(f"Unknown camera type: {camera_type}")
