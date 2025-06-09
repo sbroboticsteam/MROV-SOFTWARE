@@ -25,12 +25,13 @@ logger = logging.getLogger("ROV")
 class ROV:
     """Minimal ROV system for testing thruster functionality and Ethernet communication."""
     
-    def __init__(self, stabilization_enabled=True):
+    def __init__(self, stabilization_enabled=True, motors_enabled=True):
         self.start_time = time.time()
         logger.info("Initializing ROV...")
         self.pca = PCA9685(bus_number=7)
         self.pca.frequency = 50
         
+        self.motors_enabled = motors_enabled
         #UNCOMMENT FOR IT TO WORK WITH TRUSTERS
         # Create thruster objects using a predefined channel map
         # esc_channels = [13, 9, 10, 8, 11, 14, 15, 12]
@@ -88,7 +89,7 @@ class ROV:
             control_ip='192.168.1.237',  # ROV's IP
             control_port=4891,           # Control port
             camera_port=8000,            # Camera stream port
-            telemetry_ip='192.168.1.142', # Your laptop's IP 
+            telemetry_ip='192.168.1.94', # Your laptop's IP 
             telemetry_port=8001          # Dedicated telemetry port
         )
         self.ethernet.set_control_callback(self.process_command)
@@ -103,7 +104,15 @@ class ROV:
             logger.info("PID stabilization is ENABLED")
         else:
             logger.info("PID stabilization is DISABLED")
+            
+        # Add these lines to log motor status
+        if self.motors_enabled:
+            logger.info("Motor output is ENABLED")
+        else:
+            logger.info("Motor output is DISABLED - thrusters will not receive commands")
+            
         logger.info("Minimal ROV initialization complete")
+        
 
     def _leak_detected_callback(self):
         """Called when a leak is detected"""
@@ -387,7 +396,7 @@ class ROV:
                 self.update_motor_states()
     
                 # Check for timeout (lost connection)
-                if current_time - self.last_command_time > 5.0:
+                if current_time - self.last_command_time > 5.0 and self.motors_enabled:
                     # Stop all motors if no commands received for 5 seconds
                     for thruster in self.thrusters:
                         thruster.set_speed(0.0)
@@ -452,13 +461,24 @@ class ROV:
             self.final_motor_states = self.chassis_control.arcadeDrive6(controller)
 
         max_val = max(abs(val) for val in self.final_motor_states)
+        
         if max_val > 1.0:
             self.final_motor_states = [val/max_val for val in self.final_motor_states]
-        # Apply motor states to thrusters
-        if self.thrusters:
+        
+        # Apply motor states to thrusters ONLY if motors are enabled
+        if self.thrusters and self.motors_enabled:
             for i, thruster in enumerate(self.thrusters):
                 if i < len(self.final_motor_states):
                     thruster.set_speed(self.final_motor_states[i])
+        elif self.thrusters and not self.motors_enabled:
+            # Log that motors are disabled (only occasionally to avoid spam)
+            if hasattr(self, '_last_motor_disable_log'):
+                if time.time() - self._last_motor_disable_log > 5.0:  # Log every 5 seconds
+                    logger.debug("Motors disabled - thruster commands ignored")
+                    self._last_motor_disable_log = time.time()
+            else:
+                self._last_motor_disable_log = time.time()
+                logger.debug("Motors disabled - thruster commands ignored")
                 
         self.chassis_control.updateTarget(
                         imu_data, self.left_x, self.left_y, self.right_x, self.right_y,
@@ -673,9 +693,11 @@ class ROV:
         self.depth_running = False 
         
         # Stop thrusters if any
-        if self.thrusters:
+        if self.thrusters and self.motors_enabled :
             for thruster in self.thrusters:
                 thruster.stop()
+        elif self.thrusters and not self.motors_enabled:
+            logger.info("Motors disabled - skipping thruster shutdown commands")
 
         # Move the arm to a safe position
         try:
@@ -714,13 +736,14 @@ class ROV:
 def main():
     parser = argparse.ArgumentParser(description='ROV Control System with Arm and PID Stabilization')
     parser.add_argument('--disable-stabilization', action='store_true', help='Disable PID stabilization')
+    parser.add_argument('--disable-motors', action='store_true', help='Disable motor output to prevent thruster commands')
     parser.add_argument('--log-level', type=str, default='INFO',
                         choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
                         help='Logging level')
     args = parser.parse_args()
     logging.getLogger().setLevel(args.log_level)
     
-    rov = ROV(stabilization_enabled=not args.disable_stabilization)
+    rov = ROV(stabilization_enabled=not args.disable_stabilization, motors_enabled=not args.disable_motors)
     
      # Start a thread to periodically send full telemetry
     def telemetry_sender():
