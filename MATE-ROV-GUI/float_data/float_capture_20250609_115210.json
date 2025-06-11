@@ -1,0 +1,38 @@
+[
+  {
+    "time": 1457,
+    "depth": 0.000892,
+    "pressure": 1009.77,
+    "velocity": 0,
+    "pid_output": 26,
+    "pid_error": 2.625099,
+    "pump_status": "off"
+  },
+  {
+    "time": 1460,
+    "depth": 0.000991,
+    "pressure": 1009.78,
+    "velocity": 0,
+    "pid_output": 26,
+    "pid_error": 2.625099,
+    "pump_status": "off"
+  },
+  {
+    "time": 1462,
+    "depth": 0.00109,
+    "pressure": 1009.79,
+    "velocity": 0,
+    "pid_output": 26,
+    "pid_error": 2.625099,
+    "pump_status": "off"
+  },
+  {
+    "time": 1464,
+    "depth": 0.00109,
+    "pressure": 1009.79,
+    "velocity": 0,
+    "pid_output": 26,
+    "pid_error": 2.625099,
+    "pump_status": "off"
+  }
+]

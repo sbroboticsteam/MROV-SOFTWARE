@@ -1,20 +1,338 @@
 {
-    "coordinates": [
-        {
-            "time": 0.0,
-            "depth": 0.0
-        },
-        {
-            "time": 3.0,
-            "depth": 2.0
-        },
-        {
-            "time": 6.0,
-            "depth": 4.0
-        },
-        {
-            "time": 9.0,
-            "depth": 6.0
-        }
-    ]
+  "description": "Float data from 2025-06-09 16:58:02",
+  "data": [
+    {
+      "time": 189,
+      "depth": 0.263997,
+      "pressure": 1039.64,
+      "velocity": 0,
+      "pid_output": 0,
+      "pid_error": 0,
+      "pump_status": "off"
+    },
+    {
+      "time": 191,
+      "depth": -0.000198,
+      "pressure": 1039.71,
+      "velocity": 0,
+      "pid_output": 0,
+      "pid_error": 0,
+      "pump_status": "off"
+    },
+    {
+      "time": 193,
+      "depth": -0.000198,
+      "pressure": 1039.71,
+      "velocity": 0,
+      "pid_output": 0,
+      "pid_error": 0,
+      "pump_status": "off"
+    },
+    {
+      "time": 193,
+      "depth": -0.000198,
+      "pressure": 1039.71,
+      "velocity": 0,
+      "pid_output": 0,
+      "pid_error": 0,
+      "pump_status": "off"
+    },
+    {
+      "time": 195,
+      "depth": -0.000198,
+      "pressure": 1039.71,
+      "velocity": 0,
+      "pid_output": 0,
+      "pid_error": 0,
+      "pump_status": "off"
+    },
+    {
+      "time": 196,
+      "depth": -0.000198,
+      "pressure": 1039.71,
+      "velocity": 0,
+      "pid_output": 0,
+      "pid_error": 0,
+      "pump_status": "off"
+    },
+    {
+      "time": 198,
+      "depth": -0.000495,
+      "pressure": 1039.68,
+      "velocity": 0,
+      "pid_output": 0,
+      "pid_error": 0,
+      "pump_status": "descending"
+    },
+    {
+      "time": 200,
+      "depth": -0.000495,
+      "pressure": 1039.68,
+      "velocity": 0,
+      "pid_output": 0,
+      "pid_error": 0,
+      "pump_status": "descending"
+    },
+    {
+      "time": 2,
+      "depth": 0.267069,
+      "pressure": 1039.95,
+      "velocity": 0,
+      "pid_output": 0,
+      "pid_error": 0,
+      "pump_status": "off"
+    },
+    {
+      "time": 4,
+      "depth": 0.267168,
+      "pressure": 1039.96,
+      "velocity": 0,
+      "pid_output": 0,
+      "pid_error": 0,
+      "pump_status": "off"
+    },
+    {
+      "time": 7,
+      "depth": 0.267465,
+      "pressure": 1039.99,
+      "velocity": 0,
+      "pid_output": 0,
+      "pid_error": 0,
+      "pump_status": "off"
+    },
+    {
+      "time": 9,
+      "depth": 0.267861,
+      "pressure": 1040.03,
+      "velocity": 0,
+      "pid_output": 0,
+      "pid_error": 0,
+      "pump_status": "off"
+    },
+    {
+      "time": 11,
+      "depth": 0.267762,
+      "pressure": 1040.02,
+      "velocity": 0,
+      "pid_output": 0,
+      "pid_error": 0,
+      "pump_status": "off"
+    },
+    {
+      "time": 14,
+      "depth": 0.268357,
+      "pressure": 1040.08,
+      "velocity": 0,
+      "pid_output": 0,
+      "pid_error": 0,
+      "pump_status": "off"
+    },
+    {
+      "time": 16,
+      "depth": 0.267465,
+      "pressure": 1039.99,
+      "velocity": 0,
+      "pid_output": 0,
+      "pid_error": 0,
+      "pump_status": "off"
+    },
+    {
+      "time": 18,
+      "depth": 0.267564,
+      "pressure": 1040,
+      "velocity": 0,
+      "pid_output": 0,
+      "pid_error": 0,
+      "pump_status": "off"
+    },
+    {
+      "time": 20,
+      "depth": 0.267267,
+      "pressure": 1039.97,
+      "velocity": 0,
+      "pid_output": 0,
+      "pid_error": 0,
+      "pump_status": "off"
+    },
+    {
+      "time": 22,
+      "depth": 0.26796,
+      "pressure": 1040.04,
+      "velocity": 0,
+      "pid_output": 0,
+      "pid_error": 0,
+      "pump_status": "off"
+    },
+    {
+      "time": 24,
+      "depth": 0.267663,
+      "pressure": 1040.01,
+      "velocity": 0,
+      "pid_output": 0,
+      "pid_error": 0,
+      "pump_status": "off"
+    },
+    {
+      "time": 26,
+      "depth": 0.267663,
+      "pressure": 1040.01,
+      "velocity": 0,
+      "pid_output": 0,
+      "pid_error": 0,
+      "pump_status": "off"
+    },
+    {
+      "time": 29,
+      "depth": 0.267267,
+      "pressure": 1039.97,
+      "velocity": 0,
+      "pid_output": 0,
+      "pid_error": 0,
+      "pump_status": "off"
+    },
+    {
+      "time": 30,
+      "depth": 0.267564,
+      "pressure": 1040,
+      "velocity": 0,
+      "pid_output": 0,
+      "pid_error": 0,
+      "pump_status": "off"
+    },
+    {
+      "time": 31,
+      "depth": 0.266672,
+      "pressure": 1039.91,
+      "velocity": 0,
+      "pid_output": 0,
+      "pid_error": 0,
+      "pump_status": "off"
+    },
+    {
+      "time": 33,
+      "depth": 0.267465,
+      "pressure": 1039.99,
+      "velocity": 0,
+      "pid_output": 0,
+      "pid_error": 0,
+      "pump_status": "off"
+    },
+    {
+      "time": 35,
+      "depth": 0.267762,
+      "pressure": 1040.02,
+      "velocity": 0,
+      "pid_output": 0,
+      "pid_error": 0,
+      "pump_status": "off"
+    },
+    {
+      "time": 36,
+      "depth": 0.267069,
+      "pressure": 1039.95,
+      "velocity": 0,
+      "pid_output": 0,
+      "pid_error": 0,
+      "pump_status": "off"
+    },
+    {
+      "time": 37,
+      "depth": 0.267168,
+      "pressure": 1039.96,
+      "velocity": 0,
+      "pid_output": 0,
+      "pid_error": 0,
+      "pump_status": "off"
+    },
+    {
+      "time": 41,
+      "depth": 0.267762,
+      "pressure": 1040.02,
+      "velocity": 0,
+      "pid_output": 0,
+      "pid_error": 0,
+      "pump_status": "off"
+    },
+    {
+      "time": 43,
+      "depth": 0.267168,
+      "pressure": 1039.96,
+      "velocity": 0,
+      "pid_output": 0,
+      "pid_error": 0,
+      "pump_status": "off"
+    },
+    {
+      "time": 43,
+      "depth": 0.267366,
+      "pressure": 1039.98,
+      "velocity": 0,
+      "pid_output": 0,
+      "pid_error": 0,
+      "pump_status": "off"
+    },
+    {
+      "time": 45,
+      "depth": 0.266771,
+      "pressure": 1039.92,
+      "velocity": 0,
+      "pid_output": 0,
+      "pid_error": 0,
+      "pump_status": "off"
+    },
+    {
+      "time": 47,
+      "depth": 0.266672,
+      "pressure": 1039.91,
+      "velocity": 0,
+      "pid_output": 0,
+      "pid_error": 0,
+      "pump_status": "off"
+    },
+    {
+      "time": 49,
+      "depth": 0.26687,
+      "pressure": 1039.93,
+      "velocity": 0,
+      "pid_output": 0,
+      "pid_error": 0,
+      "pump_status": "off"
+    },
+    {
+      "time": 52,
+      "depth": 0.265087,
+      "pressure": 1039.75,
+      "velocity": 0,
+      "pid_output": 0,
+      "pid_error": 0,
+      "pump_status": "off"
+    },
+    {
+      "time": 53,
+      "depth": 0.266969,
+      "pressure": 1039.94,
+      "velocity": 0,
+      "pid_output": 0,
+      "pid_error": 0,
+      "pump_status": "off"
+    },
+    {
+      "time": 54,
+      "depth": 0.26687,
+      "pressure": 1039.93,
+      "velocity": 0,
+      "pid_output": 0,
+      "pid_error": 0,
+      "pump_status": "off"
+    },
+    {
+      "time": 54,
+      "depth": 0.266177,
+      "pressure": 1039.86,
+      "velocity": 0,
+      "pid_output": 0,
+      "pid_error": 0,
+      "pump_status": "off"
+    }
+  ]
 }

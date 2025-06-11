@@ -199,7 +199,8 @@ class MainWindow(QMainWindow): # MainWindow class extends QMainWindow
             "Depth-Time Graph",
             'Network Connection',
             "Controller Sender",
-            "Leak Sensor"
+            "Leak Sensor",
+            "Float Controller"
         ]
         self.header.widget_selector.addItems(self.widgets_list)
 

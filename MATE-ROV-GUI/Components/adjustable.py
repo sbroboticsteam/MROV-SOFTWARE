@@ -6,7 +6,7 @@ from Components.camera import MainWindow as CameraWindow
 from Components.connectivity import Connectivity
 from Components.depth_time import DepthTimeWidget
 from Components.controller import ControllerSender
-
+from Components.float_controller import FloatController  # Add this import
 from Components.leak import LeakSensor
 # from Components.controller_sensitivity import ControllerSensitivity, AdjustableControllerSensivitity
 from Components.controller_sensitivity import ControllerSensitivity
@@ -213,6 +213,8 @@ class AdjustableWidget(QWidget):
                 print(f"Error creating Leak Sensor widget: {e}")
                 traceback.print_exc()
                 widget = QWidget()  # Fallback empty widget
+        elif self.title == "Float Controller":  # Add this new condition
+            widget = FloatController()
         else:
             widget = QWidget()
 

@@ -140,12 +140,76 @@ def send_command(esp32_ip, command, laptop_ip=""):
         except Exception as e:
             print("Error setting read interval:", e)
             return
-    elif command == "routine_pid":
-        url = f"http://{esp32_ip}/toggle_routine_pid"
+    # Add to the send_command function
+    elif command == "status":
+        url = f"http://{esp32_ip}/status"
+        try:
+            response = requests.get(url, timeout=10)
+            if response.status_code == 200:
+                status_data = response.json()
+                
+                # Format and print the status data in a readable way
+                print("\n===== FLOAT STATUS =====")
+                print(f"System: {'Started' if status_data['started'] else 'Stopped'}")
+                print(f"Uptime: {status_data['uptime_seconds']} seconds")
+                
+                # WiFi section
+                wifi = status_data['wifi']
+                print(f"\nWiFi: {'CONNECTED' if wifi['connected'] else 'DISCONNECTED'}")
+                print(f"  Signal: {wifi['rssi']} dBm ({'Good' if wifi['good_signal'] else 'Poor'})")
+                print(f"  IP: {wifi['ip']}")
+                
+                # Queue status
+                queue = status_data['queue']
+                print(f"\nQueue: {queue['current_size']}/{queue['capacity']} ({queue['percent_full']}% full)")
+                print(f"  Read Interval: {queue['read_interval_ms']} ms")
+                
+                # Depth info
+                depth = status_data['depth']
+                print(f"\nDepth:")
+                print(f"  Current: {depth['current']:.3f} m")
+                print(f"  Target: {depth['target']:.3f} m ± {depth['tolerance']:.3f} m")
+                print(f"  Pressure: {depth['pressure']:.2f} mbar")
+                
+                # Velocity
+                velocity = status_data['velocity']
+                print(f"\nVelocity:")
+                print(f"  Current: {velocity['current']:.3f} m/s")
+                print(f"  Limits: {velocity['max_descent']:.3f} m/s descent, {velocity['max_ascent']:.3f} m/s ascent")
+                
+                # PID parameters
+                pid = status_data['pid']
+                print(f"\nPID Control: {'ACTIVE' if pid['active'] else 'INACTIVE'}")
+                print(f"  Parameters: Kp={pid['kp']}, Ki={pid['ki']}, Kd={pid['kd']}")
+                print(f"  Last Output: {pid['last_output']}")
+                print(f"  Last Error: {pid['last_error']:.3f}")
+                print(f"  Integral: {pid['integral']:.3f}")
+                
+                # Routine status
+                routine = status_data['routine']
+                print(f"\nRoutine: {'ACTIVE' if routine['active'] else 'INACTIVE'}")
+                print(f"  State: {routine['state']}")
+                print(f"  Wait Time: {routine['wait_time_seconds']} seconds")
+                
+                if routine['active'] and routine['state'] == "waiting":
+                    print(f"  Wait Progress: {routine['wait_elapsed_seconds']} / {routine['wait_time_seconds']} s")
+                    print(f"  Remaining: {routine['wait_remaining_seconds']} s")
+                
+                # Pump status
+                pump = status_data['pump']
+                print(f"\nPump: {pump['state'].upper()}")
+                
+                print("=======================\n")
+            else:
+                print(f"Error getting status: {response.status_code}")
+                print(response.text)
+        except Exception as e:
+            print(f"Error retrieving status: {e}")
+        
     else:
         print("Invalid command!")
         return
-
+    
     try:
         response = requests.get(url, timeout=10)
         print("Response:", response.text)
@@ -153,7 +217,7 @@ def send_command(esp32_ip, command, laptop_ip=""):
         print("Error sending command:", e)
 
 def main():
-    esp32_ip = "192.168.1.78"  # Replace with your ESP32 IP if needed
+    esp32_ip = "192.168.1.226"  # Replace with your ESP32 IP if needed
     laptop_ip = get_laptop_ip()
     print(f"Laptop IP determined as: {laptop_ip}\n")
     print("Available Commands:")
@@ -172,6 +236,7 @@ def main():
     print("  routine_pid - Toggle PID control during routine wait phase") 
     print("  target - Set target depth for PID control")
     print("  interval - Set data read interval (in milliseconds)")
+    print("  status - Get comprehensive system status")
     print("  q   - Quit")
 
     while True:

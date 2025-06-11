@@ -1,0 +1,218 @@
+[
+  {
+    "time": 36,
+    "depth": 0,
+    "pressure": 1008.92,
+    "velocity": 0,
+    "pid_output": 0,
+    "pid_error": 0,
+    "pump_status": "off"
+  },
+  {
+    "time": 38,
+    "depth": 0,
+    "pressure": 1008.92,
+    "velocity": 0,
+    "pid_output": 0,
+    "pid_error": 0,
+    "pump_status": "off"
+  },
+  {
+    "time": 40,
+    "depth": -0.000198,
+    "pressure": 1008.9,
+    "velocity": 0,
+    "pid_output": 0,
+    "pid_error": 0,
+    "pump_status": "off"
+  },
+  {
+    "time": 42,
+    "depth": -9.9e-05,
+    "pressure": 1008.91,
+    "velocity": 0,
+    "pid_output": 0,
+    "pid_error": 0,
+    "pump_status": "ascending"
+  },
+  {
+    "time": 42,
+    "depth": -9.9e-05,
+    "pressure": 1008.91,
+    "velocity": 0,
+    "pid_output": 0,
+    "pid_error": 0,
+    "pump_status": "ascending"
+  },
+  {
+    "time": 44,
+    "depth": -0.000595,
+    "pressure": 1008.86,
+    "velocity": 0,
+    "pid_output": 0,
+    "pid_error": 0,
+    "pump_status": "off"
+  },
+  {
+    "time": 44,
+    "depth": -0.000694,
+    "pressure": 1008.85,
+    "velocity": 0,
+    "pid_output": 0,
+    "pid_error": 0,
+    "pump_status": "off"
+  },
+  {
+    "time": 47,
+    "depth": -0.001189,
+    "pressure": 1008.8,
+    "velocity": 0,
+    "pid_output": 0,
+    "pid_error": 0,
+    "pump_status": "off"
+  },
+  {
+    "time": 49,
+    "depth": -0.001189,
+    "pressure": 1008.8,
+    "velocity": 0,
+    "pid_output": 0,
+    "pid_error": 0,
+    "pump_status": "off"
+  },
+  {
+    "time": 50,
+    "depth": -0.001586,
+    "pressure": 1008.76,
+    "velocity": 0,
+    "pid_output": 0,
+    "pid_error": 0,
+    "pump_status": "descending"
+  },
+  {
+    "time": 51,
+    "depth": -0.001387,
+    "pressure": 1008.78,
+    "velocity": 0,
+    "pid_output": 0,
+    "pid_error": 0,
+    "pump_status": "descending"
+  },
+  {
+    "time": 53,
+    "depth": -0.001784,
+    "pressure": 1008.74,
+    "velocity": 0,
+    "pid_output": 0,
+    "pid_error": 0,
+    "pump_status": "descending"
+  },
+  {
+    "time": 55,
+    "depth": -0.001883,
+    "pressure": 1008.73,
+    "velocity": 0,
+    "pid_output": 0,
+    "pid_error": 0,
+    "pump_status": "descending"
+  },
+  {
+    "time": 57,
+    "depth": -0.002279,
+    "pressure": 1008.69,
+    "velocity": 0,
+    "pid_output": 0,
+    "pid_error": 0,
+    "pump_status": "descending"
+  },
+  {
+    "time": 59,
+    "depth": -0.00218,
+    "pressure": 1008.7,
+    "velocity": 0,
+    "pid_output": 0,
+    "pid_error": 0,
+    "pump_status": "descending"
+  },
+  {
+    "time": 62,
+    "depth": -0.002081,
+    "pressure": 1008.71,
+    "velocity": 0,
+    "pid_output": 0,
+    "pid_error": 0,
+    "pump_status": "descending"
+  },
+  {
+    "time": 64,
+    "depth": -0.00218,
+    "pressure": 1008.7,
+    "velocity": 0,
+    "pid_output": 0,
+    "pid_error": 0,
+    "pump_status": "descending"
+  },
+  {
+    "time": 66,
+    "depth": -0.00218,
+    "pressure": 1008.7,
+    "velocity": 0,
+    "pid_output": 0,
+    "pid_error": 0,
+    "pump_status": "descending"
+  },
+  {
+    "time": 68,
+    "depth": -0.00218,
+    "pressure": 1008.7,
+    "velocity": 0,
+    "pid_output": 0,
+    "pid_error": 0,
+    "pump_status": "off"
+  },
+  {
+    "time": 69,
+    "depth": -0.002279,
+    "pressure": 1008.69,
+    "velocity": 0,
+    "pid_output": 0,
+    "pid_error": 0,
+    "pump_status": "off"
+  },
+  {
+    "time": 70,
+    "depth": -0.001784,
+    "pressure": 1008.74,
+    "velocity": 0,
+    "pid_output": 0,
+    "pid_error": 0,
+    "pump_status": "off"
+  },
+  {
+    "time": 73,
+    "depth": -0.001883,
+    "pressure": 1008.73,
+    "velocity": 0,
+    "pid_output": 0,
+    "pid_error": 0,
+    "pump_status": "off"
+  },
+  {
+    "time": 75,
+    "depth": -0.001685,
+    "pressure": 1008.75,
+    "velocity": 0,
+    "pid_output": 0,
+    "pid_error": 0,
+    "pump_status": "off"
+  },
+  {
+    "time": 77,
+    "depth": -0.001982,
+    "pressure": 1008.69,
+    "velocity": 0,
+    "pid_output": 0,
+    "pid_error": 0,
+    "pump_status": "off"
+  }
+]

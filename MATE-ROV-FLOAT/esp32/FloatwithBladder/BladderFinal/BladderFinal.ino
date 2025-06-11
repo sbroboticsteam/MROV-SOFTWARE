@@ -8,8 +8,8 @@
 #include <Adafruit_NeoPixel.h>
 
 // -------------------- CONFIGURATION --------------------
-#define WIFI_SSID       "SBRT"
-#define WIFI_PASSWORD   "Robotic$3"
+#define WIFI_SSID       "NR-3"
+#define WIFI_PASSWORD   "Radhi02@Nagi22"
 #define COMPANY_NUMBER  6969
 
 // -------- RSSI THRESHOLD (dBm) --------
@@ -25,7 +25,7 @@
 #define VELOCITY_READ_INTERVAL     20  // faster rate for velocity testing
 
 // How many items to attempt to send at once
-#define SEND_BATCH_SIZE     10
+#define SEND_BATCH_SIZE     5
 
 // ----------------- NEW: Pump control -----------------
 #define PUMP_DESC_PIN 12   // Pump control pin for descending (fill ballast)
@@ -36,9 +36,9 @@ float TARGET_DEPTH = 2.625;  // Middle of our range (2.5 to 2.75)
 #define DEPTH_TOLERANCE 0.125  // ±0.125m from target (gives us 2.5 to 2.75 range)
 
 // PID coefficients - you'll need to tune these
-float Kp = 5.0;    // Proportional gain
+float Kp = 1.0;    // Proportional gain
 float Ki = 0.02;   // Integral gain
-float Kd = 2.0;    // Derivative gain
+float Kd = 0.03;    // Derivative gain
 
 // PID state variables
 float integral = 0.0;
@@ -558,6 +558,7 @@ void TaskSensorAndSending(void * pvParameters) {
                 pumpOff();
                 pumpStatus = "PID-Hold";
               }
+        
               
               // Debug output
               Serial.printf("ROUTINE MONITOR: Waiting: Depth=%.3f, Target=%.3f, PID Output=%d, Error=%.3f\n", 
@@ -624,7 +625,6 @@ void TaskSensorAndSending(void * pvParameters) {
           pumpStatus = "Off";
         }
     }
-
     // Data collection and queueing
     if ((currentMillis - lastReadTime) >= currentReadInterval) {
       lastReadTime = currentMillis;
@@ -648,11 +648,13 @@ void TaskSensorAndSending(void * pvParameters) {
                     elapsed, currentDepth, currentVelocity, pidOutput, pidError, pumpStatus.c_str());
       }
     }
-  } 
-  else {
-    // Not started
-    setStripColor(255, 0, 0); // RED
   }
+
+    else {
+      // Not started
+      setStripColor(255, 0, 0); // RED
+    } 
+
     // Always attempt to send data if WiFi is connected
     if (wifiFlag && !measurementQueue.isEmpty()) {
       // Only rate-limit transmissions if we're not testing velocity

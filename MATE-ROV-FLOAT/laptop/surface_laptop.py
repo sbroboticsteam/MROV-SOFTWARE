@@ -10,7 +10,7 @@ import requests
 # Make sure you update this if your ESP32's base URL changes
 # In this example, the ESP32 uses "server.on('/start_signal')",
 # so we would call that with e.g. "http://<esp32_ip>/start_signal?ip_address=..."
-ESP32_base_url = "http://192.168.0.4:80/"  # Not used if you use send_command.py directly
+ESP32_base_url = "http://192.168.1.266:80/"  # Not used if you use send_command.py directly
 
 def write_to_json_file(data_list, filename='coordinates.json'):
     """
@@ -47,18 +47,6 @@ class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
     pass
 
 class MyRequestHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        # You can leave this blank or handle test endpoints
-        if self.path == '/':
-            self.send_response(200)
-            self.send_header('Content-type', 'text/plain')
-            self.end_headers()
-            self.wfile.write(b"Surface Laptop server is running.")
-        else:
-            self.send_response(404)
-            self.end_headers()
-            self.wfile.write(b"Not Found")
-
     def do_POST(self):
         
         if self.path == '/depth':
@@ -100,16 +88,17 @@ class MyRequestHandler(BaseHTTPRequestHandler):
                 self.send_error_response(e)
     
     def do_GET(self):
-        if self.path == '/stop_float':
+        if self.path == '/':
+            self.send_response(200)
+            self.send_header('Content-type', 'text/plain')
+            self.end_headers()
+            self.wfile.write(b"Surface Laptop server is running.")
+        elif self.path == '/stop_float':
             try:
                 esp32_ip = "192.168.1.78"  # Replace with actual IP of ESP32
                 url = f"http://{esp32_ip}/stop_signal"
-                # Or if you need to pass anything else, add it as query params
-
                 r = requests.get(url, timeout=5)
                 r.raise_for_status()
-
-                # Send a response back to the client indicating success
                 self.send_response(200)
                 self.send_header('Content-type', 'text/plain')
                 self.end_headers()
@@ -117,8 +106,20 @@ class MyRequestHandler(BaseHTTPRequestHandler):
                 self.wfile.write(msg.encode('utf-8'))
             except Exception as e:
                 self.send_error_response(e)
-
-
+        elif self.path == '/get_float_status':
+            try:
+                esp32_ip = "192.168.1.78"  # Replace with actual IP of ESP32
+                url = f"http://{esp32_ip}/status"
+                r = requests.get(url, timeout=5)
+                r.raise_for_status()
+                
+                # Forward the status response directly
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(r.content)
+            except Exception as e:
+                self.send_error_response(e)
         else:
             self.send_response(404)
             self.end_headers()
