@@ -5,9 +5,10 @@ gi.require_version('GstVideo', '1.0')
 from gi.repository import Gst, GstVideo
 from PyQt5 import QtWidgets, QtCore
 import os
+import subprocess
 from Components.camera_config import CameraConfig
 from Components.camera import VideoWidget, CameraStream
-from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QLabel, QSlider, QHBoxLayout
+from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QLabel, QSlider, QHBoxLayout, QPushButton, QMessageBox
 from PyQt5.QtCore import Qt, QTimer, QPoint, QRect
 from PyQt5.QtGui import QPainter, QPixmap, QImage, QTransform, QPen, QColor
 import numpy as np
@@ -62,7 +63,6 @@ class USB2CameraWindow(QtWidgets.QMainWindow):
         except:
             pass
         super().closeEvent(event)
-
 class Camera360Window(QtWidgets.QMainWindow):
     """Widget for displaying the 360 camera feed"""
     def __init__(self):
@@ -71,13 +71,17 @@ class Camera360Window(QtWidgets.QMainWindow):
         main_widget = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout(main_widget)
         
-        # Get the pipeline from configuration
         config = CameraConfig()
-        pipeline = config.get_gstreamer_pipeline("camera_360")
+        # This pipeline string will now include the tee and appsink from camera_config.py
+        pipeline = config.get_gstreamer_pipeline("camera_360") 
         
-        # Create the camera stream
-        self.camera = CameraStream(pipeline, "360 Camera")
+        # CameraStream will parse this, find 'photosphere_appsink', and connect to it.
+        self.camera = CameraStream(pipeline, "360 Camera") 
         layout.addWidget(self.camera)
+        
+        self.photosphere_button = QPushButton("Photosphere Task")
+        self.photosphere_button.clicked.connect(self.handle_photosphere_task)
+        layout.addWidget(self.photosphere_button) 
         
         self.setCentralWidget(main_widget)
     
@@ -87,6 +91,134 @@ class Camera360Window(QtWidgets.QMainWindow):
         except:
             pass
         super().closeEvent(event)
+
+    def handle_photosphere_task(self):
+            print("DEBUG: Camera360Window - handle_photosphere_task called")
+            
+            if not hasattr(self.camera, 'get_latest_frame_for_photosphere'):
+                QMessageBox.warning(self, "Photosphere Task Error", 
+                                    "CameraStream object is missing the 'get_latest_frame_for_photosphere' method. "
+                                    "Please ensure Components/camera.py is updated correctly.")
+                return
+
+            # This now calls the method in CameraStream that gets the pixmap from the appsink
+            current_frame_pixmap = self.camera.get_latest_frame_for_photosphere()
+
+            if current_frame_pixmap is None or current_frame_pixmap.isNull():
+                QMessageBox.warning(self, "Photosphere Task", 
+                                    "No 360° video frame available to capture from CameraStream. "
+                                    "Check console for CameraStream debug messages regarding appsink.")
+                return
+            else:
+                print("DEBUG: Camera360Window - Received valid pixmap from CameraStream.")
+
+            # Determine project root and photospheretaskimages directory
+            try:
+                gui_root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) # Components is child of MATE-ROV-GUI
+                photosphere_dir = os.path.join(gui_root_dir, "photospheretaskimages")
+                # print(f"DEBUG: Photosphere directory set to: {photosphere_dir}") # Already in previous version
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Could not determine project path: {e}")
+                return
+
+            try:
+                if not os.path.exists(photosphere_dir):
+                    os.makedirs(photosphere_dir)
+                    # print(f"DEBUG: Created directory: {photosphere_dir}") # Already in previous version
+            except OSError as e:
+                QMessageBox.critical(self, "Error", f"Could not create directory {photosphere_dir}: {e}")
+                return
+
+            input_image_path = os.path.join(photosphere_dir, "input.jpg")
+            output_image_path = os.path.join(photosphere_dir, "output.jpg")
+            batch_script_path = os.path.join(photosphere_dir, "run_ffmpeg_photosphere.bat")
+
+            # 1. Save current frame
+            try:
+                save_success = current_frame_pixmap.save(input_image_path, "JPG", 95)
+                if not save_success:
+                    QMessageBox.critical(self, "Error", f"Failed to save frame to {input_image_path}")
+                    return
+                print(f"Frame saved to {input_image_path}")
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Error saving frame: {e}")
+                return
+
+            # 2. Create .bat script for FFmpeg
+            ffmpeg_command = (
+                f'ffmpeg -i input.jpg -vf "v360=input=dfisheye:ih_fov=195:iv_fov=195:output=equirect:out_stereo=none" -q:v 1 output.jpg -y'
+            )
+            
+            bat_content = f"""@echo off
+    setlocal
+    REM This script changes its directory to where it is located.
+    cd /D "%~dp0"
+    echo Current directory for ffmpeg: %cd%
+    echo Running FFmpeg command:
+    echo {ffmpeg_command}
+
+    {ffmpeg_command}
+
+    if %errorlevel% neq 0 (
+        echo FFmpeg command failed. Errorlevel: %errorlevel%
+        exit /b 1
+    )
+    echo FFmpeg command successful.
+    exit /b 0
+    endlocal
+    """
+            try:
+                with open(batch_script_path, "w") as f:
+                    f.write(bat_content)
+                print(f"Batch script created at {batch_script_path}")
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Could not write batch script: {e}")
+                return
+
+            # 3. Run .bat script
+            try:
+                print(f"Running batch script: {batch_script_path}")
+                process = subprocess.run(
+                    batch_script_path, 
+                    shell=True, 
+                    check=False,
+                    capture_output=True, 
+                    text=True,
+                    cwd=photosphere_dir 
+                )
+
+                print("FFmpeg script stdout:")
+                print(process.stdout)
+                print("FFmpeg script stderr:")
+                print(process.stderr)
+
+                if process.returncode != 0:
+                    QMessageBox.critical(self, "FFmpeg Error", f"FFmpeg script failed (return code {process.returncode}).\nStderr: {process.stderr}\nStdout: {process.stdout}")
+                    return
+                print("FFmpeg processing complete.")
+            except FileNotFoundError:
+                QMessageBox.critical(self, "FFmpeg Error", f"Batch script {batch_script_path} not found or ffmpeg command not found. Ensure FFmpeg is installed and in your system's PATH.")
+                return
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Error running FFmpeg script: {e}")
+                return
+
+            # 4. Open processed image
+            if os.path.exists(output_image_path):
+                try:
+                    print(f"Opening {output_image_path} with default application.")
+                    if sys.platform == "win32":
+                        os.startfile(output_image_path)
+                    elif sys.platform == "darwin":
+                        subprocess.run(["open", output_image_path], check=True)
+                    else: 
+                        subprocess.run(["xdg-open", output_image_path], check=True)
+                    QMessageBox.information(self, "Success", f"Photosphere task complete. Output image should be opening: {output_image_path}")
+                except Exception as e:
+                    QMessageBox.warning(self, "Image Viewer", f"Could not open image with default viewer: {e}\nImage is at: {output_image_path}")
+            else:
+                QMessageBox.critical(self, "Error", f"Output image {output_image_path} not found after FFmpeg processing.")
+
 
 class ZEDCameraWindow(QtWidgets.QMainWindow):
     """Widget for displaying the ZED camera feed"""

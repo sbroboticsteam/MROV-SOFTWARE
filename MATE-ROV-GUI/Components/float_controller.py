@@ -3,1493 +3,812 @@ import json
 import traceback
 import os
 import datetime
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, 
-                            QLineEdit, QTableWidget, QTableWidgetItem, QFormLayout, 
+from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
+                            QLineEdit, QTableWidget, QTableWidgetItem, QFormLayout,
                             QGroupBox, QTabWidget, QDoubleSpinBox, QSpinBox, QMessageBox,
-                            QHeaderView, QFileDialog, QCheckBox)
-from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QThread
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-import plotly.io as pio
+                            QHeaderView, QCheckBox, QApplication) # Added QApplication for clipboard
+from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QThread, QPointF
 import socket
+import pyqtgraph as pg
+from http.server import HTTPServer, BaseHTTPRequestHandler
+import threading # For running HTTPServer in a non-blocking way via QThread
 
-# Set the plotly renderer to browser for display
-pio.renderers.default = "browser"
+# Configure pyqtgraph
+pg.setConfigOption('background', 'w')
+pg.setConfigOption('foreground', 'k')
+pg.setConfigOption('antialias', True)
+
+
+class FloatDataHandler(BaseHTTPRequestHandler):
+    # Class variable to hold a reference to the data_received_signal
+    data_received_signal = None
+    gui_capture_start_time_ref = None # To calculate GUI time relative to capture start
+
+    def do_POST(self):
+        try:
+            content_length = int(self.headers['Content-Length'])
+            post_data = self.rfile.read(content_length)
+            data_list = json.loads(post_data.decode('utf-8')).get("data", [])
+
+            if FloatDataHandler.data_received_signal and data_list:
+                gui_received_time = datetime.datetime.now()
+                # Emit the raw list and the receipt time
+                FloatDataHandler.data_received_signal.emit(data_list, gui_received_time)
+
+            self.send_response(200)
+            self.send_header('Content-type', 'text/plain')
+            self.end_headers()
+            self.wfile.write(b"Data received by GUI")
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-type', 'text/plain')
+            self.end_headers()
+            self.wfile.write(f"Error processing data: {str(e)}".encode('utf-8'))
+            print(f"Error in FloatDataHandler: {e}")
+            traceback.print_exc()
+
+    def log_message(self, format, *args):
+        # Suppress HTTP server log messages to console if not needed
+        # print(f"HTTP Server: {format % args}")
+        return
+
+
+class FloatDataReceiverThread(QThread):
+    data_received = pyqtSignal(list, datetime.datetime) # list of measurements, gui_received_timestamp
+    server_error = pyqtSignal(str)
+
+    def __init__(self, host='0.0.0.0', port=8000):
+        super().__init__()
+        self.host = host
+        self.port = port
+        self.httpd = None
+        self.running = False
+        FloatDataHandler.data_received_signal = self.data_received
+
+
+    def run(self):
+        self.running = True
+        try:
+            self.httpd = HTTPServer((self.host, self.port), FloatDataHandler)
+            print(f"GUI HTTP Server started on {self.host}:{self.port}, listening for float data...")
+            while self.running:
+                self.httpd.handle_request() # Process one request at a time
+            if self.httpd:
+                self.httpd.server_close()
+            print("GUI HTTP Server stopped.")
+        except socket.error as e:
+            if e.errno == 98: # Address already in use
+                 self.server_error.emit(f"Error: Port {self.port} is already in use. Cannot start data receiver.")
+            else:
+                self.server_error.emit(f"GUI HTTP Server error: {str(e)}")
+            traceback.print_exc()
+        except Exception as e:
+            self.server_error.emit(f"GUI HTTP Server unexpected error: {str(e)}")
+            traceback.print_exc()
+        finally:
+            if self.httpd:
+                self.httpd.server_close() # Ensure it's closed
+
+    def stop_server(self):
+        self.running = False
+        if self.httpd:
+            # To unblock httpd.handle_request(), send a dummy request to it
+            try:
+                # Create a temporary client to connect and send a minimal request
+                # This helps httpd.handle_request() to exit if it's blocking
+                with socket.create_connection((self.host if self.host != '0.0.0.0' else '127.0.0.1', self.port), timeout=0.1) as sock:
+                    sock.sendall(b"GET /shutdown HTTP/1.1\r\nHost: localhost\r\n\r\n")
+            except Exception:
+                pass # Ignore errors during shutdown signaling
+            self.httpd.server_close() # Close the server socket
+        self.wait(2000) # Wait for the thread to finish
+
 
 class FloatStatusWorker(QThread):
     """Worker thread to fetch float status without blocking the UI"""
     status_received = pyqtSignal(dict)
     error_occurred = pyqtSignal(str)
-    
+
     def __init__(self, ip_address):
         super().__init__()
         self.ip_address = ip_address
         self.running = True
-        
+
     def run(self):
         while self.running:
             try:
                 url = f"http://{self.ip_address}/status"
-                response = requests.get(url, timeout=5)
+                response = requests.get(url, timeout=3) # Shorter timeout for status
                 if response.status_code == 200:
                     self.status_received.emit(response.json())
                 else:
-                    self.error_occurred.emit(f"Error: Server returned status code {response.status_code}")
-            except Exception as e:
-                self.error_occurred.emit(f"Connection error: {str(e)}")
+                    self.error_occurred.emit(f"Status Error: Code {response.status_code}")
+            except requests.exceptions.RequestException as e: # More specific exception
+                self.error_occurred.emit(f"Status Connection error: {str(e)}")
             
-            # Sleep for 2 seconds before polling again
-            self.msleep(2000)
-            
+            self.msleep(2000) # Poll status every 2 seconds
+
     def stop(self):
         self.running = False
         self.wait()
 
+
 class FloatController(QWidget):
     """Widget for controlling and monitoring the MATE ROV Float"""
-    
+
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.worker = None
+        self.status_worker = None
+        self.data_receiver_thread = None
         self.float_ip = ""
         self.data_directory = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'float_data')
         if not os.path.exists(self.data_directory):
             os.makedirs(self.data_directory)
-        
-        # Initialize data capture state
+
         self.capturing_data = False
-        self.capture_start_time = None
+        self.capture_start_time_gui = None # GUI's perspective of when capture started
         self.current_capture_file = None
-        
-        # Track if fields are being edited
+
         self.editing_fields = False
         self.auto_update_timer = QTimer()
         self.auto_update_timer.timeout.connect(self.update_parameter_fields)
-        self.auto_update_timer.start(10000)  # 10 second delay for auto-updating fields
+        self.auto_update_timer.start(10000)
+
+        self.latest_status_data = {}
+        self.logged_data_points = [] # For saving captured data (now richer)
+
+        # Data for live plots
+        self.plot_float_time = [] # Float's timeSinceStart
+        self.plot_depth_data = []
+        self.plot_velocity_data = []
         
+        self.plot_arrival_float_time = [] # Float time for arrival plot
+        self.plot_arrival_gui_time_numeric = [] # GUI time (numeric) for arrival plot
+
+        self.max_plot_points = 300
+
+        self.hover_text_item = None # For pyqtgraph hover text
+
         self.setupUI()
-        
+        self.start_data_receiver() # Start it once
+
+    def start_data_receiver(self):
+        if self.data_receiver_thread is None or not self.data_receiver_thread.isRunning():
+            self.data_receiver_thread = FloatDataReceiverThread()
+            FloatDataHandler.gui_capture_start_time_ref = lambda: self.capture_start_time_gui
+            self.data_receiver_thread.data_received.connect(self.handle_float_data_packet)
+            self.data_receiver_thread.server_error.connect(self.handle_data_server_error)
+            self.data_receiver_thread.start()
+
+    def handle_data_server_error(self, error_msg):
+        QMessageBox.critical(self, "Data Receiver Error", error_msg)
+        print(f"Data Receiver Error: {error_msg}")
+        # Potentially try to restart or disable data capture if server fails critically
+
     def setupUI(self):
-        """Create the user interface"""
         main_layout = QVBoxLayout()
-        
-        # IP Configuration
+
+        # ... (IP input and Connect button layout - unchanged) ...
         ip_layout = QHBoxLayout()
         ip_label = QLabel("Float IP:")
-        self.ip_input = QLineEdit("192.168.1.226")  # Default IP
-        connect_btn = QPushButton("Connect")
-        connect_btn.clicked.connect(self.connect_to_float)
-        
+        self.ip_input = QLineEdit("192.168.1.226")
+        connect_btn = QPushButton("Connect to Float Status")
+        connect_btn.clicked.connect(self.connect_to_float_status)
         ip_layout.addWidget(ip_label)
         ip_layout.addWidget(self.ip_input)
         ip_layout.addWidget(connect_btn)
-        
         main_layout.addLayout(ip_layout)
-        
-        # Tabs for different sections
+
         tabs = QTabWidget()
-        
-        # Status tab
+
+        # Status tab (largely unchanged, populated by FloatStatusWorker)
         status_tab = QWidget()
-        status_layout = QVBoxLayout()
-        
-        # Status table
+        status_layout_main = QVBoxLayout()
         self.status_table = QTableWidget(0, 2)
         self.status_table.setHorizontalHeaderLabels(["Parameter", "Value"])
         self.status_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
         self.status_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
         self.status_table.verticalHeader().setVisible(False)
-        status_layout.addWidget(self.status_table)
-        
-        # Manual refresh button
-        refresh_btn = QPushButton("Refresh Status")
-        refresh_btn.clicked.connect(self.manual_refresh)
-        status_layout.addWidget(refresh_btn)
-        
-        status_tab.setLayout(status_layout)
+        status_layout_main.addWidget(self.status_table)
+        refresh_btn = QPushButton("Refresh Status Manually")
+        refresh_btn.clicked.connect(self.manual_refresh_status)
+        status_layout_main.addWidget(refresh_btn)
+        status_tab.setLayout(status_layout_main)
         tabs.addTab(status_tab, "Status")
-        
-        # Controls tab
+
+        # Controls tab (unchanged)
         control_tab = QWidget()
         control_layout = QVBoxLayout()
-        
-        # Basic controls
         basic_group = QGroupBox("Basic Controls")
-        basic_layout = QHBoxLayout()
+        basic_layout_form = QFormLayout() # Changed to QFormLayout for better alignment
+        #basic_layout = QHBoxLayout()
+        start_btn = QPushButton("Start Float (/start_signal)")
+        start_btn.clicked.connect(lambda: self.send_command_to_float("s"))
+        stop_btn = QPushButton("Stop Float (/stop_signal)")
+        stop_btn.clicked.connect(lambda: self.send_command_to_float("st"))
+        start_routine_btn = QPushButton("Start Routine (/start_routine)")
+        start_routine_btn.clicked.connect(lambda: self.send_command_to_float("rs"))
+        recalibrate_depth_btn = QPushButton("Recalibrate Depth Zero (/recalibrate_depth)") # New Button
+        recalibrate_depth_btn.clicked.connect(self.recalibrate_depth_on_float) # New Method
+        basic_layout_form.addRow(start_btn, stop_btn)
+        basic_layout_form.addRow(start_routine_btn, recalibrate_depth_btn) # Added button here
+        basic_group.setLayout(basic_layout_form)
         
-        # Start/Stop buttons
-        start_btn = QPushButton("Start Float")
-        start_btn.clicked.connect(lambda: self.send_command("s"))
-        
-        vel_test_start_btn = QPushButton("Start Velocity Test")
-        vel_test_start_btn.clicked.connect(lambda: self.send_command("vs"))
-        
-        vel_test_stop_btn = QPushButton("Stop Velocity Test")
-        vel_test_stop_btn.clicked.connect(lambda: self.send_command("vst"))
-        
-        stop_btn = QPushButton("Stop Float")
-        stop_btn.clicked.connect(lambda: self.send_command("st"))
-        
-        start_routine_btn = QPushButton("Start Routine")
-        start_routine_btn.clicked.connect(lambda: self.send_command("rs"))
-        
-        basic_layout.addWidget(start_btn)
-        basic_layout.addWidget(vel_test_start_btn)
-        basic_layout.addWidget(vel_test_stop_btn)
-        basic_layout.addWidget(stop_btn)
-        basic_layout.addWidget(start_routine_btn)
-        
-        basic_group.setLayout(basic_layout)
         control_layout.addWidget(basic_group)
-        
-        # Pump controls
-        pump_group = QGroupBox("Pump Controls")
+
+        pump_group = QGroupBox("Pump Controls (Manual - if routine is not active)")
         pump_layout = QHBoxLayout()
-        
         ascend_btn = QPushButton("Ascend")
-        ascend_btn.clicked.connect(lambda: self.send_command("a"))
-        
+        ascend_btn.clicked.connect(lambda: self.send_command_to_float("a"))
         descend_btn = QPushButton("Descend")
-        descend_btn.clicked.connect(lambda: self.send_command("d"))
-        
+        descend_btn.clicked.connect(lambda: self.send_command_to_float("d"))
         pump_stop_btn = QPushButton("Stop Pump")
-        pump_stop_btn.clicked.connect(lambda: self.send_command("."))
-        
+        pump_stop_btn.clicked.connect(lambda: self.send_command_to_float("."))
         pump_layout.addWidget(ascend_btn)
         pump_layout.addWidget(descend_btn)
         pump_layout.addWidget(pump_stop_btn)
-        
         pump_group.setLayout(pump_layout)
         control_layout.addWidget(pump_group)
-        
-        # PID Toggle
-        pid_toggle_btn = QPushButton("Toggle PID Control")
-        pid_toggle_btn.clicked.connect(lambda: self.send_command("pid_toggle"))
-        control_layout.addWidget(pid_toggle_btn)
-        
-        # Data Capture Controls
-        capture_group = QGroupBox("Data Capture")
+
+        capture_group = QGroupBox("Data Capture Log (from /depth endpoint)")
         capture_layout = QVBoxLayout()
-        
         capture_btn_layout = QHBoxLayout()
-        self.start_capture_btn = QPushButton("Start New Capture")
+        self.start_capture_btn = QPushButton("Start New Capture Log")
         self.start_capture_btn.clicked.connect(self.start_new_capture)
-        
-        self.stop_capture_btn = QPushButton("Stop Capture")
+        self.stop_capture_btn = QPushButton("Stop Capture Log & Save")
         self.stop_capture_btn.clicked.connect(self.stop_capture)
         self.stop_capture_btn.setEnabled(False)
-        
         capture_btn_layout.addWidget(self.start_capture_btn)
         capture_btn_layout.addWidget(self.stop_capture_btn)
-        
-        self.capture_status_label = QLabel("Data capture not active")
-        
+        self.capture_status_label = QLabel("Data capture log not active. Waiting for data from float on port 8000.")
         capture_layout.addLayout(capture_btn_layout)
         capture_layout.addWidget(self.capture_status_label)
-        
         capture_group.setLayout(capture_layout)
         control_layout.addWidget(capture_group)
-        
         control_tab.setLayout(control_layout)
         tabs.addTab(control_tab, "Controls")
-        
-        # Parameters tab
+
+        # Parameters tab (unchanged)
         param_tab = QWidget()
         param_layout = QVBoxLayout()
-        
-        # Auto-update control
         auto_update_layout = QHBoxLayout()
-        self.auto_update_checkbox = QCheckBox("Auto-update parameters")
+        self.auto_update_checkbox = QCheckBox("Auto-update parameter fields from float status")
         self.auto_update_checkbox.setChecked(True)
         self.auto_update_checkbox.stateChanged.connect(self.toggle_auto_update)
-        
         auto_update_layout.addWidget(self.auto_update_checkbox)
         auto_update_layout.addStretch()
-        
-        # Manual update button
-        manual_update_btn = QPushButton("Update Parameter Fields")
-        manual_update_btn.clicked.connect(self.update_parameter_fields)
-        auto_update_layout.addWidget(manual_update_btn)
-        
+        manual_update_param_btn = QPushButton("Refresh Parameter Fields Now (from last status)")
+        manual_update_param_btn.clicked.connect(self.update_parameter_fields)
+        auto_update_layout.addWidget(manual_update_param_btn)
         param_layout.addLayout(auto_update_layout)
-        
-        # PID Parameters
-        pid_group = QGroupBox("PID Parameters")
-        pid_form = QFormLayout()
-        
-        self.kp_input = QDoubleSpinBox()
-        self.kp_input.setRange(0, 100)
-        self.kp_input.setDecimals(3)
-        self.kp_input.setSingleStep(0.1)
-        self.kp_input.valueChanged.connect(self.parameter_editing_started)
-        
-        self.ki_input = QDoubleSpinBox()
-        self.ki_input.setRange(0, 100)
-        self.ki_input.setDecimals(3)
-        self.ki_input.setSingleStep(0.01)
-        self.ki_input.valueChanged.connect(self.parameter_editing_started)
-        
-        self.kd_input = QDoubleSpinBox()
-        self.kd_input.setRange(0, 100)
-        self.kd_input.setDecimals(3)
-        self.kd_input.setSingleStep(0.01)
-        self.kd_input.valueChanged.connect(self.parameter_editing_started)
-        
-        self.deadband_input = QSpinBox()
-        self.deadband_input.setRange(0, 50)
-        self.deadband_input.setSingleStep(1)
-        self.deadband_input.valueChanged.connect(self.parameter_editing_started)
-        
-        pid_form.addRow("Kp:", self.kp_input)
-        pid_form.addRow("Ki:", self.ki_input)
-        pid_form.addRow("Kd:", self.kd_input)
-        pid_form.addRow("Deadband:", self.deadband_input)
-        
-        set_pid_btn = QPushButton("Set PID Parameters")
-        set_pid_btn.clicked.connect(self.set_pid_params)
-        
-        set_deadband_btn = QPushButton("Set Deadband")
-        set_deadband_btn.clicked.connect(self.set_pid_deadband)
-        
-        pid_buttons_layout = QHBoxLayout()
-        pid_buttons_layout.addWidget(set_pid_btn)
-        pid_buttons_layout.addWidget(set_deadband_btn)
-        
-        pid_group.setLayout(pid_form)
-        param_layout.addWidget(pid_group)
-        param_layout.addLayout(pid_buttons_layout)
-        
-        # Velocity limits
-        vel_group = QGroupBox("Velocity Limits")
-        vel_form = QFormLayout()
-        
-        self.descent_vel_input = QDoubleSpinBox()
-        self.descent_vel_input.setRange(0, 1)
-        self.descent_vel_input.setDecimals(3)
-        self.descent_vel_input.setSingleStep(0.01)
-        self.descent_vel_input.valueChanged.connect(self.parameter_editing_started)
-        
-        self.ascent_vel_input = QDoubleSpinBox()
-        self.ascent_vel_input.setRange(0, 1)
-        self.ascent_vel_input.setDecimals(3)
-        self.ascent_vel_input.setSingleStep(0.01)
-        self.ascent_vel_input.valueChanged.connect(self.parameter_editing_started)
-        
-        vel_form.addRow("Max Descent (m/s):", self.descent_vel_input)
-        vel_form.addRow("Max Ascent (m/s):", self.ascent_vel_input)
-        
-        set_vel_btn = QPushButton("Set Velocity Limits")
-        set_vel_btn.clicked.connect(self.set_velocity_limits)
-        
-        vel_group.setLayout(vel_form)
-        param_layout.addWidget(vel_group)
-        param_layout.addWidget(set_vel_btn)
-        
-        # Target Depth
+
         depth_group = QGroupBox("Target Depth")
         depth_form = QFormLayout()
-        
         self.target_depth_input = QDoubleSpinBox()
-        self.target_depth_input.setRange(0, 10)
-        self.target_depth_input.setDecimals(3)
-        self.target_depth_input.setSingleStep(0.1)
+        self.target_depth_input.setRange(0, 10); self.target_depth_input.setDecimals(3); self.target_depth_input.setSingleStep(0.1)
         self.target_depth_input.valueChanged.connect(self.parameter_editing_started)
-        
-        self.depth_tolerance_input = QDoubleSpinBox()
-        self.depth_tolerance_input.setRange(0.01, 1.0)
-        self.depth_tolerance_input.setDecimals(3)
-        self.depth_tolerance_input.setSingleStep(0.01)
-        self.depth_tolerance_input.valueChanged.connect(self.parameter_editing_started)
-        
         depth_form.addRow("Target Depth (m):", self.target_depth_input)
-        depth_form.addRow("Tolerance (±m):", self.depth_tolerance_input)
-        
-        depth_buttons_layout = QHBoxLayout()
-        
-        set_depth_btn = QPushButton("Set Target Depth")
-        set_depth_btn.clicked.connect(self.set_target_depth)
-        
-        set_tolerance_btn = QPushButton("Set Tolerance")
-        set_tolerance_btn.clicked.connect(self.set_depth_tolerance)
-        
-        depth_buttons_layout.addWidget(set_depth_btn)
-        depth_buttons_layout.addWidget(set_tolerance_btn)
-        
-        depth_group.setLayout(depth_form)
-        param_layout.addWidget(depth_group)
-        param_layout.addLayout(depth_buttons_layout)
-        
-        # Wait Time
-        wait_group = QGroupBox("Routine Wait Time")
+        set_depth_btn = QPushButton("Set Target Depth"); set_depth_btn.clicked.connect(self.set_target_depth)
+        depth_group.setLayout(depth_form); param_layout.addWidget(depth_group); param_layout.addWidget(set_depth_btn)
+
+        wait_group = QGroupBox("Routine Wait Time at Target")
         wait_form = QFormLayout()
-        
-        self.wait_time_input = QSpinBox()
-        self.wait_time_input.setRange(1, 300)
-        self.wait_time_input.setSingleStep(1)
+        self.wait_time_input = QSpinBox(); self.wait_time_input.setRange(1, 600); self.wait_time_input.setSingleStep(1)
         self.wait_time_input.valueChanged.connect(self.parameter_editing_started)
-        
         wait_form.addRow("Wait Time (seconds):", self.wait_time_input)
+        set_wait_btn = QPushButton("Set Wait Time"); set_wait_btn.clicked.connect(self.set_wait_time)
+        wait_group.setLayout(wait_form); param_layout.addWidget(wait_group); param_layout.addWidget(set_wait_btn)
         
-        set_wait_btn = QPushButton("Set Wait Time")
-        set_wait_btn.clicked.connect(self.set_wait_time)
-        
-        wait_group.setLayout(wait_form)
-        param_layout.addWidget(wait_group)
-        param_layout.addWidget(set_wait_btn)
-        
-        # Read Interval
-        interval_group = QGroupBox("Data Read Intervals")
-        interval_form = QFormLayout()
-        
-        self.normal_interval_input = QSpinBox()
-        self.normal_interval_input.setRange(100, 10000)
-        self.normal_interval_input.setSingleStep(100)
-        self.normal_interval_input.valueChanged.connect(self.parameter_editing_started)
-        
-        self.velocity_interval_input = QSpinBox()
-        self.velocity_interval_input.setRange(10, 1000)
-        self.velocity_interval_input.setSingleStep(10)
-        self.velocity_interval_input.valueChanged.connect(self.parameter_editing_started)
-        
-        interval_form.addRow("Normal Interval (ms):", self.normal_interval_input)
-        interval_form.addRow("Velocity Interval (ms):", self.velocity_interval_input)
-        
-        set_interval_btn = QPushButton("Set Intervals")
-        set_interval_btn.clicked.connect(self.set_read_intervals)
-        
-        interval_group.setLayout(interval_form)
-        param_layout.addWidget(interval_group)
-        param_layout.addWidget(set_interval_btn)
-        
-        # Company settings
         company_group = QGroupBox("Company Settings")
         company_form = QFormLayout()
-
-        self.company_number_input = QSpinBox()
-        self.company_number_input.setRange(1, 99999)
-        self.company_number_input.setSingleStep(1)
+        self.company_number_input = QSpinBox(); self.company_number_input.setRange(1, 99999); self.company_number_input.setSingleStep(1)
         self.company_number_input.valueChanged.connect(self.parameter_editing_started)
-
         company_form.addRow("Company Number:", self.company_number_input)
-
-        set_company_btn = QPushButton("Set Company Number")
-        set_company_btn.clicked.connect(self.set_company_number)
-
-        company_group.setLayout(company_form)
-        param_layout.addWidget(company_group)
-        param_layout.addWidget(set_company_btn)
-
-        param_tab.setLayout(param_layout)
-        tabs.addTab(param_tab, "Parameters")
-        
-        # Graph tab
-        graph_tab = QWidget()
-        graph_layout = QVBoxLayout()
-        
-        graph_actions_layout = QHBoxLayout()
-        
-        plot_depth_btn = QPushButton("Plot Depth Graph")
-        plot_depth_btn.clicked.connect(self.plot_depth_data)
-        
-        save_data_btn = QPushButton("Save Current Data")
-        save_data_btn.clicked.connect(self.save_current_data)
-        
-        load_data_btn = QPushButton("Load and Plot Data...")
-        load_data_btn.clicked.connect(self.load_and_plot_data)
-        
-        graph_actions_layout.addWidget(plot_depth_btn)
-        graph_actions_layout.addWidget(save_data_btn)
-        graph_actions_layout.addWidget(load_data_btn)
-        
-        graph_layout.addLayout(graph_actions_layout)
-        
-        graph_description = QLabel("Click 'Plot Depth Graph' to visualize the depth data from the float. " 
-                                  "The graph will show depth over time, velocity, PID output, and PID error. "
-                                  "Use 'Start New Capture' in the Controls tab to begin a fresh data collection.")
-        graph_description.setWordWrap(True)
-        graph_layout.addWidget(graph_description)
-        
-        # Saved data info
-        saved_data_group = QGroupBox("Saved Data")
-        saved_data_layout = QVBoxLayout()
-        
-        self.saved_data_label = QLabel("No data saved yet")
-        self.saved_data_label.setAlignment(Qt.AlignCenter)
-        saved_data_layout.addWidget(self.saved_data_label)
-        
-        saved_data_group.setLayout(saved_data_layout)
-        graph_layout.addWidget(saved_data_group)
-        
-        graph_tab.setLayout(graph_layout)
-        tabs.addTab(graph_tab, "Graph")
-        
-        main_layout.addWidget(tabs)
-        
-        self.setLayout(main_layout)
-        
-        # Initialize status data
-        self.latest_status_data = {}
-        self.depth_data = []
-        
-        # Update saved data info
-        self.update_saved_data_info()
+        set_company_btn = QPushButton("Set Company Number"); set_company_btn.clicked.connect(self.set_company_number)
+        company_group.setLayout(company_form); param_layout.addWidget(company_group); param_layout.addWidget(set_company_btn)
+        param_layout.addStretch(); param_tab.setLayout(param_layout); tabs.addTab(param_tab, "Parameters")
 
         # Dashboard tab
         dashboard_tab = QWidget()
-        dashboard_layout = QVBoxLayout()
+        dashboard_main_layout = QVBoxLayout() # Main layout for dashboard
+        
+        # Split dashboard into two columns: Info Panels | Plots
+        dashboard_splitter = QHBoxLayout()
 
-        # Company information
-        company_group = QGroupBox("Company Information")
+        # Left Column: Info Panels
+        info_panels_layout = QVBoxLayout()
+
+        # ... (Company Info, Time Info, Depth/Pressure, System Status groups - largely unchanged, updated by /status poll) ...
+        company_info_group = QGroupBox("Company Information")
         company_layout = QFormLayout()
+        company_name_label = QLabel("SBRT"); company_name_label.setStyleSheet("font-size: 16px; font-weight: bold;")
+        self.company_number_label = QLabel("--"); self.company_number_label.setStyleSheet("font-size: 16px;")
+        company_layout.addRow("Company Name:", company_name_label); company_layout.addRow("Company Number:", self.company_number_label)
+        company_info_group.setLayout(company_layout); info_panels_layout.addWidget(company_info_group)
 
-        # Static company name
-        company_name_label = QLabel("SBRT")
-        company_name_label.setStyleSheet("font-size: 16px; font-weight: bold;")
-
-        # Dynamic company number
-        self.company_number_label = QLabel("--")
-        self.company_number_label.setStyleSheet("font-size: 16px;")
-
-        company_layout.addRow("Company Name:", company_name_label)
-        company_layout.addRow("Company Number:", self.company_number_label)
-
-        company_group.setLayout(company_layout)
-        dashboard_layout.addWidget(company_group)
-
-        # Time information
-        time_group = QGroupBox("Time Information")
+        time_group = QGroupBox("Time Information (from /status)")
         time_layout = QFormLayout()
-
-        self.float_time_label = QLabel("--")
-        self.float_time_label.setStyleSheet("font-size: 18px; font-weight: bold;")
-
-        self.float_uptime_label = QLabel("--")
-        self.local_time_label = QLabel("--")
-
-        time_layout.addRow("Float Time (s):", self.float_time_label)
-        time_layout.addRow("Float Uptime:", self.float_uptime_label)
+        self.float_time_label = QLabel("--"); self.float_time_label.setStyleSheet("font-size: 18px; font-weight: bold;")
+        self.float_uptime_label = QLabel("--"); self.local_time_label = QLabel("--")
+        time_layout.addRow("Float Uptime (s):", self.float_time_label); time_layout.addRow("Float Uptime (H:M:S):", self.float_uptime_label)
         time_layout.addRow("Local Time:", self.local_time_label)
+        time_group.setLayout(time_layout); info_panels_layout.addWidget(time_group)
 
-        time_group.setLayout(time_layout)
-        dashboard_layout.addWidget(time_group)
-
-        # Depth and pressure information
-        depth_group = QGroupBox("Depth and Pressure")
-        depth_layout = QFormLayout()
-
-        self.current_depth_label = QLabel("--")
-        self.current_depth_label.setStyleSheet("font-size: 24px; font-weight: bold;")
-
-        self.current_pressure_label = QLabel("--")
-        self.current_pressure_label.setStyleSheet("font-size: 18px;")
-
-        self.target_depth_label = QLabel("--")
+        depth_pressure_group = QGroupBox("Real-time Vitals (from /status)")
+        depth_layout_form = QFormLayout()
+        self.current_depth_label = QLabel("--"); self.current_depth_label.setStyleSheet("font-size: 24px; font-weight: bold;")
+        self.current_pressure_label = QLabel("--"); self.current_pressure_label.setStyleSheet("font-size: 18px;")
+        self.target_depth_dashboard_label = QLabel("--") # Renamed to avoid clash
         self.depth_error_label = QLabel("--")
+        depth_layout_form.addRow("Current Depth:", self.current_depth_label); depth_layout_form.addRow("Current Pressure:", self.current_pressure_label)
+        depth_layout_form.addRow("Target Depth:", self.target_depth_dashboard_label); depth_layout_form.addRow("Depth Error:", self.depth_error_label)
+        depth_pressure_group.setLayout(depth_layout_form); info_panels_layout.addWidget(depth_pressure_group)
+        
+        system_status_group = QGroupBox("System Status (from /status)")
+        status_layout_form = QFormLayout()
+        self.pump_status_label = QLabel("--"); self.routine_status_label = QLabel("--"); self.wifi_status_label = QLabel("--")
+        status_layout_form.addRow("Pump:", self.pump_status_label); status_layout_form.addRow("Routine:", self.routine_status_label)
+        status_layout_form.addRow("WiFi Signal:", self.wifi_status_label)
+        system_status_group.setLayout(status_layout_form); info_panels_layout.addWidget(system_status_group)
+        
+        # LED Legend (unchanged)
+        led_legend_group = QGroupBox("Float LED Status Legend")
+        # ... (LED legend table setup as before) ...
+        led_legend_layout = QVBoxLayout()
+        self.led_legend_table = QTableWidget()
+        self.led_legend_table.setColumnCount(2); self.led_legend_table.setHorizontalHeaderLabels(["Condition", "LED Color/Pattern"])
+        self.led_legend_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch); self.led_legend_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+        self.led_legend_table.verticalHeader().setVisible(False)
+        legend_data = [("Not Started, WiFi Not Connected", "Solid RED"),("Not Started, WiFi Connected", "Blinking RED/GREEN"),
+                       ("Started, WiFi Connected, Routine Idle", "Solid GREEN"),("Started, WiFi Not Connected, Routine Idle", "Solid RED"),
+                       ("Routine Active: Queue <= 20 (Base)", "BLUE"),("Routine Active: Queue > 20 (Base)", "YELLOW"),
+                       ("Routine Active: Overlay Blink - WiFi Not Connected", "Alt Base / RED"),("Routine Active: Overlay Blink - WiFi Connected", "Alt Base / GREEN"),
+                       ("Routine Complete", "Solid WHITE (5s)")]
+        self.led_legend_table.setRowCount(len(legend_data))
+        for row, (condition, pattern) in enumerate(legend_data):
+            self.led_legend_table.setItem(row, 0, QTableWidgetItem(condition)); self.led_legend_table.setItem(row, 1, QTableWidgetItem(pattern))
+        self.led_legend_table.resizeRowsToContents()
+        table_height = self.led_legend_table.horizontalHeader().height() + 2
+        for i in range(self.led_legend_table.rowCount()): table_height += self.led_legend_table.rowHeight(i)
+        self.led_legend_table.setMinimumHeight(table_height if table_height < 200 else 200)
+        self.led_legend_table.setMaximumHeight(250)
+        led_legend_layout.addWidget(self.led_legend_table); led_legend_group.setLayout(led_legend_layout)
+        info_panels_layout.addWidget(led_legend_group)
+        info_panels_layout.addStretch()
+        dashboard_splitter.addLayout(info_panels_layout, 1) # Assign stretch factor 1
 
-        depth_layout.addRow("Current Depth:", self.current_depth_label)
-        depth_layout.addRow("Current Pressure:", self.current_pressure_label)
-        depth_layout.addRow("Target Depth:", self.target_depth_label)
-        depth_layout.addRow("Depth Error:", self.depth_error_label)
+        # Right Column: Plots
+        plots_area_layout = QVBoxLayout()
+        
+        self.hover_text_item = pg.TextItem(anchor=(0,1), color=(0,0,0), fill=(255,255,255,180)) # For hover text
+        self.hover_text_item.setZValue(100) # Ensure it's on top
+        self.hover_text_item.hide()
 
-        depth_group.setLayout(depth_layout)
-        dashboard_layout.addWidget(depth_group)
+        self.depth_plot_widget = pg.PlotWidget(title="Depth vs. Float Time (from /depth)")
+        self.depth_plot_widget.setLabel('left', "Depth (m)"); self.depth_plot_widget.setLabel('bottom', "Float Time Since Start (s)")
+        self.depth_plot_widget.showGrid(x=True, y=True)
+        self.depth_curve = self.depth_plot_widget.plot(pen='b', name="Depth")
+        self.depth_plot_widget.addItem(self.hover_text_item) # Add hover item to one plot, will be positioned globally
+        self.depth_plot_widget.scene().sigMouseMoved.connect(lambda pos: self.on_mouse_moved(pos, self.depth_plot_widget, [self.depth_curve], ["Depth"]))
+        plots_area_layout.addWidget(self.depth_plot_widget)
 
-        # Status information
-        status_group = QGroupBox("System Status")
-        status_layout = QFormLayout()
+        self.velocity_plot_widget = pg.PlotWidget(title="Velocity vs. Float Time (from /depth)")
+        self.velocity_plot_widget.setLabel('left', "Velocity (m/s)"); self.velocity_plot_widget.setLabel('bottom', "Float Time Since Start (s)")
+        self.velocity_plot_widget.showGrid(x=True, y=True)
+        self.velocity_curve = self.velocity_plot_widget.plot(pen='r', name="Velocity")
+        self.velocity_plot_widget.scene().sigMouseMoved.connect(lambda pos: self.on_mouse_moved(pos, self.velocity_plot_widget, [self.velocity_curve], ["Velocity"]))
+        plots_area_layout.addWidget(self.velocity_plot_widget)
 
-        self.pump_status_label = QLabel("--")
-        self.pid_status_label = QLabel("--")
-        self.routine_status_label = QLabel("--")
-        self.wifi_status_label = QLabel("--")
+        self.arrival_plot_widget = pg.PlotWidget(title="Data Packet Arrival Times")
+        self.arrival_plot_widget.setLabel('left', "GUI Time Since Capture Start (s)")
+        self.arrival_plot_widget.setLabel('bottom', "Float Time Since Start (s)")
+        self.arrival_plot_widget.showGrid(x=True, y=True)
+        self.arrival_curve = self.arrival_plot_widget.plot(pen=None, symbol='o', symbolPen='g', symbolBrush='g', name="Arrivals") # Scatter plot
+        self.arrival_plot_widget.scene().sigMouseMoved.connect(lambda pos: self.on_mouse_moved(pos, self.arrival_plot_widget, [self.arrival_curve], ["GUI Time"]))
+        plots_area_layout.addWidget(self.arrival_plot_widget)
+        
+        dashboard_splitter.addLayout(plots_area_layout, 2) # Assign stretch factor 2 (plots take more space)
+        dashboard_main_layout.addLayout(dashboard_splitter)
 
-        status_layout.addRow("Pump:", self.pump_status_label)
-        status_layout.addRow("PID Control:", self.pid_status_label)
-        status_layout.addRow("Routine:", self.routine_status_label)
-        status_layout.addRow("WiFi Signal:", self.wifi_status_label)
-
-        status_group.setLayout(status_layout)
-        dashboard_layout.addWidget(status_group)
-
-        # Setup timer for local time updates
         self.local_time_timer = QTimer()
         self.local_time_timer.timeout.connect(self.update_local_time)
-        self.local_time_timer.start(1000)  # Update every second
+        self.local_time_timer.start(1000)
 
-        dashboard_tab.setLayout(dashboard_layout)
+        dashboard_tab.setLayout(dashboard_main_layout)
         tabs.addTab(dashboard_tab, "Dashboard")
-    
+
+        main_layout.addWidget(tabs)
+        self.setLayout(main_layout)
+
+    def on_mouse_moved(self, pos, plot_widget, curves, curve_names):
+        vb = plot_widget.plotItem.vb
+        mouse_point = vb.mapSceneToView(pos)
+        x_mouse, y_mouse = mouse_point.x(), mouse_point.y()
+        
+        found_point = False
+        text = ""
+
+        for i, curve in enumerate(curves):
+            if curve.yData is None or len(curve.yData) == 0:
+                continue
+
+            # Find the closest point on this curve
+            # This is a simplified proximity check; pyqtgraph has internal ways too
+            # For line plots, checking distance to line segments is complex.
+            # For scatter or line with symbols, checking distance to points is easier.
+            # Here, we'll find the point with the closest x-value.
+            
+            x_data = curve.xData
+            y_data = curve.yData
+
+            if x_data is None or y_data is None or len(x_data) == 0:
+                continue
+
+            # Find index of closest x_data point
+            # This is not perfect for hover, sigPointsHovered is better if available directly on curve
+            # For now, let's find the closest x and check if mouse y is near curve y
+            
+            # A simpler way: check if mouse is within the plot area
+            if plot_widget.plotItem.sceneBoundingRect().contains(pos):
+                min_dist_sq = float('inf')
+                closest_pt_idx = -1
+
+                for idx in range(len(x_data)):
+                    pt_view = QPointF(x_data[idx], y_data[idx])
+                    pt_scene = vb.mapViewToScene(pt_view)
+                    dist_sq = (pos.x() - pt_scene.x())**2 + (pos.y() - pt_scene.y())**2
+                    if dist_sq < min_dist_sq:
+                        min_dist_sq = dist_sq
+                        closest_pt_idx = idx
+                
+                # Threshold for hover (e.g., 10 pixels squared)
+                if closest_pt_idx != -1 and min_dist_sq < 100: # 10px radius
+                    x_val = x_data[closest_pt_idx]
+                    y_val = y_data[closest_pt_idx]
+                    text += f"{curve_names[i]}:\n  Time: {x_val:.2f}s\n  Value: {y_val:.3f}\n"
+                    found_point = True
+        
+        if found_point:
+            self.hover_text_item.setText(text.strip())
+            self.hover_text_item.setPos(mouse_point.x(), mouse_point.y()) # Position near mouse
+            # Ensure hover_text_item is associated with the current plot_widget's viewbox if it's shared
+            if self.hover_text_item.getViewBox() is None or self.hover_text_item.getViewBox() != vb:
+                 if self.hover_text_item.getViewBox(): # Remove from old viewbox if any
+                     self.hover_text_item.getViewBox().removeItem(self.hover_text_item)
+                 vb.addItem(self.hover_text_item) # Add to current viewbox
+            self.hover_text_item.show()
+        else:
+            self.hover_text_item.hide()
+
+
     def parameter_editing_started(self):
-        """Called when the user starts editing a parameter field"""
         self.editing_fields = True
-        # Reset the auto-update timer
         if self.auto_update_checkbox.isChecked():
-            self.auto_update_timer.start(10000)  # 10 second delay
-    
+            self.auto_update_timer.start(10000)
+
     def toggle_auto_update(self, state):
-        """Toggle automatic parameter field updates"""
         if state == Qt.Checked:
             self.auto_update_timer.start(10000)
+            self.update_parameter_fields()
         else:
             self.auto_update_timer.stop()
-    
+
     def start_new_capture(self):
-        """Start a new data capture session"""
-        self.depth_data = []  # Clear existing data
-        self.capturing_data = True
-        self.capture_start_time = datetime.datetime.now()
+        self.logged_data_points = []
+        self.plot_float_time.clear(); self.plot_depth_data.clear(); self.plot_velocity_data.clear()
+        self.plot_arrival_float_time.clear(); self.plot_arrival_gui_time_numeric.clear()
         
-        # Create a new capture file name
-        timestamp = self.capture_start_time.strftime("%Y%m%d_%H%M%S")
+        self.depth_curve.clear(); self.velocity_curve.clear(); self.arrival_curve.clear()
+
+        self.capturing_data = True
+        self.capture_start_time_gui = datetime.datetime.now() # GUI's capture start time
+        FloatDataHandler.gui_capture_start_time_ref = lambda: self.capture_start_time_gui # Update ref
+
+        timestamp = self.capture_start_time_gui.strftime("%Y%m%d_%H%M%S")
         self.current_capture_file = f"float_capture_{timestamp}.json"
         
-        # Update UI
         self.start_capture_btn.setEnabled(False)
         self.stop_capture_btn.setEnabled(True)
-        self.capture_status_label.setText(f"Capturing data to {self.current_capture_file}")
-        
-        # Inform the user
-        QMessageBox.information(self, "Data Capture Started", 
-                               f"Started a new data capture session.\nData will be saved to {self.current_capture_file}")
-    
+        self.capture_status_label.setText(f"Logging data to {self.current_capture_file} (from /depth)")
+        QMessageBox.information(self, "Data Capture Log Started",
+                               f"Started new data log.\nData from float's /depth endpoint will be saved to {self.current_capture_file} upon stopping.")
+
     def stop_capture(self):
-        """Stop the current data capture and save it"""
         if not self.capturing_data:
             return
-            
         self.capturing_data = False
-        
-        # Save the captured data
-        if self.depth_data and self.current_capture_file:
+        if self.logged_data_points and self.current_capture_file:
             filepath = os.path.join(self.data_directory, self.current_capture_file)
-            
             try:
                 with open(filepath, 'w') as f:
-                    json.dump(self.depth_data, f, indent=2)
+                    json.dump(self.logged_data_points, f, indent=2)
+                # self.save_to_coordinates_json(self.logged_data_points) # If you still need this specific format
                 
-                # Also save to coordinates_data.json
-                self.save_to_coordinates_json(self.depth_data)
-                
-                # Update UI
                 self.start_capture_btn.setEnabled(True)
                 self.stop_capture_btn.setEnabled(False)
-                self.capture_status_label.setText(f"Capture stopped. Saved {len(self.depth_data)} data points.")
-                
-                # Update saved data info
-                self.update_saved_data_info()
-                
-                # Inform the user
-                QMessageBox.information(self, "Data Capture Completed", 
-                                      f"Capture completed. Saved {len(self.depth_data)} data points to {self.current_capture_file}")
+                self.capture_status_label.setText(f"Capture log stopped. Saved {len(self.logged_data_points)} points.")
+                QMessageBox.information(self, "Data Capture Log Completed",
+                                      f"Saved {len(self.logged_data_points)} data points to {self.current_capture_file}")
             except Exception as e:
-                QMessageBox.critical(self, "Save Error", f"Error saving capture data: {str(e)}")
+                QMessageBox.critical(self, "Save Error", f"Error saving capture log: {str(e)}")
                 traceback.print_exc()
         else:
             self.start_capture_btn.setEnabled(True)
             self.stop_capture_btn.setEnabled(False)
-            self.capture_status_label.setText("Capture stopped. No data to save.")
-    
-    def connect_to_float(self):
-        """Connect to the float and start polling for status"""
+            self.capture_status_label.setText("Capture log stopped. No data to save.")
+        self.capture_start_time_gui = None # Reset GUI capture start time
+        FloatDataHandler.gui_capture_start_time_ref = lambda: self.capture_start_time_gui # Update ref
+
+    def connect_to_float_status(self): # Renamed to be specific
         self.float_ip = self.ip_input.text().strip()
-        
         if not self.float_ip:
-            QMessageBox.warning(self, "Connection Error", "Please enter a valid IP address")
+            QMessageBox.warning(self, "Connection Error", "Please enter a valid IP address for the float.")
             return
-            
-        # Stop any existing worker
-        if self.worker:
-            self.worker.stop()
-            
-        # Create a new worker
-        self.worker = FloatStatusWorker(self.float_ip)
-        self.worker.status_received.connect(self.update_status)
-        self.worker.error_occurred.connect(self.handle_error)
-        self.worker.start()
-        
-        # Immediate status request
-        self.manual_refresh()
-        
-    def manual_refresh(self):
-        """Manually refresh the status data"""
+        if self.status_worker and self.status_worker.isRunning():
+            self.status_worker.stop()
+        self.status_worker = FloatStatusWorker(self.float_ip)
+        self.status_worker.status_received.connect(self.update_dashboard_from_status) # Changed target
+        self.status_worker.error_occurred.connect(self.handle_status_error)
+        self.status_worker.start()
+        self.manual_refresh_status()
+        QMessageBox.information(self, "Status Connection", f"Attempting to connect to float at {self.float_ip} for status updates.")
+
+
+    def manual_refresh_status(self):
         if not self.float_ip:
-            QMessageBox.warning(self, "Connection Error", "Please connect to a float first")
+            QMessageBox.warning(self, "Connection Error", "Please connect to a float first (for status).")
             return
-            
         try:
             url = f"http://{self.float_ip}/status"
-            response = requests.get(url, timeout=5)
+            response = requests.get(url, timeout=3)
             if response.status_code == 200:
-                self.update_status(response.json())
+                self.update_dashboard_from_status(response.json())
             else:
-                self.handle_error(f"Error: Server returned status code {response.status_code}")
+                self.handle_status_error(f"Error: Server returned status code {response.status_code}")
         except Exception as e:
-            self.handle_error(f"Connection error: {str(e)}")
-    
-    def update_status(self, status_data):
-        """Update the status table with the received data"""
-        self.latest_status_data = status_data
-        self.status_table.setRowCount(0)  # Clear existing rows
+            self.handle_status_error(f"Connection error: {str(e)}")
+
+    def handle_float_data_packet(self, measurements_list, gui_received_timestamp):
+        if not self.capturing_data or not self.capture_start_time_gui:
+            return # Only process if capturing
+
+        gui_time_numeric = (gui_received_timestamp - self.capture_start_time_gui).total_seconds()
+
+        for m_data in measurements_list:
+            try:
+                float_time = m_data.get('time') # This is float's timeSinceStart
+                depth = m_data.get('depth')
+                velocity = m_data.get('velocity')
+                pressure = m_data.get('pressure')
+                pump_status = m_data.get('pump_status', 'unknown')
+
+                if float_time is None or depth is None or velocity is None:
+                    print(f"Skipping incomplete data point: {m_data}")
+                    continue
+
+                # Log the comprehensive data point
+                logged_point = {
+                    'float_time_since_start': float_time,
+                    'depth': depth,
+                    'velocity': velocity,
+                    'pressure': pressure,
+                    'pump_status': pump_status,
+                    'gui_received_timestamp_abs': gui_received_timestamp.isoformat(),
+                    'gui_time_since_capture_start': gui_time_numeric
+                }
+                self.logged_data_points.append(logged_point)
+
+                # Update plot data lists
+                self.plot_float_time.append(float_time)
+                self.plot_depth_data.append(depth)
+                self.plot_velocity_data.append(velocity)
+                
+                self.plot_arrival_float_time.append(float_time)
+                self.plot_arrival_gui_time_numeric.append(gui_time_numeric)
+
+                # Keep plot data lists to max_plot_points
+                while len(self.plot_float_time) > self.max_plot_points:
+                    self.plot_float_time.pop(0)
+                    self.plot_depth_data.pop(0)
+                    self.plot_velocity_data.pop(0)
+                while len(self.plot_arrival_float_time) > self.max_plot_points:
+                    self.plot_arrival_float_time.pop(0)
+                    self.plot_arrival_gui_time_numeric.pop(0)
+                
+                # Update plots
+                self.depth_curve.setData(self.plot_float_time, self.plot_depth_data)
+                self.velocity_curve.setData(self.plot_float_time, self.plot_velocity_data)
+                self.arrival_curve.setData(self.plot_arrival_float_time, self.plot_arrival_gui_time_numeric)
+
+                if len(self.logged_data_points) % 20 == 0 and self.current_capture_file: # Periodic save
+                    try:
+                        filepath = os.path.join(self.data_directory, self.current_capture_file)
+                        with open(filepath, 'w') as f: json.dump(self.logged_data_points, f, indent=2)
+                        self.capture_status_label.setText(f"Logging: {len(self.logged_data_points)} points recorded (from /depth)")
+                    except Exception as e: print(f"Error auto-saving capture log: {e}")
+
+            except Exception as e:
+                print(f"Error processing individual measurement for logging/plotting: {e}, Data: {m_data}")
+                traceback.print_exc()
         
-        # Flatten the nested structure for display
+        # Update capture status label with the latest count
+        self.capture_status_label.setText(f"Logging: {len(self.logged_data_points)} points recorded (from /depth)")
+
+
+    def update_local_time(self):
+        current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self.local_time_label.setText(current_time)
+
+    def update_dashboard_from_status(self, status_data): # Renamed
+        self.latest_status_data = status_data # Keep for parameter tab and status table
+        
+        # Update Status Table
+        self.status_table.setRowCount(0)
         flat_data = self.flatten_dict(status_data)
-        
-        # Fill the table
         for i, (key, value) in enumerate(flat_data.items()):
             self.status_table.insertRow(i)
             self.status_table.setItem(i, 0, QTableWidgetItem(key))
             self.status_table.setItem(i, 1, QTableWidgetItem(str(value)))
-        
-        # Update dashboard with the new data
-        self.update_dashboard(status_data)
-        
-        # Update parameter fields if auto-update is enabled and not currently editing
+
+        # Update Dashboard Info Panels
+        if not status_data: return
+        self.company_number_label.setText(str(status_data.get('company_number', '--')))
+        uptime_seconds = status_data.get('uptime_seconds')
+        if uptime_seconds is not None:
+            self.float_time_label.setText(f"{uptime_seconds:.1f} s")
+            h, rem = divmod(uptime_seconds, 3600); m, s = divmod(rem, 60)
+            self.float_uptime_label.setText(f"{int(h)}:{int(m):02d}:{int(s):02d}")
+        else: self.float_time_label.setText("--"); self.float_uptime_label.setText("--")
+
+        depth_info = status_data.get('depth', {})
+        self.current_depth_label.setText(f"{depth_info.get('current', 0):.3f} m")
+        self.current_pressure_label.setText(f"{depth_info.get('pressure', 0):.2f} mbar")
+        self.target_depth_dashboard_label.setText(f"{depth_info.get('target', 0):.3f} m") # Use renamed label
+
+        current_depth_val = depth_info.get('current'); target_depth_val = depth_info.get('target')
+        if current_depth_val is not None and target_depth_val is not None:
+            error = current_depth_val - target_depth_val; self.depth_error_label.setText(f"{error:.3f} m")
+            style = "font-weight: bold; color: "; style += "green;" if abs(error) < 0.05 else "orange;" if abs(error) < 0.1 else "red;"
+            self.depth_error_label.setStyleSheet(style)
+        else: self.depth_error_label.setText("--"); self.depth_error_label.setStyleSheet("")
+
+        pump_state = status_data.get('pump', {}).get('state', 'unknown')
+        self.pump_status_label.setText(pump_state.capitalize())
+        if pump_state == "off": self.pump_status_label.setStyleSheet("color: gray;")
+        elif pump_state == "ascending": self.pump_status_label.setStyleSheet("color: blue; font-weight: bold;")
+        elif pump_state == "descending": self.pump_status_label.setStyleSheet("color: red; font-weight: bold;")
+        else: self.pump_status_label.setStyleSheet("")
+
+        routine_data = status_data.get('routine', {})
+        if routine_data.get('active', False):
+            state = routine_data.get('state', 'Unknown'); wait_rem = routine_data.get('collection_timeout_remaining_seconds')
+            text = f"Active: {state.replace('_', ' ').capitalize()}"
+            if state == "collecting_data_at_target" and wait_rem is not None: text += f" ({wait_rem}s left)"
+            self.routine_status_label.setText(text); self.routine_status_label.setStyleSheet("color: green; font-weight: bold;")
+        else: self.routine_status_label.setText("Inactive"); self.routine_status_label.setStyleSheet("color: gray;")
+
+        wifi_data = status_data.get('wifi', {}); rssi = wifi_data.get('rssi'); good_sig = wifi_data.get('good_signal')
+        if rssi is not None and good_sig is not None:
+            self.wifi_status_label.setText(f"{rssi} dBm ({'Good' if good_sig else 'Poor'})")
+            self.wifi_status_label.setStyleSheet("font-weight: bold; color: green;" if good_sig else "font-weight: bold; color: red;")
+        else: self.wifi_status_label.setText("--"); self.wifi_status_label.setStyleSheet("")
+
         if self.auto_update_checkbox.isChecked() and not self.editing_fields:
-            self.update_parameter_fields()
-        
-        # Reset editing flag after a short delay if it was set
+            self.update_parameter_fields() # Update param tab from this status
         if self.editing_fields:
             QTimer.singleShot(10000, self.reset_editing_flag)
-                
-        # Store depth data for plotting if we're capturing
-        if self.capturing_data and 'depth' in status_data and 'current' in status_data['depth']:
-            try:
-                data_point = {
-                    'time': status_data['uptime_seconds'],
-                    'depth': status_data['depth']['current'],
-                    'pressure': status_data['depth']['pressure'] if 'pressure' in status_data['depth'] else 0,
-                    'velocity': status_data['velocity']['current'] if 'velocity' in status_data and 'current' in status_data['velocity'] else 0,
-                    'pid_output': status_data['pid']['last_output'] if 'pid' in status_data and 'last_output' in status_data['pid'] else 0,
-                    'pid_error': status_data['pid']['last_error'] if 'pid' in status_data and 'last_error' in status_data['pid'] else 0,
-                    'pump_status': status_data['pump']['state'] if 'pump' in status_data and 'state' in status_data['pump'] else 'unknown'
-                }
-                self.depth_data.append(data_point)
-                
-                # Periodically save the ongoing capture data
-                if len(self.depth_data) % 20 == 0 and self.current_capture_file:
-                    try:
-                        filepath = os.path.join(self.data_directory, self.current_capture_file)
-                        with open(filepath, 'w') as f:
-                            json.dump(self.depth_data, f, indent=2)
-                        self.capture_status_label.setText(f"Capturing: {len(self.depth_data)} points recorded")
-                    except Exception as e:
-                        print(f"Error auto-saving capture: {e}")
-            except Exception as e:
-                print(f"Error storing depth data: {e}")
-                traceback.print_exc()
 
-    def update_local_time(self):
-        """Update the local time display"""
-        current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        self.local_time_label.setText(current_time)
 
-    def update_dashboard(self, status_data):
-        """Update the dashboard with the latest status data"""
-        if not status_data:
-            return
-            
-        # Update company number - directly from status data or use constant
-        if 'company_number' in status_data:
-            # Get it from the status response
-            company_number = status_data['company_number']
-            self.company_number_label.setText(str(company_number))
-
-        # Update time information
-        if 'uptime_seconds' in status_data:
-            uptime_seconds = status_data['uptime_seconds']
-            self.float_time_label.setText(f"{uptime_seconds:.1f} s")
-            
-            # Format uptime into hours:minutes:seconds
-            hours, remainder = divmod(uptime_seconds, 3600)
-            minutes, seconds = divmod(remainder, 60)
-            self.float_uptime_label.setText(f"{int(hours)}:{int(minutes):02d}:{int(seconds):02d}")
-        
-        # Update depth and pressure information
-        if 'depth' in status_data:
-            depth_data = status_data['depth']
-            if 'current' in depth_data:
-                self.current_depth_label.setText(f"{depth_data['current']:.3f} m")
-            if 'pressure' in depth_data:
-                self.current_pressure_label.setText(f"{depth_data['pressure']:.2f} mbar")
-            if 'target' in depth_data:
-                self.target_depth_label.setText(f"{depth_data['target']:.3f} m")
-        
-        # Update depth error
-        if 'pid' in status_data and 'last_error' in status_data['pid']:
-            error = status_data['pid']['last_error']
-            self.depth_error_label.setText(f"{error:.3f} m")
-            
-            # Set color based on error
-            if abs(error) < 0.05:
-                self.depth_error_label.setStyleSheet("color: green; font-weight: bold;")
-            elif abs(error) < 0.1:
-                self.depth_error_label.setStyleSheet("color: orange; font-weight: bold;")
-            else:
-                self.depth_error_label.setStyleSheet("color: red; font-weight: bold;")
-        
-        # Update system status
-        if 'pump' in status_data and 'state' in status_data['pump']:
-            pump_state = status_data['pump']['state']
-            self.pump_status_label.setText(pump_state.capitalize())
-            
-            # Set color based on pump state
-            if pump_state == "off":
-                self.pump_status_label.setStyleSheet("color: gray;")
-            elif pump_state == "ascending":
-                self.pump_status_label.setStyleSheet("color: blue; font-weight: bold;")
-            elif pump_state == "descending":
-                self.pump_status_label.setStyleSheet("color: red; font-weight: bold;")
-        
-        if 'pid' in status_data and 'active' in status_data['pid']:
-            pid_active = status_data['pid']['active']
-            self.pid_status_label.setText("Active" if pid_active else "Inactive")
-            self.pid_status_label.setStyleSheet("color: green; font-weight: bold;" if pid_active else "color: gray;")
-        
-        if 'routine' in status_data:
-            routine_data = status_data['routine']
-            if 'active' in routine_data and routine_data['active']:
-                if 'state' in routine_data:
-                    state = routine_data['state']
-                    if state == "waiting" and 'wait_remaining_seconds' in routine_data:
-                        self.routine_status_label.setText(f"Active: {state.capitalize()} ({routine_data['wait_remaining_seconds']}s)")
-                    else:
-                        self.routine_status_label.setText(f"Active: {state.capitalize()}")
-                    self.routine_status_label.setStyleSheet("color: green; font-weight: bold;")
-            else:
-                self.routine_status_label.setText("Inactive")
-                self.routine_status_label.setStyleSheet("color: gray;")
-        
-        if 'wifi' in status_data:
-            wifi_data = status_data['wifi']
-            if 'rssi' in wifi_data and 'good_signal' in wifi_data:
-                rssi = wifi_data['rssi']
-                good_signal = wifi_data['good_signal']
-                self.wifi_status_label.setText(f"{rssi} dBm ({'Good' if good_signal else 'Poor'})")
-                self.wifi_status_label.setStyleSheet("color: green; font-weight: bold;" if good_signal else "color: red; font-weight: bold;")
-    def update_parameter_fields(self):
-        """Update parameter input fields with current values from status data"""
-        if not self.latest_status_data:
-            return
-            
+    def update_parameter_fields(self): # Uses self.latest_status_data
+        if not self.latest_status_data: return
         try:
-            # Store current values to detect changes
-            old_values = {
-                'kp': self.kp_input.value(),
-                'ki': self.ki_input.value(),
-                'kd': self.kd_input.value(),
-                'deadband': self.deadband_input.value(),
-                'descent_vel': self.descent_vel_input.value(),
-                'ascent_vel': self.ascent_vel_input.value(),
-                'target_depth': self.target_depth_input.value(),
-                'tolerance': self.depth_tolerance_input.value(),
-                'wait_time': self.wait_time_input.value(),
-                'normal_interval': self.normal_interval_input.value(),
-                'velocity_interval': self.velocity_interval_input.value(),
-                'company_number': self.company_number_input.value()  # Add this line
-            }
-            # Update company number if it exists in status data
-            if 'company_number' in self.latest_status_data:
-                self.company_number_input.setValue(self.latest_status_data['company_number'])
-                
-            # PID parameters
-            if 'pid' in self.latest_status_data:
-                if 'kp' in self.latest_status_data['pid']:
-                    self.kp_input.setValue(self.latest_status_data['pid']['kp'])
-                if 'ki' in self.latest_status_data['pid']:
-                    self.ki_input.setValue(self.latest_status_data['pid']['ki'])
-                if 'kd' in self.latest_status_data['pid']:
-                    self.kd_input.setValue(self.latest_status_data['pid']['kd'])
-                if 'deadband' in self.latest_status_data['pid']:
-                    self.deadband_input.setValue(self.latest_status_data['pid']['deadband'])
-            
-            # Velocity limits - Fix for not updating
-            if 'velocity' in self.latest_status_data:
-                if 'max_descent' in self.latest_status_data['velocity']:
-                    self.descent_vel_input.setValue(self.latest_status_data['velocity']['max_descent'])
-                if 'max_ascent' in self.latest_status_data['velocity']:
-                    self.ascent_vel_input.setValue(self.latest_status_data['velocity']['max_ascent'])
-            
-            # Target depth
-            if 'depth' in self.latest_status_data:
-                if 'target' in self.latest_status_data['depth']:
-                    self.target_depth_input.setValue(self.latest_status_data['depth']['target'])
-                if 'tolerance' in self.latest_status_data['depth']:
-                    self.depth_tolerance_input.setValue(self.latest_status_data['depth']['tolerance'])
-            
-            # Wait time
-            if 'routine' in self.latest_status_data and 'wait_time_seconds' in self.latest_status_data['routine']:
-                self.wait_time_input.setValue(self.latest_status_data['routine']['wait_time_seconds'])
-            
-            # Read interval
-            if 'queue' in self.latest_status_data and 'read_interval_ms' in self.latest_status_data['queue']:
-                self.normal_interval_input.setValue(self.latest_status_data['queue']['read_interval_ms'])
-            
-            # Check for velocity test mode to update velocity interval
-            if 'queue' in self.latest_status_data and 'velocity_interval_ms' in self.latest_status_data['queue']:
-                self.velocity_interval_input.setValue(self.latest_status_data['queue']['velocity_interval_ms'])
-            
-            
-            # Check if any values changed and log them
-            new_values = {
-                'kp': self.kp_input.value(),
-                'ki': self.ki_input.value(),
-                'kd': self.kd_input.value(),
-                'deadband': self.deadband_input.value(),
-                'descent_vel': self.descent_vel_input.value(),
-                'ascent_vel': self.ascent_vel_input.value(),
-                'target_depth': self.target_depth_input.value(),
-                'tolerance': self.depth_tolerance_input.value(),
-                'wait_time': self.wait_time_input.value(),
-                'normal_interval': self.normal_interval_input.value(),
-                'velocity_interval': self.velocity_interval_input.value(),
-                'company_number': self.company_number_input.value()  # Add this line
-            }
-            
-            # Log changes for debugging
-            for key, new_val in new_values.items():
-                if new_val != old_values[key]:
-                    print(f"Updated {key}: {old_values[key]} -> {new_val}")
-                
-        except Exception as e:
-            print(f"Error updating parameter fields: {e}")
-            traceback.print_exc()
+            if 'company_number' in self.latest_status_data: self.company_number_input.setValue(self.latest_status_data['company_number'])
+            if 'depth' in self.latest_status_data and 'target' in self.latest_status_data['depth']: self.target_depth_input.setValue(self.latest_status_data['depth']['target'])
+            if 'routine' in self.latest_status_data and 'wait_time_seconds_config' in self.latest_status_data['routine']: self.wait_time_input.setValue(self.latest_status_data['routine']['wait_time_seconds_config'])
+        except Exception as e: print(f"Error updating parameter fields: {e}"); traceback.print_exc()
 
-    def reset_editing_flag(self):
-        """Reset the editing flag to allow auto-updates again"""
-        self.editing_fields = False
-    
+    def reset_editing_flag(self): self.editing_fields = False
+
     def flatten_dict(self, d, parent_key='', sep='.'):
-        """Flatten a nested dictionary for easier display in a table"""
-        items = {}
+        items = {}; 
         for k, v in d.items():
             new_key = f"{parent_key}{sep}{k}" if parent_key else k
-            if isinstance(v, dict):
-                items.update(self.flatten_dict(v, new_key, sep=sep))
-            else:
-                items[new_key] = v
+            if isinstance(v, dict): items.update(self.flatten_dict(v, new_key, sep=sep))
+            else: items[new_key] = v
         return items
-    
-    def handle_error(self, error_message):
-        """Handle connection errors"""
-        print(f"Error: {error_message}")
-        
-    def send_command(self, command):
-        """Send a command to the float"""
-        if not self.float_ip:
-            QMessageBox.warning(self, "Connection Error", "Please connect to a float first")
-            return
-            
+
+    def handle_status_error(self, error_message): # Renamed
+        print(f"Status Error: {error_message}")
+        # Potentially update a status bar in UI
+
+    def send_command_to_float(self, command_char_code): # Renamed
+        if not self.float_ip: QMessageBox.warning(self, "Command Error", "Float IP not set. Connect to status first."); return
         try:
-            if command == "s":
-                # For start command, need to include the laptop's IP
-                hostname = socket.gethostname()
-                laptop_ip = socket.gethostbyname(hostname)
-                url = f"http://{self.float_ip}/start_signal?ip_address={laptop_ip}"
-            elif command == "vs":
-                url = f"http://{self.float_ip}/start_velocity"
-            elif command == "vst":
-                url = f"http://{self.float_ip}/stop_velocity"
-            elif command == "st":
-                url = f"http://{self.float_ip}/stop_signal"
-            elif command == "rs":
-                url = f"http://{self.float_ip}/start_routine"
-            elif command == "a":
-                url = f"http://{self.float_ip}/pump_ascend"
-            elif command == "d":
-                url = f"http://{self.float_ip}/pump_descend"
-            elif command == ".":
-                url = f"http://{self.float_ip}/pump_stop"
-            elif command == "pid_toggle":
-                url = f"http://{self.float_ip}/toggle_pid_control"
-            else:
-                QMessageBox.warning(self, "Command Error", f"Unknown command: {command}")
-                return
-                
+            url_map = {"s": "/start_signal", "st": "/stop_signal", "rs": "/start_routine",
+                       "a": "/pump_ascend", "d": "/pump_descend", ".": "/pump_stop"}
+            endpoint = url_map.get(command_char_code)
+            if not endpoint: QMessageBox.warning(self, "Command Error", f"Unknown command code: {command_char_code}"); return
+
+            url = f"http://{self.float_ip}{endpoint}"; params = {}
+            if command_char_code == "s": # Start signal requires GUI's IP
+                try: laptop_ip = socket.gethostbyname(socket.gethostname()) # This might fail if hostname not resolvable
+                except socket.gaierror: # Fallback or error
+                    active_ip = self.get_active_ip_address()
+                    if not active_ip or active_ip == '127.0.0.1':
+                        QMessageBox.critical(self, "Network Error", "Could not determine active IP address for the GUI machine. Float cannot send data back.")
+                        return
+                    laptop_ip = active_ip
+                params['ip_address'] = laptop_ip
+            
+            response = requests.get(url, params=params if params else None, timeout=5)
+            if response.status_code == 200:
+                print(f"Command '{command_char_code}' sent. Response: {response.text}")
+                QMessageBox.information(self, "Command Sent", f"Command '{endpoint}' sent.\nResponse: {response.text}")
+                QTimer.singleShot(500, self.manual_refresh_status) # Refresh status after command
+            else: QMessageBox.warning(self, "Command Error", f"Server: {response.status_code}: {response.text}")
+        except Exception as e: QMessageBox.critical(self, "Connection Error", f"Cmd '{command_char_code}': {str(e)}"); traceback.print_exc()
+
+    def recalibrate_depth_on_float(self):
+        if not self.float_ip:
+            QMessageBox.warning(self, "Command Error", "Float IP not set. Connect to status first.")
+            return
+        try:
+            url = f"http://{self.float_ip}/recalibrate_depth"
             response = requests.get(url, timeout=5)
             if response.status_code == 200:
-                print(f"Command {command} sent successfully")
-                # Refresh status after command
-                QTimer.singleShot(500, self.manual_refresh)
+                print(f"Command '/recalibrate_depth' sent. Response: {response.text}")
+                QMessageBox.information(self, "Command Sent", f"Command '/recalibrate_depth' sent.\nResponse: {response.text}")
+                QTimer.singleShot(500, self.manual_refresh_status) # Refresh status
             else:
-                QMessageBox.warning(self, "Command Error", f"Server returned status code {response.status_code}")
-                
+                QMessageBox.warning(self, "Command Error", f"Server for /recalibrate_depth: {response.status_code}: {response.text}")
         except Exception as e:
-            QMessageBox.critical(self, "Connection Error", f"Failed to send command: {str(e)}")
+            QMessageBox.critical(self, "Connection Error", f"Command '/recalibrate_depth' error: {str(e)}")
             traceback.print_exc()
-    
-    def set_pid_params(self):
-        """Set PID parameters"""
-        if not self.float_ip:
-            QMessageBox.warning(self, "Connection Error", "Please connect to a float first")
-            return
-            
+
+    def get_active_ip_address(self):
+        # Attempt to find a non-localhost IP. This is a common heuristic.
         try:
-            kp = self.kp_input.value()
-            ki = self.ki_input.value()
-            kd = self.kd_input.value()
-            
-            url = f"http://{self.float_ip}/set_pid"
-            params = {'kp': kp, 'ki': ki, 'kd': kd}
-            
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.settimeout(0)
+            s.connect(('10.254.254.254', 1)) # Doesn't have to be reachable
+            ip = s.getsockname()[0]
+        except Exception:
+            ip = '127.0.0.1' # Fallback
+        finally:
+            s.close()
+        return ip
+
+    def _send_parameter_update(self, endpoint, params, success_msg, error_title):
+        if not self.float_ip: QMessageBox.warning(self, "Error", "Float IP not set."); return
+        try:
+            url = f"http://{self.float_ip}{endpoint}"
             response = requests.get(url, params=params, timeout=5)
-            if response.status_code == 200:
-                QMessageBox.information(self, "Success", "PID parameters updated successfully")
-                # Refresh status
-                QTimer.singleShot(500, self.manual_refresh)
-            else:
-                QMessageBox.warning(self, "Error", f"Failed to update PID parameters: {response.text}")
-                
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Error setting PID parameters: {str(e)}")
-            traceback.print_exc()
-    
-    def set_pid_deadband(self):
-        """Set PID deadband"""
-        if not self.float_ip:
-            QMessageBox.warning(self, "Connection Error", "Please connect to a float first")
-            return
-            
-        try:
-            deadband = self.deadband_input.value()
-            
-            url = f"http://{self.float_ip}/set_pid_deadband"
-            params = {'value': deadband}
-            
-            response = requests.get(url, params=params, timeout=5)
-            if response.status_code == 200:
-                QMessageBox.information(self, "Success", "PID deadband updated successfully")
-                # Refresh status
-                QTimer.singleShot(500, self.manual_refresh)
-            else:
-                QMessageBox.warning(self, "Error", f"Failed to update PID deadband: {response.text}")
-                
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Error setting PID deadband: {str(e)}")
-            traceback.print_exc()
-    
-    def set_velocity_limits(self):
-        """Set velocity limits"""
-        if not self.float_ip:
-            QMessageBox.warning(self, "Connection Error", "Please connect to a float first")
-            return
-            
-        try:
-            descent = self.descent_vel_input.value()
-            ascent = self.ascent_vel_input.value()
-            
-            url = f"http://{self.float_ip}/set_velocity"
-            params = {'descent': descent, 'ascent': ascent}
-            
-            response = requests.get(url, params=params, timeout=5)
-            if response.status_code == 200:
-                QMessageBox.information(self, "Success", "Velocity limits updated successfully")
-                # Refresh status
-                QTimer.singleShot(500, self.manual_refresh)
-            else:
-                QMessageBox.warning(self, "Error", f"Failed to update velocity limits: {response.text}")
-                
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Error setting velocity limits: {str(e)}")
-            traceback.print_exc()
-    
-    def set_target_depth(self):
-        """Set target depth"""
-        if not self.float_ip:
-            QMessageBox.warning(self, "Connection Error", "Please connect to a float first")
-            return
-            
-        try:
-            depth = self.target_depth_input.value()
-            
-            url = f"http://{self.float_ip}/set_target_depth"
-            params = {'depth': depth}
-            
-            response = requests.get(url, params=params, timeout=5)
-            if response.status_code == 200:
-                QMessageBox.information(self, "Success", "Target depth updated successfully")
-                # Refresh status
-                QTimer.singleShot(500, self.manual_refresh)
-            else:
-                QMessageBox.warning(self, "Error", f"Failed to update target depth: {response.text}")
-                
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Error setting target depth: {str(e)}")
-            traceback.print_exc()
-    
-    def set_depth_tolerance(self):
-        """Set depth tolerance"""
-        if not self.float_ip:
-            QMessageBox.warning(self, "Connection Error", "Please connect to a float first")
-            return
-            
-        try:
-            tolerance = self.depth_tolerance_input.value()
-            
-            url = f"http://{self.float_ip}/set_depth_tolerance"
-            params = {'tolerance': tolerance}
-            
-            response = requests.get(url, params=params, timeout=5)
-            if response.status_code == 200:
-                QMessageBox.information(self, "Success", "Depth tolerance updated successfully")
-                # Refresh status
-                QTimer.singleShot(500, self.manual_refresh)
-            else:
-                QMessageBox.warning(self, "Error", f"Failed to update depth tolerance: {response.text}")
-                
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Error setting depth tolerance: {str(e)}")
-            traceback.print_exc()
-    
-    def set_wait_time(self):
-        """Set routine wait time"""
-        if not self.float_ip:
-            QMessageBox.warning(self, "Connection Error", "Please connect to a float first")
-            return
-            
-        try:
-            seconds = self.wait_time_input.value()
-            
-            url = f"http://{self.float_ip}/set_wait_time"
-            params = {'seconds': seconds}
-            
-            response = requests.get(url, params=params, timeout=5)
-            if response.status_code == 200:
-                QMessageBox.information(self, "Success", "Wait time updated successfully")
-                # Refresh status
-                QTimer.singleShot(500, self.manual_refresh)
-            else:
-                QMessageBox.warning(self, "Error", f"Failed to update wait time: {response.text}")
-                
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Error setting wait time: {str(e)}")
-            traceback.print_exc()
-    
-    def set_read_intervals(self):
-        """Set data read intervals"""
-        if not self.float_ip:
-            QMessageBox.warning(self, "Connection Error", "Please connect to a float first")
-            return
-            
-        try:
-            normal = self.normal_interval_input.value()
-            velocity = self.velocity_interval_input.value()
-            
-            url = f"http://{self.float_ip}/set_read_intervals"
-            params = {'normal': normal, 'velocity': velocity}
-            
-            response = requests.get(url, params=params, timeout=5)
-            if response.status_code == 200:
-                QMessageBox.information(self, "Success", "Read intervals updated successfully")
-                # Refresh status
-                QTimer.singleShot(500, self.manual_refresh)
-            else:
-                QMessageBox.warning(self, "Error", f"Failed to update read intervals: {response.text}")
-                
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Error setting read intervals: {str(e)}")
-            traceback.print_exc()
-    
-    
-    def set_company_number(self):
-        """Set company number"""
-        if not self.float_ip:
-            QMessageBox.warning(self, "Connection Error", "Please connect to a float first")
-            return
-            
-        try:
-            number = self.company_number_input.value()
-            
-            url = f"http://{self.float_ip}/set_company_number"
-            params = {'value': number}
-            
-            response = requests.get(url, params=params, timeout=5)
-            if response.status_code == 200:
-                QMessageBox.information(self, "Success", "Company number updated successfully")
-                # Refresh status
-                QTimer.singleShot(500, self.manual_refresh)
-            else:
-                QMessageBox.warning(self, "Error", f"Failed to update company number: {response.text}")
-                
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Error setting company number: {str(e)}")
-            traceback.print_exc()
-            
-    def plot_depth_data(self):
-        """Plot the depth data collected from the float"""
-        if not self.depth_data:
-            QMessageBox.warning(self, "Plot Error", "No depth data available to plot")
-            return
-            
-        try:
-            # Sort data by time
-            sorted_data = sorted(self.depth_data, key=lambda x: x['time'])
-            
-            # Extract data lists
-            times = [item['time'] for item in sorted_data]
-            depths = [item['depth'] for item in sorted_data]
-            pressures = [item['pressure'] for item in sorted_data]
-            velocities = [item['velocity'] for item in sorted_data]
-            pid_outputs = [item['pid_output'] for item in sorted_data]
-            pid_errors = [item['pid_error'] for item in sorted_data]
-            pump_statuses = [item['pump_status'] for item in sorted_data]
-            
-            # Create interactive subplot figure with 4 subplots
-            fig = make_subplots(
-                rows=4, 
-                cols=1,
-                subplot_titles=("Time vs Depth", "Time vs Velocity", "Time vs PID Output", "Time vs PID Error"),
-                vertical_spacing=0.1,
-                row_heights=[0.35, 0.25, 0.2, 0.2]
-            )
-            
-            # Add traces for each subplot
-            # Subplot 1: Time vs. Depth
-            fig.add_trace(
-                go.Scatter(
-                    x=times, 
-                    y=depths, 
-                    mode='lines+markers',
-                    name='Depth',
-                    hovertemplate='Time: %{x:.2f}s<br>Depth: %{y:.3f}m<br>Pump: %{text}',
-                    text=pump_statuses
-                ),
-                row=1, col=1
-            )
-            
-            # Add reference lines for target depth if available
-            if 'depth' in self.latest_status_data and 'target' in self.latest_status_data['depth']:
-                target = self.latest_status_data['depth']['target']
-                tolerance = self.latest_status_data['depth']['tolerance'] if 'tolerance' in self.latest_status_data['depth'] else 0.125
-                
-                # Target line
-                fig.add_trace(
-                    go.Scatter(
-                        x=[min(times), max(times)],
-                        y=[target, target],
-                        mode='lines',
-                        name=f'Target Depth ({target}m)',
-                        line=dict(color="green", width=2),
-                        hoverinfo='name'
-                    ),
-                    row=1, col=1
-                )
-                
-                # Min/Max tolerance lines
-                fig.add_trace(
-                    go.Scatter(
-                        x=[min(times), max(times)],
-                        y=[target - tolerance, target - tolerance],
-                        mode='lines',
-                        name=f'Min Target Depth ({target-tolerance:.3f}m)',
-                        line=dict(color="red", width=2, dash="dash"),
-                        hoverinfo='name'
-                    ),
-                    row=1, col=1
-                )
-                
-                fig.add_trace(
-                    go.Scatter(
-                        x=[min(times), max(times)],
-                        y=[target + tolerance, target + tolerance],
-                        mode='lines',
-                        name=f'Max Target Depth ({target+tolerance:.3f}m)',
-                        line=dict(color="red", width=2, dash="dash"),
-                        hoverinfo='name'
-                    ),
-                    row=1, col=1
-                )
-            
-            # Subplot 2: Time vs. Velocity
-            fig.add_trace(
-                go.Scatter(
-                    x=times, 
-                    y=velocities, 
-                    mode='lines',
-                    name='Velocity',
-                    line=dict(color="orange")
-                ),
-                row=2, col=1
-            )
-            
-            # Add velocity limit lines if available
-            if 'velocity' in self.latest_status_data:
-                max_descent = self.latest_status_data['velocity']['max_descent'] if 'max_descent' in self.latest_status_data['velocity'] else 0.18
-                max_ascent = self.latest_status_data['velocity']['max_ascent'] if 'max_ascent' in self.latest_status_data['velocity'] else 0.1
-                
-                fig.add_trace(
-                    go.Scatter(
-                        x=[min(times), max(times)],
-                        y=[max_descent, max_descent],
-                        mode='lines',
-                        name=f'Max Descent ({max_descent}m/s)',
-                        line=dict(color="red", width=1, dash="dash"),
-                        hoverinfo='name'
-                    ),
-                    row=2, col=1
-                )
-                
-                fig.add_trace(
-                    go.Scatter(
-                        x=[min(times), max(times)],
-                        y=[-max_ascent, -max_ascent],
-                        mode='lines',
-                        name=f'Max Ascent ({max_ascent}m/s)',
-                        line=dict(color="red", width=1, dash="dash"),
-                        hoverinfo='name'
-                    ),
-                    row=2, col=1
-                )
-            
-            # Subplot 3: Time vs. PID Output
-            fig.add_trace(
-                go.Scatter(
-                    x=times, 
-                    y=pid_outputs, 
-                    mode='lines',
-                    name='PID Output',
-                    line=dict(color="blue")
-                ),
-                row=3, col=1
-            )
-            
-            # Add deadband lines if available
-            if 'pid' in self.latest_status_data and 'deadband' in self.latest_status_data['pid']:
-                deadband = self.latest_status_data['pid']['deadband']
-                
-                fig.add_trace(
-                    go.Scatter(
-                        x=[min(times), max(times)],
-                        y=[deadband, deadband],
-                        mode='lines',
-                        name=f'Deadband (+{deadband})',
-                        line=dict(color="purple", width=1, dash="dash"),
-                        hoverinfo='name'
-                    ),
-                    row=3, col=1
-                )
-                
-                fig.add_trace(
-                    go.Scatter(
-                        x=[min(times), max(times)],
-                        y=[-deadband, -deadband],
-                        mode='lines',
-                        name=f'Deadband (-{deadband})',
-                        line=dict(color="purple", width=1, dash="dash"),
-                        hoverinfo='name'
-                    ),
-                    row=3, col=1
-                )
-            
-            # Subplot 4: Time vs. PID Error
-            fig.add_trace(
-                go.Scatter(
-                    x=times, 
-                    y=pid_errors, 
-                    mode='lines',
-                    name='PID Error',
-                    line=dict(color="red")
-                ),
-                row=4, col=1
-            )
-            
-            # Add a zero line for reference
-            fig.add_trace(
-                go.Scatter(
-                    x=[min(times), max(times)],
-                    y=[0, 0],
-                    mode='lines',
-                    name='Zero Error',
-                    line=dict(color="green", width=1, dash="dash"),
-                    hoverinfo='name'
-                ),
-                row=4, col=1
-            )
-            
-            # Update layout
-            plot_title = "Float Depth Data"
-            if self.current_capture_file:
-                plot_title += f" ({self.current_capture_file})"
-            
-            fig.update_layout(
-                title=plot_title,
-                height=800,
-                width=1000,
-                showlegend=True,
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-            )
-            
-            # Update y-axis labels
-            fig.update_yaxes(title_text="Depth (m)", row=1, col=1)
-            fig.update_yaxes(title_text="Velocity (m/s)", row=2, col=1)
-            fig.update_yaxes(title_text="PID Output", row=3, col=1)
-            fig.update_yaxes(title_text="PID Error", row=4, col=1)
-            
-            # Update x-axis labels, but only show it on the bottom plot
-            fig.update_xaxes(title_text="Time (s)", row=4, col=1)
-            
-            # Show the figure
-            fig.show()
-            
-        except Exception as e:
-            QMessageBox.critical(self, "Plot Error", f"Error plotting data: {str(e)}")
-            traceback.print_exc()
-    
-    def save_current_data(self):
-        """Save the current depth data to a JSON file"""
-        if not self.depth_data:
-            QMessageBox.warning(self, "Save Error", "No depth data available to save")
-            return
-            
-        try:
-            # Create a timestamp for the filename
-            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"float_data_{timestamp}.json"
-            filepath = os.path.join(self.data_directory, filename)
-            
-            # Save the data
-            with open(filepath, 'w') as f:
-                json.dump(self.depth_data, f, indent=2)
-            
-            # Also save to coordinates_data.json
-            self.save_to_coordinates_json(self.depth_data)
-            
-            QMessageBox.information(self, "Save Success", f"Data saved to {filepath}")
-            
-            # Update saved data info
-            self.update_saved_data_info()
-            
-        except Exception as e:
-            QMessageBox.critical(self, "Save Error", f"Error saving data: {str(e)}")
-            traceback.print_exc()
-    
-    def save_to_coordinates_json(self, data):
-        """Save data to the coordinates_data.json file"""
-        try:
-            coordinates_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 
-                                           'json_formats', 'coordinates_data.json')
-            
-            # Create parent directory if it doesn't exist
-            os.makedirs(os.path.dirname(coordinates_path), exist_ok=True)
-            
-            # Format for coordinates_data.json
-            timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            coordinates_data = {
-                "description": f"Float data from {timestamp}",
-                "data": data
-            }
-            
-            with open(coordinates_path, 'w') as f:
-                json.dump(coordinates_data, f, indent=2)
-                
-            print(f"Data saved to {coordinates_path}")
-        except Exception as e:
-            print(f"Warning: Could not save to coordinates_data.json: {e}")
-            traceback.print_exc()
-    
-    def load_and_plot_data(self):
-        """Load saved data and plot it"""
-        try:
-            # Get list of saved data files
-            data_files = [f for f in os.listdir(self.data_directory) 
-                         if (f.startswith("float_data_") or f.startswith("float_capture_")) and f.endswith(".json")]
-            
-            if not data_files:
-                QMessageBox.warning(self, "Load Error", "No saved data files found")
-                return
-                
-            # Sort by date (newest first)
-            data_files.sort(reverse=True)
-            
-            # Let the user choose the file
-            file_path, _ = QFileDialog.getOpenFileName(
-                self, 
-                "Select Float Data File",
-                self.data_directory,
-                "JSON Files (*.json)"
-            )
-            
-            if not file_path:
-                return  # User canceled
-                
-            # Load the data
-            with open(file_path, 'r') as f:
-                loaded_data = json.load(f)
-            
-            if not loaded_data:
-                QMessageBox.warning(self, "Load Error", "The selected file contains no data")
-                return
-                
-            # Set as current data and plot
-            self.depth_data = loaded_data
-            self.current_capture_file = os.path.basename(file_path)
-            self.plot_depth_data()
-            
-        except Exception as e:
-            QMessageBox.critical(self, "Load Error", f"Error loading data: {str(e)}")
-            traceback.print_exc()
-    
-    def update_saved_data_info(self):
-        """Update the saved data information display"""
-        try:
-            # Get list of saved data files
-            data_files = [f for f in os.listdir(self.data_directory) 
-                         if (f.startswith("float_data_") or f.startswith("float_capture_")) and f.endswith(".json")]
-            
-            if not data_files:
-                self.saved_data_label.setText("No data saved yet")
-                return
-                
-            # Sort by date (newest first)
-            data_files.sort(reverse=True)
-            
-            # Show info about the most recent files
-            info_text = f"Found {len(data_files)} saved data files.\n\nMost recent:\n"
-            
-            for i, file in enumerate(data_files[:5]):  # Show only 5 most recent
-                # Parse timestamp from filename
-                if file.startswith("float_data_"):
-                    timestamp_str = file.replace("float_data_", "").replace(".json", "")
-                else:
-                    timestamp_str = file.replace("float_capture_", "").replace(".json", "")
-                    
-                try:
-                    timestamp = datetime.datetime.strptime(timestamp_str, "%Y%m%d_%H%M%S")
-                    formatted_time = timestamp.strftime("%Y-%m-%d %H:%M:%S")
-                except:
-                    formatted_time = timestamp_str
-                
-                # Get file size
-                filepath = os.path.join(self.data_directory, file)
-                size_kb = os.path.getsize(filepath) / 1024
-                
-                # Count data points
-                try:
-                    with open(filepath, 'r') as f:
-                        data = json.load(f)
-                        points = len(data)
-                except:
-                    points = "unknown"
-                
-                info_text += f"{i+1}. {formatted_time} ({size_kb:.1f} KB, {points} points)\n"
-            
-            self.saved_data_label.setText(info_text)
-            
-        except Exception as e:
-            self.saved_data_label.setText(f"Error retrieving saved data info: {str(e)}")
-            traceback.print_exc()
-            
+            if response.status_code == 200: QMessageBox.information(self, "Success", success_msg); QTimer.singleShot(500, self.manual_refresh_status)
+            else: QMessageBox.warning(self, "Error", f"Failed to update: {response.text}")
+        except Exception as e: QMessageBox.critical(self, "Error", f"Error {error_title}: {str(e)}"); traceback.print_exc()
+        finally: self.editing_fields = False
+
+    def set_target_depth(self): self._send_parameter_update("/set_target_depth", {'depth': self.target_depth_input.value()}, "Target depth updated", "setting target depth")
+    def set_wait_time(self): self._send_parameter_update("/set_wait_time", {'seconds': self.wait_time_input.value()}, "Wait time updated", "setting wait time")
+    def set_company_number(self): self._send_parameter_update("/set_company_number", {'value': self.company_number_input.value()}, "Company number updated", "setting company number")
+
+    # save_to_coordinates_json can be adapted if needed for the new self.logged_data_points structure
+
     def closeEvent(self, event):
-        """Clean up resources when widget is closed"""
-        # Stop the capture if it's running
-        if self.capturing_data:
-            self.stop_capture()
-            
-        # Stop the worker
-        if self.worker:
-            self.worker.stop()
-            
-        # Stop the timers
+        print("Closing FloatController...")
+        if self.capturing_data: self.stop_capture()
+        
+        if self.status_worker and self.status_worker.isRunning():
+            print("Stopping status worker...")
+            self.status_worker.stop()
+            self.status_worker.wait(1000)
+        
+        if self.data_receiver_thread and self.data_receiver_thread.isRunning():
+            print("Stopping data receiver thread...")
+            self.data_receiver_thread.stop_server() # Use the new method
+            # self.data_receiver_thread.wait(2000) # stop_server now includes wait
+
         self.auto_update_timer.stop()
         self.local_time_timer.stop()
-        
+        print("FloatController closed.")
         super().closeEvent(event)

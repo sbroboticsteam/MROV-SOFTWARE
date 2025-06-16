@@ -1,0 +1,727 @@
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include <WebServer.h>
+#include <cppQueue.h>
+#include <Wire.h>
+#include <MS5837.h>
+#include <ArduinoJson.h>
+#include <Adafruit_NeoPixel.h>
+
+// -------------------- CONFIGURATION --------------------
+#define WIFI_SSID "NR-3"
+#define WIFI_PASSWORD "Radhi02@Nagi22"
+int COMPANY_NUMBER = 6969;
+
+// RSSI THRESHOLD (dBm)
+#define RSSI_THRESHOLD -70
+
+// NeoPixel on GPIO0, powering from GPIO2
+#define NEOPIXEL_DATA_PIN 0
+#define NEOPIXEL_POWER_PIN 2
+#define NUM_PIXELS 1
+
+// Data capture and send intervals (milliseconds)
+int NORMAL_READ_INTERVAL = 4000; // 4 seconds
+unsigned long SEND_INTERVAL = 5000; // 5 seconds
+unsigned long lastSuccessfulSend = 0;
+bool lastSendSuccessful = false;
+
+// Batch send size
+#define SEND_BATCH_SIZE 1 // Send one packet at a time
+
+// Pump control pins
+#define PUMP_DESC_PIN 27 // fill ballast
+#define PUMP_ASC_PIN 12  // empty ballast
+
+// Routine control
+float TARGET_DEPTH = 2.5;      // Target depth for routine, e.g., 2.5m
+const float ROUTINE_DEPTH_TOLERANCE = 0.5; // ±0.5m for data collection at target
+const float ROUTINE_TARGET_APPROACH_THRESHOLD = 0.5; // Start fine control 0.5m before target
+unsigned long routineWaitTime = 80000; // Max time to spend in data collection state (80 seconds)
+
+// Routine state
+enum RoutineState { R_IDLE, R_DESCENDING, R_COLLECTING_DATA, R_ASCENDING };
+volatile bool routineActive = false;
+volatile RoutineState routineState = R_IDLE;
+unsigned long routineStateStartTime = 0; // Time when current routine state started
+int packetsCollectedAtTarget = 0;
+const int PACKETS_AT_TARGET_GOAL = 10;
+
+// Velocity limits
+float maxDescentVelocity = 0.1; // m/s
+float maxAscentVelocity = 0.1;  // m/s (positive value for magnitude)
+
+unsigned long previousTime = 0;
+float previousDepth = 0.0;
+
+volatile bool wifiFlag = false;
+volatile bool hasStarted = false;
+unsigned long currentReadInterval = NORMAL_READ_INTERVAL; 
+
+// Measurement queue
+struct Measurement {
+    unsigned long timeSinceStart;
+    float depth;
+    float pressure;
+    int companyNum;
+    float velocity;
+    String pumpStatus;
+};
+
+cppQueue measurementQueue(sizeof(Measurement), 800, FIFO, false);
+
+WebServer server(80);
+MS5837 sensor;
+Adafruit_NeoPixel strip(NUM_PIXELS, NEOPIXEL_DATA_PIN, NEO_GRB + NEO_KHZ800);
+
+unsigned long startTime = 0;
+float initialDepth = 0.0;
+String laptopIpAddress;
+
+// LED State Variables
+unsigned long lastBlinkTime = 0;
+bool blinkState = false;
+unsigned long ledRoutineCompleteStart = 0;
+bool routineJustCompletedLedActive = false;
+#define LED_BLINK_INTERVAL_NOT_STARTED 1000 
+#define LED_BLINK_INTERVAL_ROUTINE 2000     
+#define LED_ROUTINE_COMPLETE_DURATION 5000  
+
+// WiFi Reconnection Logic
+unsigned long lastWifiReconnectAttempt = 0;
+const unsigned long WIFI_RECONNECT_INTERVAL = 10000; // 10 seconds
+
+// Helper: NeoPixel
+void setStripColor(uint8_t r, uint8_t g, uint8_t b) {
+    strip.setPixelColor(0, strip.Color(r, g, b));
+    strip.show();
+}
+
+// Pump helpers
+void pumpDescend() {
+    digitalWrite(PUMP_DESC_PIN, HIGH);
+    digitalWrite(PUMP_ASC_PIN, LOW);
+}
+void pumpAscend() {
+    digitalWrite(PUMP_DESC_PIN, LOW);
+    digitalWrite(PUMP_ASC_PIN, HIGH);
+}
+void pumpOff() {
+    digitalWrite(PUMP_DESC_PIN, LOW);
+    digitalWrite(PUMP_ASC_PIN, LOW);
+}
+
+// Send measurements
+bool sendMeasurements(Measurement *m, int count) {
+    if (!hasStarted || !wifiFlag || laptopIpAddress.isEmpty() || count <= 0) {
+        return false;
+    }
+
+    DynamicJsonDocument doc(1024 + count * 256); 
+    JsonArray arr = doc.createNestedArray("data");
+    for (int i = 0; i < count; i++) {
+        JsonObject obj = arr.createNestedObject();
+        obj["time"] = m[i].timeSinceStart / 1000.0;
+        obj["depth"] = m[i].depth;
+        obj["pressure"] = m[i].pressure;
+        obj["company"] = m[i].companyNum;
+        obj["velocity"] = m[i].velocity;
+        obj["pump_status"] = m[i].pumpStatus;
+    }
+    String payload;
+    serializeJson(doc, payload);
+
+    HTTPClient localHttp; 
+    localHttp.begin("http://" + laptopIpAddress + ":8000/depth");
+    localHttp.addHeader("Content-Type", "application/json");
+    localHttp.setTimeout(4000); 
+    int code = localHttp.POST(payload);
+    localHttp.end();
+    return (code == 200);
+}
+
+// Helper function to convert routine state to string
+String routineStateToString(RoutineState state) {
+    switch (state) {
+    case R_IDLE: return "idle";
+    case R_DESCENDING: return "descending";
+    case R_COLLECTING_DATA: return "collecting_data_at_target";
+    case R_ASCENDING: return "ascending";
+    default: return "unknown";
+    }
+}
+
+// HTTP handlers
+void handleSetCompanyNumber() {
+    if (!server.hasArg("value")) {
+        server.send(400, "text/plain", "Missing 'value' parameter");
+        return;
+    }
+    int value = server.arg("value").toInt();
+    if (value <= 0) {
+        server.send(400, "text/plain", "Company number must be a positive integer");
+        return;
+    }
+    COMPANY_NUMBER = value;
+    String resp = "Company number updated to " + String(COMPANY_NUMBER);
+    server.send(200, "text/plain", resp);
+    Serial.println(resp);
+}
+
+void handleStatus() {
+    DynamicJsonDocument doc(1024);
+
+    doc["started"] = hasStarted;
+    doc["uptime_seconds"] = millis() / 1000;
+    doc["free_heap"] = ESP.getFreeHeap();
+    doc["company_number"] = COMPANY_NUMBER;
+
+    JsonObject wifi_status = doc.createNestedObject("wifi"); // Renamed to avoid conflict
+    wifi_status["rssi"] = WiFi.RSSI();
+    wifi_status["connected"] = (WiFi.status() == WL_CONNECTED);
+    wifi_status["good_signal"] = wifiFlag;
+    wifi_status["ip"] = WiFi.localIP().toString();
+
+    JsonObject queue_info = doc.createNestedObject("queue"); 
+    queue_info["current_size"] = measurementQueue.getCount();
+    queue_info["capacity"] = 800; 
+    queue_info["percent_full"] = (measurementQueue.getCount() * 100) / 800;
+    queue_info["read_interval_ms"] = currentReadInterval;
+    queue_info["send_interval_ms"] = SEND_INTERVAL;
+
+
+    JsonObject depth_info = doc.createNestedObject("depth");
+    float currentDepthVal = NAN; 
+    float rawDepthStatus = sensor.depth(); 
+    if(hasStarted && !isnan(rawDepthStatus)) currentDepthVal = rawDepthStatus - initialDepth; 
+    else if (!isnan(rawDepthStatus)) currentDepthVal = rawDepthStatus; 
+    
+    depth_info["current"] = currentDepthVal;
+    depth_info["target"] = TARGET_DEPTH;
+    depth_info["target_tolerance"] = ROUTINE_DEPTH_TOLERANCE;
+    depth_info["pressure"] = sensor.pressure(); 
+    
+    JsonObject velocity_info = doc.createNestedObject("velocity");
+    float tempCurrentVelocity = 0;
+    if (previousTime > 0 && hasStarted && !isnan(currentDepthVal)) {
+        unsigned long dt_ms = millis() - previousTime; 
+        if (dt_ms > 0) {
+            float dt_s = dt_ms / 1000.0;
+            tempCurrentVelocity = (currentDepthVal - previousDepth) / dt_s; 
+        }
+    }
+    velocity_info["current"] = tempCurrentVelocity; 
+    velocity_info["max_descent_config"] = maxDescentVelocity;
+    velocity_info["max_ascent_config"] = maxAscentVelocity;
+
+    JsonObject routine_info = doc.createNestedObject("routine"); 
+    routine_info["active"] = routineActive;
+    routine_info["state"] = routineStateToString(routineState);
+    routine_info["wait_time_seconds_config"] = routineWaitTime / 1000;
+    routine_info["packets_collected_at_target"] = packetsCollectedAtTarget;
+    routine_info["packets_goal_at_target"] = PACKETS_AT_TARGET_GOAL;
+
+    if (routineActive && routineState == R_COLLECTING_DATA) {
+        unsigned long elapsedWait = millis() - routineStateStartTime;
+        routine_info["time_in_collection_state_seconds"] = elapsedWait / 1000;
+        routine_info["collection_timeout_remaining_seconds"] = (routineWaitTime > elapsedWait) ? (routineWaitTime - elapsedWait) / 1000 : 0;
+    }
+
+    JsonObject pump_info = doc.createNestedObject("pump"); 
+    bool pumpDescActive = digitalRead(PUMP_DESC_PIN) == HIGH;
+    bool pumpAscActive = digitalRead(PUMP_ASC_PIN) == HIGH;
+    if (pumpDescActive) pump_info["state"] = "descending";
+    else if (pumpAscActive) pump_info["state"] = "ascending";
+    else pump_info["state"] = "off";
+
+    String response;
+    serializeJson(doc, response);
+    server.send(200, "application/json", response);
+}
+
+void handleSetTargetDepth() {
+    if (!server.hasArg("depth")) {
+        server.send(400, "text/plain", "Missing 'depth' parameter");
+        return;
+    }
+    float d = server.arg("depth").toFloat();
+    if (d < 0 || d > 10) { 
+        server.send(400, "text/plain", "Depth must be 0–10m");
+        return;
+    }
+    TARGET_DEPTH = d;
+    String resp = "Target depth updated to " + String(TARGET_DEPTH) + "m";
+    server.send(200, "text/plain", resp);
+    Serial.println(resp);
+}
+
+void handleSetWaitTime() {
+    if (!server.hasArg("seconds")) {
+        server.send(400, "text/plain", "Missing 'seconds'");
+        return;
+    }
+    int s = server.arg("seconds").toInt();
+    if (s <= 0) {
+        server.send(400, "text/plain", "Seconds must be positive");
+        return;
+    }
+    routineWaitTime = (unsigned long)s * 1000;
+    String resp = "Routine wait time (at target) updated to " + String(s) + "s";
+    server.send(200, "text/plain", resp);
+    Serial.println(resp);
+}
+
+void handleStartSignal() {
+    if (!server.hasArg("ip_address")) {
+        server.send(400, "text/plain", "Missing ip_address");
+        return;
+    }
+    laptopIpAddress = server.arg("ip_address");
+    if (!hasStarted) {
+        hasStarted = true;
+        startTime = millis();
+        sensor.read(); 
+        initialDepth = sensor.depth();
+        if (isnan(initialDepth)) {
+            Serial.println("ERROR: Failed to get valid initial depth reading on start! Restarting float.");
+            server.send(500, "text/plain", "Error: Failed to read initial depth. Restarting.");
+            delay(1000);
+            ESP.restart();
+            return;
+        }
+        previousTime = 0;      
+        previousDepth = 0;     
+        measurementQueue.flush(); 
+        String resp = "Started. Posting to " + laptopIpAddress + ":8000/depth. Initial depth (tare): " + String(initialDepth) + "m";
+        server.send(200, "text/plain", resp);
+        Serial.println(resp);
+    } else {
+        server.send(200, "text/plain", "Already started. IP updated to " + laptopIpAddress);
+        Serial.println("Already started. IP updated to " + laptopIpAddress);
+    }
+}
+
+void handleStopSignal() {
+    Serial.println("Stop signal received. Initiating stop sequence...");
+    hasStarted = false;
+    routineActive = false; 
+    
+    vTaskDelay(pdMS_TO_TICKS(20)); 
+
+    pumpOff();
+    measurementQueue.flush(); 
+
+    routineState = R_IDLE;
+    packetsCollectedAtTarget = 0;
+    routineJustCompletedLedActive = false; 
+    
+    server.send(200, "text/plain", "Float stopped and reset.");
+    Serial.println("Float stopped and reset. Queue cleared.");
+}
+
+void handleStartRoutine() {
+    if (!hasStarted) {
+        server.send(400, "text/plain", "Start float first (/start_signal)");
+        return;
+    }
+    if (!routineActive) {
+        routineActive = true;
+        routineState = R_DESCENDING;
+        routineStateStartTime = millis();
+        packetsCollectedAtTarget = 0;
+        previousTime = 0; 
+        previousDepth = 0; 
+        routineJustCompletedLedActive = false;
+        server.send(200, "text/plain", "Routine started: Descending to " + String(TARGET_DEPTH) + "m");
+        Serial.println("Routine started: Descending to " + String(TARGET_DEPTH) + "m");
+    } else {
+        server.send(200, "text/plain", "Routine already active in state: " + routineStateToString(routineState));
+    }
+}
+
+void handlePumpAscend() {
+    if (routineActive && hasStarted) { server.send(400, "text/plain", "Pump control is automatic during routine."); return; }
+    pumpAscend();
+    server.send(200, "text/plain", "Manual: Pump ascending");
+    Serial.println("Manual: Pump ascending");
+}
+void handlePumpDescend() {
+    if (routineActive && hasStarted) { server.send(400, "text/plain", "Pump control is automatic during routine."); return; }
+    pumpDescend();
+    server.send(200, "text/plain", "Manual: Pump descending");
+    Serial.println("Manual: Pump descending");
+}
+void handlePumpStop() {
+    if (routineActive && hasStarted) { server.send(400, "text/plain", "Pump control is automatic during routine."); return; }
+    pumpOff();
+    server.send(200, "text/plain", "Manual: Pump stopped");
+    Serial.println("Manual: Pump stopped");
+}
+
+// Task on core 0: WiFi & HTTP server
+void TaskWifiServer(void *pvParameters) {
+    unsigned long lastWifiCheckTime = 0;
+
+    for (;;) {
+        server.handleClient(); // Handle HTTP client requests
+
+        unsigned long currentTime = millis();
+
+        // Check and manage WiFi connection status periodically
+        if (currentTime - lastWifiCheckTime >= 1000) { // Check status every 1 second
+            lastWifiCheckTime = currentTime;
+
+            if (WiFi.status() != WL_CONNECTED) {
+                wifiFlag = false;
+                // Attempt to reconnect if not connected and interval has passed
+                if (currentTime - lastWifiReconnectAttempt >= WIFI_RECONNECT_INTERVAL) {
+                    Serial.println("WiFi disconnected. Attempting to reconnect...");
+                    WiFi.disconnect(); // Optional: ensure clean state before reconnect
+                    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+                    lastWifiReconnectAttempt = currentTime;
+                }
+            } else { // WiFi is connected
+                long rssi = WiFi.RSSI();
+                wifiFlag = (rssi >= RSSI_THRESHOLD);
+                if (!wifiFlag) {
+                    Serial.printf("WiFi connected but signal weak (RSSI: %ld). Data sending might be unreliable.\n", rssi);
+                }
+                // Reset reconnect attempt time if connection is successful
+                // to ensure the next attempt is after a full interval if it disconnects again.
+                lastWifiReconnectAttempt = currentTime; 
+            }
+        }
+        vTaskDelay(pdMS_TO_TICKS(10)); // Short delay for server responsiveness
+    }
+}
+
+// Task on core 1: Sensor, routine, queue, send
+void TaskSensorAndSending(void *) {
+    unsigned long lastReadTime = 0;
+    float currentDepth = 0.0; 
+    float currentVelocity = 0.0;
+    String pumpActionStatus = "Idle"; 
+
+    for (;;) {
+        unsigned long now = millis();
+
+        sensor.read();
+        float rawSensorDepth = sensor.depth();
+
+        if (isnan(rawSensorDepth) || rawSensorDepth < -10 || rawSensorDepth > 1000) { 
+            Serial.println("WARNING: Invalid raw sensor reading detected! Skipping this cycle's processing.");
+            pumpActionStatus = "SensorErr";
+        } else {
+            if (hasStarted) {
+                currentDepth = rawSensorDepth - initialDepth;
+
+                if (previousTime > 0) { 
+                    float dt = (now - previousTime) / 1000.0;
+                    if (dt > 0.001) { 
+                        currentVelocity = (currentDepth - previousDepth) / dt;
+                    } else {
+                        currentVelocity = 0; 
+                    }
+                } else {
+                     currentVelocity = 0; 
+                }
+                previousDepth = currentDepth; 
+                
+                pumpActionStatus = "Idle"; 
+                if (routineActive) {
+                    switch (routineState) {
+                    case R_DESCENDING:
+                        pumpActionStatus = "R:Descend-VelCtrl";
+                        if (currentDepth >= (TARGET_DEPTH - ROUTINE_TARGET_APPROACH_THRESHOLD)) {
+                            pumpOff();
+                            routineState = R_COLLECTING_DATA;
+                            routineStateStartTime = now;
+                            packetsCollectedAtTarget = 0; 
+                            Serial.printf("ROUTINE: Approach target. State -> R_COLLECTING_DATA. Depth: %.2f\n", currentDepth);
+                            pumpActionStatus = "R:ApproachTarget";
+                        } else {
+                            if (currentVelocity > maxDescentVelocity && currentVelocity > 0.01) { 
+                                pumpOff(); 
+                                Serial.printf("ROUTINE: Descend too fast (%.2f m/s > %.2f). Pump OFF.\n", currentVelocity, maxDescentVelocity);
+                                pumpActionStatus = "R:Descend-TooFast";
+                            } else if (currentVelocity < (maxDescentVelocity * 0.5) && currentDepth < (TARGET_DEPTH - ROUTINE_TARGET_APPROACH_THRESHOLD - 0.1) ) { 
+                                pumpDescend(); 
+                                pumpActionStatus = "R:Descend-Normal";
+                            } else {
+                                pumpDescend(); 
+                                pumpActionStatus = "R:Descend-Normal";
+                            }
+                        }
+                        break;
+
+                    case R_COLLECTING_DATA:
+                        pumpActionStatus = "R:HoldDepth";
+                        if (currentDepth > TARGET_DEPTH + ROUTINE_DEPTH_TOLERANCE) {
+                            pumpAscend();
+                            pumpActionStatus = "R:HoldDepth-AdjustUp";
+                        } else if (currentDepth < TARGET_DEPTH - ROUTINE_DEPTH_TOLERANCE) {
+                            pumpDescend();
+                            pumpActionStatus = "R:HoldDepth-AdjustDown";
+                        } else {
+                            pumpOff(); 
+                            pumpActionStatus = "R:HoldDepth-Stable";
+                        }
+
+                        if (packetsCollectedAtTarget >= PACKETS_AT_TARGET_GOAL || (now - routineStateStartTime >= routineWaitTime)) {
+                            if (packetsCollectedAtTarget < PACKETS_AT_TARGET_GOAL) {
+                                Serial.printf("ROUTINE: Data collection time (%.0fs/%.0fs) expired with %d/%d packets. Ascending.\n", (now - routineStateStartTime)/1000.0, routineWaitTime/1000.0, packetsCollectedAtTarget, PACKETS_AT_TARGET_GOAL);
+                            } else {
+                                Serial.printf("ROUTINE: Collected %d/%d packets at target. Ascending.\n", packetsCollectedAtTarget, PACKETS_AT_TARGET_GOAL);
+                            }
+                            pumpAscend(); 
+                            routineState = R_ASCENDING;
+                            routineStateStartTime = now;
+                            previousTime = 0; previousDepth = 0; 
+                            pumpActionStatus = "R:StartAscent";
+                        }
+                        break;
+
+                    case R_ASCENDING:
+                        pumpActionStatus = "R:Ascend-VelCtrl";
+                        if (currentDepth <= 0.1) { 
+                            pumpOff();
+                            routineActive = false;
+                            routineState = R_IDLE;
+                            routineJustCompletedLedActive = true; 
+                            ledRoutineCompleteStart = now;
+                            Serial.println("ROUTINE: Complete. Reached surface.");
+                            pumpActionStatus = "R:Complete";
+                        } else {
+                            if (currentVelocity < -maxAscentVelocity && currentVelocity < -0.01) { 
+                                pumpOff(); 
+                                Serial.printf("ROUTINE: Ascend too fast (%.2f m/s > %.2f). Pump OFF.\n", -currentVelocity, maxAscentVelocity);
+                                pumpActionStatus = "R:Ascend-TooFast";
+                            } else if (currentVelocity > (-maxAscentVelocity * 0.5) && currentDepth > 0.2) { 
+                                pumpAscend(); 
+                                pumpActionStatus = "R:Ascend-Normal";
+                            } else {
+                                pumpAscend(); 
+                                pumpActionStatus = "R:Ascend-Normal";
+                            }
+                        }
+                        break;
+                    
+                    case R_IDLE: 
+                        pumpOff(); 
+                        pumpActionStatus = "R:ErrorIdle";
+                        break;
+                    }
+                } else { 
+                    if (digitalRead(PUMP_DESC_PIN) == HIGH) pumpActionStatus = "M:Descend";
+                    else if (digitalRead(PUMP_ASC_PIN) == HIGH) pumpActionStatus = "M:Ascend";
+                    else pumpActionStatus = "M:Off";
+                }
+
+                if (now - lastReadTime >= currentReadInterval) {
+                    lastReadTime = now; 
+                    float pressureForData = sensor.pressure(); 
+                    unsigned long elapsed = now - startTime;
+
+                    Measurement m = {elapsed, currentDepth, pressureForData, COMPANY_NUMBER, currentVelocity, pumpActionStatus};
+                    if (!measurementQueue.push(&m)) {
+                        Serial.println("WARNING: Queue full - data point lost!");
+                    } else {
+                        Serial.printf("DATA: t=%lu, d=%.2f, v=%.2f, P=%s (Q:%d)\n",
+                                      elapsed / 1000, currentDepth, currentVelocity, pumpActionStatus.c_str(), measurementQueue.getCount());
+                        if (routineActive && routineState == R_COLLECTING_DATA) {
+                            if (abs(currentDepth - TARGET_DEPTH) <= ROUTINE_DEPTH_TOLERANCE) {
+                                packetsCollectedAtTarget++;
+                                Serial.printf("  Packet %d/%d collected at target depth.\n", packetsCollectedAtTarget, PACKETS_AT_TARGET_GOAL);
+                            }
+                        }
+                    }
+                }
+            } 
+            else { 
+                previousTime = 0;
+                previousDepth = 0;
+                currentVelocity = 0; 
+            }
+            previousTime = now; 
+        } 
+
+
+        if (wifiFlag && !measurementQueue.isEmpty()) {
+            if (hasStarted) { 
+                static unsigned long lastSendAttempt = 0;
+                unsigned long now_for_send = millis(); 
+
+                if (now_for_send - lastSendAttempt >= SEND_INTERVAL) {
+                    lastSendAttempt = now_for_send;
+                    Measurement batch[SEND_BATCH_SIZE];
+                    int count = 0;
+
+                    while(count < SEND_BATCH_SIZE && measurementQueue.pop(&batch[count])) {
+                        count++;
+                    }
+
+                    if (count > 0) {
+                        if (hasStarted) { 
+                            if (sendMeasurements(batch, count)) {
+                                Serial.printf("Sent %d measurements (Queue: %d)\n", count, measurementQueue.getCount());
+                                lastSuccessfulSend = now_for_send;
+                                lastSendSuccessful = true;
+                            } else {
+                                if (hasStarted) {
+                                    Serial.printf("Send failed for %d measurements, requeueing (Queue: %d)\n", count, measurementQueue.getCount());
+                                    lastSendSuccessful = false;
+                                    bool requeueFull = false;
+                                    for (int i = count - 1; i >= 0; i--) { 
+                                        if (!measurementQueue.push(&batch[i])) {
+                                            Serial.printf("WARNING: Failed to requeue data point t=%lu. Queue full on requeue.\n", batch[i].timeSinceStart);
+                                            requeueFull = true;
+                                        }
+                                    }
+                                } else {
+                                    Serial.printf("Send failed for %d. Float stopped during send. Discarding. (Queue: %d)\n", count, measurementQueue.getCount());
+                                }
+                            }
+                        } else {
+                            Serial.printf("Float stopped after pop. Discarding %d popped measurements. (Queue: %d)\n", count, measurementQueue.getCount());
+                        }
+                    }
+                }
+            } 
+        }
+
+        // LED Status Logic
+        if (routineJustCompletedLedActive) {
+            if (now - ledRoutineCompleteStart < LED_ROUTINE_COMPLETE_DURATION) {
+                setStripColor(255, 255, 255); 
+            } else {
+                routineJustCompletedLedActive = false; 
+            }
+        }
+        
+        if (!routineJustCompletedLedActive) { 
+            if (!hasStarted) {
+                if (!wifiFlag) {
+                    setStripColor(255, 0, 0); 
+                } else { 
+                    if (now - lastBlinkTime > (LED_BLINK_INTERVAL_NOT_STARTED / 2) ) {
+                        lastBlinkTime = now;
+                        blinkState = !blinkState;
+                    }
+                    if (blinkState) setStripColor(255, 0, 0); 
+                    else setStripColor(0, 255, 0);    
+                }
+            } else { 
+                if (!routineActive) { 
+                    if (wifiFlag) setStripColor(0, 255, 0);   
+                    else setStripColor(255, 0, 0);            
+                } else { 
+                    uint8_t base_r, base_g, base_b;
+                    if (measurementQueue.getCount() > 20) { 
+                        base_r = 255; base_g = 255; base_b = 0;
+                    } else { 
+                        base_r = 0; base_g = 0; base_b = 255;
+                    }
+
+                    if (now - lastBlinkTime > (LED_BLINK_INTERVAL_ROUTINE / 2) ) {
+                        lastBlinkTime = now;
+                        blinkState = !blinkState;
+                    }
+
+                    if (blinkState) { 
+                        if (!wifiFlag) setStripColor(255, 0, 0); 
+                        else setStripColor(0, 255, 0);           
+                    } else { 
+                        setStripColor(base_r, base_g, base_b);
+                    }
+                }
+            }
+        }
+        vTaskDelay(pdMS_TO_TICKS(50)); 
+    }
+}
+
+void setup() {
+    Serial.begin(115200);
+    unsigned long setupStartTime = millis();
+    while(!Serial && (millis() - setupStartTime < 3000)); 
+
+    pinMode(NEOPIXEL_POWER_PIN, OUTPUT);
+    digitalWrite(NEOPIXEL_POWER_PIN, HIGH); 
+    strip.begin();
+    strip.setBrightness(30); 
+    setStripColor(255, 0, 0); 
+
+    pinMode(PUMP_DESC_PIN, OUTPUT);
+    pinMode(PUMP_ASC_PIN, OUTPUT);
+    pumpOff();
+
+    // Initial WiFi connection attempt in setup
+    Serial.print("Connecting to WiFi");
+    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+    unsigned long wifiStartTime = millis();
+    while (WiFi.status() != WL_CONNECTED && (millis() - wifiStartTime < 15000)) { // 15s timeout for initial attempt
+        delay(250);
+        Serial.print('.');
+    }
+
+    if(WiFi.status() == WL_CONNECTED) {
+        Serial.println("\nWiFi connected! IP: " + WiFi.localIP().toString());
+        wifiFlag = (WiFi.RSSI() >= RSSI_THRESHOLD);
+        lastWifiReconnectAttempt = millis(); // Set initial time if connected
+    } else {
+        Serial.println("\nInitial WiFi connection failed! Will attempt reconnection periodically.");
+        wifiFlag = false;
+        // lastWifiReconnectAttempt will be 0, so first reconnect attempt in task will happen soon.
+    }
+    
+    server.on("/start_signal", HTTP_GET, handleStartSignal);
+    server.on("/stop_signal", HTTP_GET, handleStopSignal);
+    server.on("/start_routine", HTTP_GET, handleStartRoutine);
+    server.on("/set_target_depth", HTTP_GET, handleSetTargetDepth);
+    server.on("/set_wait_time", HTTP_GET, handleSetWaitTime);
+    server.on("/pump_ascend", HTTP_GET, handlePumpAscend);
+    server.on("/pump_descend", HTTP_GET, handlePumpDescend);
+    server.on("/pump_stop", HTTP_GET, handlePumpStop);
+    server.on("/status", HTTP_GET, handleStatus);
+    server.on("/set_company_number", HTTP_GET, handleSetCompanyNumber);
+
+    server.begin();
+    Serial.println("HTTP server started");
+
+    Wire.begin();
+    sensor.setModel(MS5837::MS5837_02BA); 
+    if (!sensor.init()) {
+        Serial.println("CRITICAL: Sensor init failed! Check wiring and I2C. Restarting in 5s.");
+        setStripColor(255,0,0); delay(50); setStripColor(0,0,0); delay(50); setStripColor(255,0,0); 
+        delay(5000);
+        ESP.restart();
+    } else {
+        Serial.println("MS5837 Sensor initialized.");
+    }
+    sensor.setFluidDensity(1029); 
+
+    xTaskCreatePinnedToCore(TaskWifiServer, "TaskWifiServer", 3584, NULL, 1, NULL, 0); // Increased stack for WiFi task
+    xTaskCreatePinnedToCore(TaskSensorAndSending, "TaskSensorAndSending", 6144, NULL, 2, NULL, 1); 
+    
+    Serial.println("Setup complete. Tasks running.");
+}
+
+void loop() {
+    vTaskDelay(pdMS_TO_TICKS(1000)); 
+}
+
+// LED State Table:
+// Condition                               | LED Color/Pattern
+// ----------------------------------------|----------------------------------------------------
+// Not Started, WiFi Not Connected         | Solid RED
+// Not Started, WiFi Connected             | Blinking (0.5s RED / 0.5s GREEN)
+// Started, WiFi Connected, Routine Idle   | Solid GREEN
+// Started, WiFi Not Connected, Routine Idle| Solid RED (Indicates WiFi loss after start)
+// Routine Active:                          |
+//   Base Color:                           |
+//     Queue <= 20 measurements            | BLUE
+//     Queue > 20 measurements             | YELLOW
+//   Overlay Blink (every 2s period):       |
+//     WiFi Not Connected                  | Alternates Base Color (1s) / RED (1s)
+//     WiFi Connected                      | Alternates Base Color (1s) / GREEN (1s)
+// Routine Complete                        | Solid WHITE for 5 seconds, then reverts to 'Started' state LED.

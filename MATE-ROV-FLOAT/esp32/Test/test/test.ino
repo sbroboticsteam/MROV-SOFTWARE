@@ -38,7 +38,7 @@ bool lastSendSuccessful = false; // Retained for potential future adaptive logic
 float TARGET_DEPTH = 2.5;      // Target depth for routine, e.g., 2.5m
 const float ROUTINE_DEPTH_TOLERANCE = 0.5; // ±0.5m for data collection at target
 const float ROUTINE_TARGET_APPROACH_THRESHOLD = 0.5; // Start fine control 0.5m before target
-unsigned long routineWaitTime = 45000; // Max time to spend in data collection state (45 seconds)
+unsigned long routineWaitTime = 80000; // Max time to spend in data collection state (45 seconds)
 
 // Routine state
 enum RoutineState { R_IDLE, R_DESCENDING, R_COLLECTING_DATA, R_ASCENDING };
@@ -444,7 +444,7 @@ void TaskSensorAndSending(void *) {
 
                     case R_ASCENDING:
                         pumpActionStatus = "Ascend-VelCtrl";
-                        if (currentDepth <= 0.5) { // Reached surface (e.g., 0.5m)
+                        if (currentDepth <= 0.05) { // Reached surface (e.g., 0.5m)
                             pumpOff();
                             routineActive = false;
                             routineState = R_IDLE;
@@ -666,3 +666,19 @@ void loop() {
     // Empty: all work is done in FreeRTOS tasks
     vTaskDelay(1000 / portTICK_PERIOD_MS); // Keep loop from starving watchdog if tasks somehow exit
 }
+
+// LED State Table:
+// Condition                               | LED Color/Pattern
+// ----------------------------------------|----------------------------------------------------
+// Not Started, WiFi Not Connected         | Solid RED
+// Not Started, WiFi Connected             | Blinking RED (1s period, 0.5s RED / 0.5s GREEN)
+// Started, WiFi Connected, Routine Idle   | Solid GREEN
+// Started, WiFi Not Connected, Routine Idle| Solid RED (Indicates WiFi loss after start)
+// Routine Active:                          |
+//   Base Color:                           |
+//     Queue <= 20 measurements            | BLUE
+//     Queue > 20 measurements             | YELLOW
+//   Overlay Blink (every 2s period):       |
+//     WiFi Not Connected                  | Alternates Base Color (1s) / RED (1s)
+//     WiFi Connected                      | Alternates Base Color (1s) / GREEN (1s)
+// Routine Complete                        | Solid WHITE for 5 seconds, then reverts to 'Started' state LED.
