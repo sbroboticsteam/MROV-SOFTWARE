@@ -55,7 +55,7 @@ class CameraSetupDialog(QDialog):
         form_layout.addRow("Local IP Address:", self.ip_combo)
         
         # Add ROV IP address field
-        self.rov_ip = QLineEdit("192.168.1.237")  # Default ROV IP
+        self.rov_ip = QLineEdit("192.168.50.41")  # Default ROV IP
         form_layout.addRow("ROV IP Address:", self.rov_ip)
         
         # Add camera configuration port

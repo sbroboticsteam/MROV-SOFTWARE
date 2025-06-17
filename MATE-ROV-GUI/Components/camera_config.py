@@ -84,13 +84,23 @@ class CameraConfig(QObject):
                 f'udpsrc port={self.config["usb2_port"]} caps="application/x-rtp,media=video,clock-rate=90000,encoding-name=JPEG,payload=26" ! '
                 'rtpjitterbuffer latency=0 drop-on-latency=true ! '
                 'rtpjpegdepay ! jpegdec ! videoconvert ! videoflip method=counterclockwise ! '
-                'autovideosink sync=false'
+                'tee name=usb2_hdmi_tee '
+                # Branch 1: To the GUI (CameraStream will replace autovideosink with a named sink like d3dvideosink)
+                'usb2_hdmi_tee. ! queue ! autovideosink sync=false '
+                # Branch 2: To a new UDP port for an external HDMI display script
+                # The external script will have a udpsrc on port 5008 (example)
+                # We re-encode to JPEG and pay to RTP to send it over UDP again.
+                'usb2_hdmi_tee. ! queue ! jpegenc ! rtpjpegpay ! udpsink host=127.0.0.1 port=5008 sync=false'
             )
         elif camera_type == "camera_360":
             return (
                 f'udpsrc port={self.config["camera_360_port"]} caps="application/x-rtp,media=video,encoding-name=H264,payload=96" ! '
                 'rtpjitterbuffer latency=0 drop-on-latency=true ! rtph264depay ! '
-                'avdec_h264 ! videoconvert ! autovideosink sync=false'
+                'avdec_h264 ! videoconvert ! tee name=photosphere_tee ' # Tee after the main videoconvert
+                # Branch 1: to the display sink (CameraStream will replace autovideosink with d3dvideosink name=sink)
+                '! queue ! autovideosink sync=false ' 
+                # Branch 2: to our appsink for frame capture
+                'photosphere_tee. ! queue ! videoconvert ! video/x-raw,format=RGB ! appsink name=photosphere_appsink emit-signals=true max-buffers=1 drop=true sync=false'
             )
         else:
             raise ValueError(f"Unknown camera type: {camera_type}")

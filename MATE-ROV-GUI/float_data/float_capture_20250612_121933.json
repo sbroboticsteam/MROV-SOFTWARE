@@ -1,0 +1,20 @@
+[
+  {
+    "float_time_since_start": 4.196,
+    "depth": 0.031216,
+    "velocity": 0.005386,
+    "pressure": 1044.96,
+    "pump_status": "M:Off",
+    "gui_received_timestamp_abs": "2025-06-12T12:19:36.608610",
+    "gui_time_since_capture_start": 2.759514
+  },
+  {
+    "float_time_since_start": 4294967.263,
+    "depth": 0.212763,
+    "velocity": 2.312641,
+    "pressure": 1034.47,
+    "pump_status": "M:Off",
+    "gui_received_timestamp_abs": "2025-06-12T12:20:06.265779",
+    "gui_time_since_capture_start": 32.416683
+  }
+]

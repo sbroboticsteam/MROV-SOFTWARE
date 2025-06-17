@@ -4,6 +4,8 @@ gi.require_version('Gst', '1.0')
 gi.require_version('GstVideo', '1.0')
 from gi.repository import Gst, GstVideo
 from PyQt5 import QtWidgets, QtCore
+from PyQt5.QtGui import QImage, QPixmap
+from gi.repository import Gst # Ensure Gst is imported
 import os
 
 class VideoWidget(QtWidgets.QWidget):
@@ -18,82 +20,142 @@ class CameraStream(QtWidgets.QWidget):
         super().__init__()
         self.video_widget = VideoWidget()
         layout = QtWidgets.QVBoxLayout(self)
-        
-        # Add label for camera identification
         self.label = QtWidgets.QLabel(label_text)
         self.label.setAlignment(QtCore.Qt.AlignCenter)
         self.label.setStyleSheet("font-weight: bold; background-color: #333; color: white; padding: 2px;")
         layout.addWidget(self.label)
-        
-        # Add video widget where video will be embedded
         layout.addWidget(self.video_widget)
         layout.setStretch(1, 1)
 
+        self.camera_name = label_text # Store camera name for debugging
+        self._latest_captured_pixmap = QPixmap() # For storing the frame from appsink
+        self._appsink_connection_id = None # To store appsink signal connection ID
+
         try:
-            # Initialize GStreamer if needed
             if not hasattr(Gst, 'is_initialized') or not Gst.is_initialized():
                 Gst.init(None)
             
-            # Modify pipeline to use a sink that supports window handles
-            # First find which sink is available
             available_sinks = []
-            for sink_name in ['d3dvideosink', 'glimagesink', 'ximagesink']:
-                element = Gst.ElementFactory.make(sink_name, None)
+            for sink_name_option in ['d3dvideosink', 'glimagesink', 'ximagesink', 'autovideosink']: # Added autovideosink as a fallback
+                element = Gst.ElementFactory.make(sink_name_option, None)
                 if element:
-                    available_sinks.append(sink_name)
-                    element = None
+                    available_sinks.append(sink_name_option)
+                    element = None # Dereference
             
             if not available_sinks:
                 raise Exception("No suitable video sink found for embedding")
             
-            # Use the first available sink
-            sink_name = available_sinks[0]
-            print(f"Using {sink_name} for embedding")
+            chosen_display_sink_factory_name = available_sinks[0]
+            print(f"Using {chosen_display_sink_factory_name} for embedding in {self.camera_name}")
             
-            # Replace autovideosink/fpsdisplaysink with the selected sink in the pipeline
             modified_pipeline = pipeline_desc
-            for old_sink in ['autovideosink', 'fpsdisplaysink']:
-                if old_sink in modified_pipeline:
-                    modified_pipeline = modified_pipeline.replace(
-                        f"{old_sink} sync=false", 
-                        f"{sink_name} name=sink sync=false"
-                    )
-            
-            print(f"Creating pipeline: {modified_pipeline}")
+            # This replacement logic is for the *display* branch of the tee.
+            # The 'autovideosink' in the camera_config.py for the display branch will be targeted here.
+            if 'autovideosink' in modified_pipeline:
+                 modified_pipeline = modified_pipeline.replace(
+                    'autovideosink sync=false', 
+                    f'{chosen_display_sink_factory_name} name=sink sync=false', 
+                    1 # Replace only the first occurrence (for the display branch)
+                )
+            elif 'fpsdisplaysink' in modified_pipeline: # Fallback if fpsdisplaysink was used
+                 modified_pipeline = modified_pipeline.replace(
+                    'fpsdisplaysink sync=false',
+                    f'{chosen_display_sink_factory_name} name=sink sync=false',
+                    1
+                )
+            else:
+                # If neither autovideosink nor fpsdisplaysink is explicitly in the display branch
+                # (e.g., if the pipeline was already specific), we assume 'name=sink' is the target.
+                # This part might need adjustment if your non-360 pipelines are very different.
+                print(f"Warning: 'autovideosink' or 'fpsdisplaysink' not found for explicit replacement in {self.camera_name}. Assuming 'name=sink' is correctly configured if present.")
+
+
+            print(f"Creating pipeline for {self.camera_name}: {modified_pipeline}")
             self.pipeline = Gst.parse_launch(modified_pipeline)
             
-            # Get the sink and set window handle
-            sink = self.pipeline.get_by_name("sink")
-            if not sink:
-                raise Exception(f"Could not find sink element in pipeline")
+            display_sink = self.pipeline.get_by_name("sink") # This is the d3dvideosink/glimagesink etc.
+            if not display_sink:
+                # If the pipeline for camera_360 was correctly modified in camera_config.py,
+                # 'autovideosink' in its display branch should have been replaced by, e.g., 'd3dvideosink name=sink'.
+                print(f"ERROR: Could not find display sink element 'sink' in pipeline for {self.camera_name}")
+                # Fallback: try to find any of the known sink types if 'name=sink' wasn't set as expected
+                for sn in available_sinks:
+                    element = self.pipeline.get_by_name(sn) # Try getting by factory name if 'name=sink' failed
+                    if element:
+                        display_sink = element
+                        print(f"INFO: Found display sink by factory name '{sn}' for {self.camera_name}")
+                        break
+                if not display_sink:
+                     raise Exception(f"Could not find display sink element in pipeline for {self.camera_name}")
+
+            display_sink.set_window_handle(int(self.video_widget.winId()))
             
-            # Use GstVideoOverlay interface to embed video
-            sink.set_window_handle(int(self.video_widget.winId()))
-            
-            # Setup bus for error messages
             bus = self.pipeline.get_bus()
             bus.add_signal_watch()
             bus.connect('message', self.on_message)
+
+            # ---- APPSINK SETUP ----
+            appsink_element = self.pipeline.get_by_name("photosphere_appsink")
+            if appsink_element:
+                print(f"DEBUG: Found 'photosphere_appsink' for {self.camera_name}")
+                self._appsink_connection_id = appsink_element.connect("new-sample", self._on_new_sample_from_appsink)
+            else:
+                # This is not an error for non-360 cameras, as they won't have this appsink.
+                if "360 Camera" in self.camera_name: # Only print error if it's the 360 camera
+                    print(f"ERROR: 'photosphere_appsink' not found in pipeline for {self.camera_name}. Frame capture will not work.")
+            # ---- END APPSINK SETUP ----
             
-            # Start playing
             ret = self.pipeline.set_state(Gst.State.PLAYING)
             if ret == Gst.StateChangeReturn.FAILURE:
-                print(f"Failed to start pipeline for {label_text}")
+                print(f"Failed to start pipeline for {self.camera_name}")
                 raise Exception("Failed to start pipeline")
                 
-            print(f"Pipeline started for {label_text}")
+            print(f"Pipeline started for {self.camera_name}")
             
         except Exception as e:
-            print(f"Error creating GStreamer pipeline for {label_text}: {e}")
+            print(f"Error creating GStreamer pipeline for {self.camera_name}: {e}")
             import traceback
             traceback.print_exc()
-            
-            # Show error in UI
-            error_label = QtWidgets.QLabel(f"Camera Error: {str(e)}")
+            error_label = QtWidgets.QLabel(f"Camera Error ({self.camera_name}): {str(e)}")
             error_label.setStyleSheet("color: red; background-color: #ffeeee; padding: 10px;")
             error_label.setAlignment(QtCore.Qt.AlignCenter)
             error_label.setWordWrap(True)
-            layout.addWidget(error_label)
+            # Check if layout is already set, otherwise it might crash here
+            if self.layout() is None:
+                fallback_layout = QtWidgets.QVBoxLayout(self)
+                fallback_layout.addWidget(error_label)
+            else:
+                self.layout().addWidget(error_label)
+
+    def _on_new_sample_from_appsink(self, appsink):
+        sample = appsink.emit("pull-sample")
+        if not sample:
+            return Gst.FlowReturn.OK
+
+        buffer = sample.get_buffer()
+        caps = sample.get_caps()
+        structure = caps.get_structure(0)
+        width = structure.get_value("width")
+        height = structure.get_value("height")
+        # format_name = structure.get_value("format") # Expected RGB
+
+        success, map_info = buffer.map(Gst.MapFlags.READ)
+        if success:
+            # .copy() is important here!
+            image = QImage(map_info.data, width, height, QImage.Format_RGB888).copy()
+            self._latest_captured_pixmap = QPixmap.fromImage(image)
+            buffer.unmap(map_info)
+        else:
+            print(f"ERROR: Failed to map buffer for appsink in {self.camera_name}")
+        
+        return Gst.FlowReturn.OK
+
+    def get_latest_frame_for_photosphere(self):
+        if self._latest_captured_pixmap.isNull():
+            print(f"DEBUG ({self.camera_name}): get_latest_frame_for_photosphere called, but pixmap is null.")
+        else:
+            print(f"DEBUG ({self.camera_name}): get_latest_frame_for_photosphere returning valid pixmap.")
+        return self._latest_captured_pixmap
     
     def on_message(self, bus, message):
         t = message.type
@@ -113,11 +175,23 @@ class CameraStream(QtWidgets.QWidget):
 
     def close(self):
         try:
-            if hasattr(self, 'pipeline'):
+            # ---- APPSINK CLEANUP ----
+            if self.pipeline and self._appsink_connection_id is not None:
+                appsink_element = self.pipeline.get_by_name("photosphere_appsink")
+                if appsink_element and appsink_element.handler_is_connected(self._appsink_connection_id):
+                    appsink_element.disconnect(self._appsink_connection_id)
+                    self._appsink_connection_id = None
+                    print(f"DEBUG: Disconnected new-sample signal from photosphere_appsink for {self.camera_name}")
+            # ---- END APPSINK CLEANUP ----
+            if hasattr(self, 'pipeline') and self.pipeline is not None:
                 self.pipeline.set_state(Gst.State.NULL)
+                self.pipeline = None # Dereference
         except Exception as e:
-            print(f"Error closing pipeline: {e}")
-        super().close()
+            print(f"Error closing pipeline for {self.camera_name}: {e}")
+        # super().close() # QWidget doesn't have a close that takes arguments like QMainWindow
+        # If CameraStream is a QWidget, its cleanup is handled by Python's garbage collection
+        # or when its parent is destroyed. If you need specific QWidget cleanup, do it here.
+
 
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):

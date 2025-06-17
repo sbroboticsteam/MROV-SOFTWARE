@@ -1,0 +1,29 @@
+[
+  {
+    "float_time_since_start": 8.031,
+    "depth": 27.67325,
+    "velocity": 0.04955,
+    "pressure": 1040.26,
+    "pump_status": "M:Off",
+    "gui_received_timestamp_abs": "2025-06-12T12:20:16.359088",
+    "gui_time_since_capture_start": 2.354988
+  },
+  {
+    "float_time_since_start": 12.088,
+    "depth": 27.69397,
+    "velocity": 0.013994,
+    "pressure": 1042.35,
+    "pump_status": "M:Off",
+    "gui_received_timestamp_abs": "2025-06-12T12:20:21.519608",
+    "gui_time_since_capture_start": 7.515508
+  },
+  {
+    "float_time_since_start": 16.141,
+    "depth": 27.62589,
+    "velocity": 0.001078,
+    "pressure": 1035.48,
+    "pump_status": "M:Off",
+    "gui_received_timestamp_abs": "2025-06-12T12:20:26.639739",
+    "gui_time_since_capture_start": 12.635639
+  }
+]
