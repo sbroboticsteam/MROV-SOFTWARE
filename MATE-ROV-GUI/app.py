@@ -257,9 +257,9 @@ class MainWindow(QMainWindow): # MainWindow class extends QMainWindow
                 }""")
         self.header.save_layout_btn.clicked.connect(self.save_current_layout_as_preset)
 
-# Add it to the header layout
-layout = self.header.layout()
-layout.insertWidget(4, self.header.save_layout_btn)
+        # Add it to the header layout
+        layout = self.header.layout()
+        layout.insertWidget(4, self.header.save_layout_btn)
 
     def addNewPage(self):
         page_num = self.pages.count() + 1
@@ -403,48 +403,48 @@ layout.insertWidget(4, self.header.save_layout_btn)
         if self.pages.count() > 0:
             self.header.page_selector.setCurrentIndex(0)
 
-def save_current_layout_as_preset(self):
-    """Save the current layout as a new preset"""
-    # Prompt for a preset name
-    preset_name, ok = QInputDialog.getText(self, "Save Preset", "Enter a name for this preset:")
-    
-    if ok and preset_name:
-        # Create a filename from the preset name
-        filename = preset_name.lower().replace(" ", "_") + ".json"
+    def save_current_layout_as_preset(self):
+        """Save the current layout as a new preset"""
+        # Prompt for a preset name
+        preset_name, ok = QInputDialog.getText(self, "Save Preset", "Enter a name for this preset:")
         
-        # Create the preset data structure
-        preset = {
-            "name": preset_name,
-            "pages": []
-        }
-        
-        # Add each page and its widgets to the preset
-        for i in range(self.pages.count()):
-            page = self.pages.widget(i)
-            page_name = self.header.page_selector.itemText(i)
+        if ok and preset_name:
+            # Create a filename from the preset name
+            filename = preset_name.lower().replace(" ", "_") + ".json"
             
-            page_config = {
-                "name": page_name,
-                "widgets": []
+            # Create the preset data structure
+            preset = {
+                "name": preset_name,
+                "pages": []
             }
             
-            # Add each widget on the page to the configuration
-            for widget in page.widgets:
-                widget_config = {
-                    "type": widget.title,
-                    "geometry": [widget.x(), widget.y(), widget.width(), widget.height()]
+            # Add each page and its widgets to the preset
+            for i in range(self.pages.count()):
+                page = self.pages.widget(i)
+                page_name = self.header.page_selector.itemText(i)
+                
+                page_config = {
+                    "name": page_name,
+                    "widgets": []
                 }
-                page_config["widgets"].append(widget_config)
+                
+                # Add each widget on the page to the configuration
+                for widget in page.widgets:
+                    widget_config = {
+                        "type": widget.title,
+                        "geometry": [widget.x(), widget.y(), widget.width(), widget.height()]
+                    }
+                    page_config["widgets"].append(widget_config)
+                
+                preset["pages"].append(page_config)
             
-            preset["pages"].append(page_config)
-        
-        # Save the preset
-        self.preset_manager.save_preset(filename, preset)
-        
-        # Update the preset selector
-        self.populate_preset_selector()
-        
-        QMessageBox.information(self, "Success", f"Layout saved as preset: {preset_name}")
+            # Save the preset
+            self.preset_manager.save_preset(filename, preset)
+            
+            # Update the preset selector
+            self.populate_preset_selector()
+            
+            QMessageBox.information(self, "Success", f"Layout saved as preset: {preset_name}")
         
 
     
