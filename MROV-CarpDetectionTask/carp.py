@@ -18,9 +18,41 @@ Before running, install Biopython with:
 from Bio import pairwise2
 from Bio.Seq import Seq
 
+import os, argparse, cv2, pytesseract, re
+from PIL import Image
+
+pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+
 # Define reference sequences for each carp species (example sequences).
 # These sequences are derived from available eDNA records.
 # In practice, adjust these sequences to match your full reference data.
+
+def preprocess(img_path):
+    #read image and conv to grayscale
+    img=cv2.imread(img_path)
+    grey=cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+    _,thresh=cv2.threshold(grey,150,255,cv2.THRESH_BINARY)
+
+    proc=cv2.medianBlur(thresh,3)
+
+    return proc
+
+def extract_dna(img_path):
+    #preprocess img
+    processed_img = preprocess(img_path)
+
+    text=pytesseract.image_to_string(processed_img, config='--psm 6')
+
+    cleaned_text = ''.join(text.split())
+
+    dna_chars=re.findall(r'[ACGTacgt]', cleaned_text)
+    dna_seq=''.join(dna_chars).upper()
+
+    print(f"Extracted DNA sequence: {dna_seq[:50]}...")
+    print(f"Extracted DNA sequence of length {len(dna_seq)} from image: {img_path}")
+    return dna_seq
+
+
 
 ref_sequences = {
     "Bighead Carp": (
@@ -135,23 +167,42 @@ if __name__ == "__main__":
     # In a typical Windows environment, you might load the query sequence from a file
     # or another source. For demonstration, we define one here directly.
     # Replace or modify this as needed.
-    query_eDNA = (
-        """
-        GACATTTGGAGATTAAATATTGTGTGGGCGTGCACTGCGCTGACGAATACTTCGATGTTGGTGTTGAG
-        TTTGATTACGTTGACTGCTGCCAAGGATAAGATGTTGGATACATTCGAATTGGAATATTATCGGTGGGC
-        ATTTACTACCTCCACCACATTTAAGTTGAGAGTAATATTGCGGTGCAGGTGGTCCTTATTTACAACGGG
-        ATAGGTGGAGAAGACATCGACATATGTCGCTAGATGGGATAGTTCTAATAAGAAGGAGGCTGAGTTT
-        AATACCGCGAAAACGCGGGACTGCATGACTTATATGTTATCCACCCGTGAGTAAAGCACAAATATTTA
-        GATGAGCACTTGCCGATTTGGGAGTGGCGAGGGCCGCTTGCACTTCCAAGACGCCCAATTCTGTGAA
-        CTTGGTGTAGGTCACTTCAATGAACTTAATTTCCAGTATGGTGCCCTCAGCATTAAAGGGAGAAGCGG
-        AAAAAACAATTAGGGCCGGATAGAGGCGTATGCTTTAGCTTGGTCGAAGAAGGGGTGGGAGACGAA
-        GATTAAGGTGGAGGCCACCAGGTCCAAATGCATGTCGATTCTGAAGAAGGCCACTGGGATTTCCCGG
-        GCCCAGTAGGGTATATCGTCGACTTGATGATCTCCCTACCAAGCCGGGCACTTAGCAGCCTGAGGCC
-        GTGTTGACCAGGGAGGCGCGCACTTTATTATAGCGGGATGCGTCCATTGCAGAGACTAGGTTTTTCAA
-        GCAAGAATAGAACTGGTGCATGGTGCTTGCTACCCTCTATCTTGTATTTTTAGTGGGTTGTTGATGATG
-        ACTTGTGGTGCCGCGGCAACTGCCCCTGCCCATACCCGCAATACGTGATTTATTATTGACCAGGTAGT
-        GGTTGGGGGATACGACCTCCAGGCATACCAAGGCGTTGC"""
-    )
+    parser=argparse.ArgumentParser(description="Detect Carp Species from eDNA sequence or image.")
+    parser.add_argument("--image", type=str, help="Path to image containing eDNA sequence.")
+    parser.add_argument("--sequence", type=str, help="Directly input eDNA sequence as a string.")
+    parser.add_argument("--threshold", type=float, default=0.85, help="Similarity threshold for species detection (default: 0.85).")\
+    
+    args= parser.parse_args()   
+
+    if args.image:
+        if not os.path.exists(args.image):
+            print(f"Image file {args.image} does not exist.")
+            exit(1)
+        print(f"Processing image: {args.image}")
+        query_eDNA = extract_dna(args.image)
+    
+    elif args.sequence:
+        query_eDNA = args.sequence.strip().upper()
+        print(f"Using provided eDNA sequence of length {len(query_eDNA)}.")
+
+    else:
+        query_eDNA = (
+            """
+            GACATTTGGAGATTAAATATTGTGTGGGCGTGCACTGCGCTGACGAATACTTCGATGTTGGTGTTGAG
+            TTTGATTACGTTGACTGCTGCCAAGGATAAGATGTTGGATACATTCGAATTGGAATATTATCGGTGGGC
+            ATTTACTACCTCCACCACATTTAAGTTGAGAGTAATATTGCGGTGCAGGTGGTCCTTATTTACAACGGG
+            ATAGGTGGAGAAGACATCGACATATGTCGCTAGATGGGATAGTTCTAATAAGAAGGAGGCTGAGTTT
+            AATACCGCGAAAACGCGGGACTGCATGACTTATATGTTATCCACCCGTGAGTAAAGCACAAATATTTA
+            GATGAGCACTTGCCGATTTGGGAGTGGCGAGGGCCGCTTGCACTTCCAAGACGCCCAATTCTGTGAA
+            CTTGGTGTAGGTCACTTCAATGAACTTAATTTCCAGTATGGTGCCCTCAGCATTAAAGGGAGAAGCGG
+            AAAAAACAATTAGGGCCGGATAGAGGCGTATGCTTTAGCTTGGTCGAAGAAGGGGTGGGAGACGAA
+            GATTAAGGTGGAGGCCACCAGGTCCAAATGCATGTCGATTCTGAAGAAGGCCACTGGGATTTCCCGG
+            GCCCAGTAGGGTATATCGTCGACTTGATGATCTCCCTACCAAGCCGGGCACTTAGCAGCCTGAGGCC
+            GTGTTGACCAGGGAGGCGCGCACTTTATTATAGCGGGATGCGTCCATTGCAGAGACTAGGTTTTTCAA
+            GCAAGAATAGAACTGGTGCATGGTGCTTGCTACCCTCTATCTTGTATTTTTAGTGGGTTGTTGATGATG
+            ACTTGTGGTGCCGCGGCAACTGCCCCTGCCCATACCCGCAATACGTGATTTATTATTGACCAGGTAGT
+            GGTTGGGGGATACGACCTCCAGGCATACCAAGGCGTTGC"""
+        )
 
     species, similarity = detect_carp_species(query_eDNA, ref_sequences, threshold=0.85)
     if species:
