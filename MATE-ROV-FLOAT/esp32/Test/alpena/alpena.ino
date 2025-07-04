@@ -8,9 +8,9 @@
 #include <Adafruit_NeoPixel.h>
 
 // -------------------- CONFIGURATION --------------------
-#define WIFI_SSID "Little White Church"
-#define WIFI_PASSWORD "Rainbows"
-int COMPANY_NUMBER = 6969;
+#define WIFI_SSID "SBRT"
+#define WIFI_PASSWORD "Robotic$3"
+String COMPANY_NUMBER = "EX08";
 
 // RSSI THRESHOLD (dBm)
 #define RSSI_THRESHOLD -70
@@ -21,8 +21,8 @@ int COMPANY_NUMBER = 6969;
 #define NUM_PIXELS 1
 
 // Data capture and send intervals (milliseconds)
-int NORMAL_READ_INTERVAL = 4000; // 4 seconds
-unsigned long SEND_INTERVAL = 5000; // 5 seconds
+int NORMAL_READ_INTERVAL = 5000; // 5 seconds
+unsigned long SEND_INTERVAL = 500; // 0.5 seconds
 unsigned long lastSuccessfulSend = 0;
 bool lastSendSuccessful = false;
 
@@ -32,12 +32,14 @@ bool lastSendSuccessful = false;
 // Pump control pins
 #define PUMP_DESC_PIN 27 // fill ballast
 #define PUMP_ASC_PIN 12  // empty ballast
+volatile bool manualOverride = false;
 
 // Routine control
 float TARGET_DEPTH = 2.5;      // Target depth for routine, e.g., 2.5m
-const float ROUTINE_DEPTH_TOLERANCE = 0.5; // ±0.5m for data collection at target
-const float ROUTINE_TARGET_APPROACH_THRESHOLD = 0.5; // Start fine control 0.5m before target
-unsigned long routineWaitTime = 80000; // Max time to spend in data collection state (80 seconds)
+float ROUTINE_DEPTH_TOLERANCE = 0.5; // ±0.5m for data collection at target
+float ROUTINE_TARGET_APPROACH_THRESHOLD = 0.1; // Start fine control 0.5m before target
+unsigned long routineWaitTime = 250000; // Max time to spend in data collection state (80 seconds)
+float HOLD_DEPTH_DEADBAND = 0.02; // MODIFIED: Moved to global scope
 
 // Routine state
 enum RoutineState { R_IDLE, R_DESCENDING, R_COLLECTING_DATA, R_ASCENDING, R_EMERGENCY_ASCENT, R_NEUTRALIZING_BALLAST }; // Added R_NEUTRALIZING_BALLAST
@@ -45,16 +47,16 @@ volatile bool routineActive = false;
 volatile RoutineState routineState = R_IDLE;
 unsigned long routineStateStartTime = 0; // Time when current routine state started
 int packetsCollectedAtTarget = 0;
-const int PACKETS_AT_TARGET_GOAL = 10;
+int PACKETS_AT_TARGET_GOAL = 15;
 
 // Velocity limits
-float maxDescentVelocity = 0.1; // m/s
-float maxAscentVelocity = 0.1;  // m/s (positive value for magnitude)
+float maxDescentVelocity = 0.035; // m/s
+float maxAscentVelocity = 0.035;  // m/s (positive value for magnitude)
 
 // Descent Pump Safety Timer
 unsigned long descentPumpActiveStartTime = 0; // Time when descent pump was last activated in current segment
 unsigned long totalDescentPumpRunTimeThisRoutine = 0; // Cumulative run time for this routine's descent phase
-const unsigned long MAX_TOTAL_DESCENT_PUMP_TIME = 20000; // 20 seconds MAX cumulative descent pump ON time per routine descent
+unsigned long MAX_TOTAL_DESCENT_PUMP_TIME = 72000; // 40 seconds MAX cumulative descent pump ON time per routine descent
 const unsigned long DESCENT_TIMER_COMPENSATION_OFFSET_MS = 50; // Compensation for accumulation characteristic (tied to TaskSensorAndSending delay)
 
 // Ballast Neutralization Control
@@ -74,9 +76,9 @@ struct Measurement {
     unsigned long timeSinceStart;
     float depth;
     float pressure;
-    int companyNum;
+    char companyNum[16];      // MODIFIED: Was String
     float velocity;
-    String pumpStatus;
+    char pumpStatus[32]; // MODIFIED: Was String
 };
 
 cppQueue measurementQueue(sizeof(Measurement), 800, FIFO, false);
@@ -164,19 +166,14 @@ String routineStateToString(RoutineState state) {
 }
 // HTTP handlers
 void handleSetCompanyNumber() {
-    if (!server.hasArg("value")) {
-        server.send(400, "text/plain", "Missing 'value' parameter");
-        return;
-    }
-    int value = server.arg("value").toInt();
-    if (value <= 0) {
-        server.send(400, "text/plain", "Company number must be a positive integer");
-        return;
-    }
-    COMPANY_NUMBER = value;
-    String resp = "Company number updated to " + String(COMPANY_NUMBER);
-    server.send(200, "text/plain", resp);
-    Serial.println(resp);
+  if (!server.hasArg("value") || server.arg("value").isEmpty()) {
+    server.send(400, "text/plain", "Missing or empty 'value' parameter");
+    return;
+  }
+  COMPANY_NUMBER = server.arg("value");
+  String resp = "Company number updated to " + COMPANY_NUMBER;
+  server.send(200, "text/plain", resp);
+  Serial.println(resp);
 }
 
 void handleStatus() {
@@ -231,6 +228,7 @@ void handleStatus() {
     routine_info["wait_time_seconds_config"] = routineWaitTime / 1000;
     routine_info["packets_collected_at_target"] = packetsCollectedAtTarget;
     routine_info["packets_goal_at_target"] = PACKETS_AT_TARGET_GOAL;
+    routine_info["hold_depth_deadband_m"] = HOLD_DEPTH_DEADBAND; // ADDED
 
     if (routineActive && routineState == R_COLLECTING_DATA) {
         unsigned long elapsedWait = millis() - routineStateStartTime;
@@ -244,6 +242,7 @@ void handleStatus() {
     if (pumpDescActive) pump_info["state"] = "descending";
     else if (pumpAscActive) pump_info["state"] = "ascending";
     else pump_info["state"] = "off";
+    pump_info["max_descent_time_config"] = MAX_TOTAL_DESCENT_PUMP_TIME / 1000; // ADDED
 
     String response;
     serializeJson(doc, response);
@@ -278,6 +277,107 @@ void handleSetWaitTime() {
     }
     routineWaitTime = (unsigned long)s * 1000;
     String resp = "Routine wait time (at target) updated to " + String(s) + "s";
+    server.send(200, "text/plain", resp);
+    Serial.println(resp);
+}
+
+void handleSetMaxAscentVelocity() {
+    if (!server.hasArg("velocity")) {
+        server.send(400, "text/plain", "Missing 'velocity' parameter");
+        return;
+    }
+    float v = server.arg("velocity").toFloat();
+    if (v <= 0) {
+        server.send(400, "text/plain", "Velocity must be positive");
+        return;
+    }
+    maxAscentVelocity = v;
+    String resp = "Max ascent velocity updated to " + String(maxAscentVelocity) + " m/s";
+    server.send(200, "text/plain", resp);
+    Serial.println(resp);
+}
+
+void handleSetMaxDescentVelocity() {
+    if (!server.hasArg("velocity")) {
+        server.send(400, "text/plain", "Missing 'velocity' parameter");
+        return;
+    }
+    float v = server.arg("velocity").toFloat();
+    if (v <= 0) {
+        server.send(400, "text/plain", "Velocity must be positive");
+        return;
+    }
+    maxDescentVelocity = v;
+    String resp = "Max descent velocity updated to " + String(maxDescentVelocity) + " m/s";
+    server.send(200, "text/plain", resp);
+    Serial.println(resp);
+}
+
+void handleSetMaxDescentPumpTime() {
+    if (!server.hasArg("seconds")) {
+        server.send(400, "text/plain", "Missing 'seconds' parameter");
+        return;
+    }
+    long s = server.arg("seconds").toInt();
+    if (s <= 0) {
+        server.send(400, "text/plain", "Seconds must be positive");
+        return;
+    }
+    MAX_TOTAL_DESCENT_PUMP_TIME = (unsigned long)s * 1000;
+    String resp = "Max descent pump time updated to " + String(s) + "s";
+    server.send(200, "text/plain", resp);
+    Serial.println(resp);
+}
+
+// --- NEW HANDLERS FOR MODULAR PARAMETERS ---
+
+void handleSetPacketsGoal() {
+    if (!server.hasArg("count")) { server.send(400, "text/plain", "Missing 'count'"); return; }
+    int c = server.arg("count").toInt();
+    if (c <= 0) { server.send(400, "text/plain", "Count must be positive"); return; }
+    PACKETS_AT_TARGET_GOAL = c;
+    String resp = "Packets at target goal updated to " + String(PACKETS_AT_TARGET_GOAL);
+    server.send(200, "text/plain", resp);
+    Serial.println(resp);
+}
+
+void handleSetDepthTolerance() {
+    if (!server.hasArg("meters")) { server.send(400, "text/plain", "Missing 'meters'"); return; }
+    float m = server.arg("meters").toFloat();
+    if (m <= 0) { server.send(400, "text/plain", "Meters must be positive"); return; }
+    ROUTINE_DEPTH_TOLERANCE = m;
+    String resp = "Routine depth tolerance updated to +/- " + String(ROUTINE_DEPTH_TOLERANCE) + "m";
+    server.send(200, "text/plain", resp);
+    Serial.println(resp);
+}
+
+void handleSetHoldDeadband() {
+    if (!server.hasArg("meters")) { server.send(400, "text/plain", "Missing 'meters'"); return; }
+    float m = server.arg("meters").toFloat();
+    if (m <= 0) { server.send(400, "text/plain", "Meters must be positive"); return; }
+    HOLD_DEPTH_DEADBAND = m;
+    String resp = "Hold depth deadband updated to +/- " + String(HOLD_DEPTH_DEADBAND) + "m";
+    server.send(200, "text/plain", resp);
+    Serial.println(resp);
+}
+
+void handleSetReadInterval() {
+    if (!server.hasArg("ms")) { server.send(400, "text/plain", "Missing 'ms'"); return; }
+    long ms = server.arg("ms").toInt();
+    if (ms <= 50) { server.send(400, "text/plain", "Milliseconds must be > 50"); return; }
+    currentReadInterval = ms; // Update the active interval directly
+    NORMAL_READ_INTERVAL = ms; // Also update the base config value
+    String resp = "Data read interval updated to " + String(currentReadInterval) + "ms";
+    server.send(200, "text/plain", resp);
+    Serial.println(resp);
+}
+
+void handleSetSendInterval() {
+    if (!server.hasArg("ms")) { server.send(400, "text/plain", "Missing 'ms'"); return; }
+    long ms = server.arg("ms").toInt();
+    if (ms <= 100) { server.send(400, "text/plain", "Milliseconds must be > 100"); return; }
+    SEND_INTERVAL = ms;
+    String resp = "Data send interval updated to " + String(SEND_INTERVAL) + "ms";
     server.send(200, "text/plain", resp);
     Serial.println(resp);
 }
@@ -337,6 +437,7 @@ void handleStartRoutine() {
     }
 
     // If we reach here, it's safe to start
+    manualOverride = false;    // ensure auto-control takes over
     routineActive = true;
     routineState = R_DESCENDING;
     routineStateStartTime = millis();
@@ -382,19 +483,29 @@ void handleRecalibrateDepth() {
 }
 
 void handlePumpAscend() {
-    if (routineActive && hasStarted) { server.send(400, "text/plain", "Pump control is automatic during routine."); return; }
-    pumpAscend();
-    server.send(200, "text/plain", "Manual: Pump ascending");
-    Serial.println("Manual: Pump ascending");
+  if (routineActive) {
+    server.send(400, "text/plain", "Pump control is automatic during routine.");
+    return;
+  }
+  manualOverride = true;
+  pumpAscend();
+  server.send(200, "text/plain", "Manual: Pump ascending");
+  Serial.println("Manual: Pump ascending");
 }
+
 void handlePumpDescend() {
-    if (routineActive && hasStarted) { server.send(400, "text/plain", "Pump control is automatic during routine."); return; }
+    if (routineActive) {
+        server.send(400, "text/plain", "Pump control is automatic during routine.");
+        return;
+    }
+    manualOverride = true;
     pumpDescend();
     server.send(200, "text/plain", "Manual: Pump descending");
     Serial.println("Manual: Pump descending");
 }
 void handlePumpStop() {
-    if (routineActive && hasStarted) { server.send(400, "text/plain", "Pump control is automatic during routine."); return; }
+    if (routineActive) { server.send(400, "text/plain", "Pump control is automatic during routine."); return; }
+    manualOverride = false;    //allow the state machine to resume
     pumpOff();
     server.send(200, "text/plain", "Manual: Pump stopped");
     Serial.println("Manual: Pump stopped");
@@ -509,194 +620,220 @@ void TaskSensorAndSending(void *) {
                 // --- Main State Machine ---
                 // routineActive controls the primary mission states (DESCENDING, COLLECTING, ASCENDING).
                 // R_EMERGENCY_ASCENT and R_NEUTRALIZING_BALLAST are system states that can override/follow a routine.
-                switch (routineState) {
-                    case R_DESCENDING:
-                        if (!routineActive) { // Should not happen if logic is correct, but as a safeguard
-                            pumpOff(); routineState = R_IDLE; descentPumpActiveStartTime = 0; pumpActionStatus = "R:IdleAbortDesc"; break;
-                        }
-                        // Accumulate descent pump ON time
-                        if (digitalRead(PUMP_DESC_PIN) == HIGH) { // Check if pump is actually ON
-                            if (descentPumpActiveStartTime == 0) { // If it just turned ON
-                                descentPumpActiveStartTime = now;
+                if (!manualOverride) {
+                    switch (routineState) {
+                        case R_DESCENDING:
+                            if (!routineActive) { // Should not happen if logic is correct, but as a safeguard
+                                pumpOff(); routineState = R_IDLE; descentPumpActiveStartTime = 0; pumpActionStatus = "R:IdleAbortDesc"; break;
                             }
-                            // Add time since last check if it was already on
-                            totalDescentPumpRunTimeThisRoutine += (now - descentPumpActiveStartTime); 
-                            descentPumpActiveStartTime = now; // Reset start time for next segment calculation
-                        } else {
-                            descentPumpActiveStartTime = 0; // Pump is OFF
-                        }
-                        
-                        // SAFETY CHECK: Max descent pump duration
-                        if (totalDescentPumpRunTimeThisRoutine >= MAX_TOTAL_DESCENT_PUMP_TIME) {
-                            Serial.printf("EMERGENCY: Total descent pump run time %lu ms exceeded limit %lu ms. Initiating emergency ascent.\n", totalDescentPumpRunTimeThisRoutine, MAX_TOTAL_DESCENT_PUMP_TIME);
-                            pumpAscend(); 
-                            descentPumpActiveStartTime = 0; 
-                            routineState = R_EMERGENCY_ASCENT;
-                            routineStateStartTime = now; 
-                            pumpActionStatus = "R:EmergencyAscent-Start";
-                            break; 
-                        }
-
-                        pumpActionStatus = "R:Descend-VelCtrl";
-                        if (currentDepth >= (TARGET_DEPTH - ROUTINE_TARGET_APPROACH_THRESHOLD)) {
-                            pumpOff();
-                            descentPumpActiveStartTime = 0; 
-                            routineState = R_COLLECTING_DATA;
-                            routineStateStartTime = now;
-                            packetsCollectedAtTarget = 0; 
-                            Serial.printf("ROUTINE: Approach target. State -> R_COLLECTING_DATA. Depth: %.2f\n", currentDepth);
-                            pumpActionStatus = "R:ApproachTarget";
-                        } else { 
-                            if (currentVelocity > maxDescentVelocity && currentVelocity > 0.01) { 
-                                pumpOff(); 
+                            // Accumulate descent pump ON time
+                            if (digitalRead(PUMP_DESC_PIN) == HIGH) { // Check if pump is actually ON
+                                if (descentPumpActiveStartTime == 0) { // If it just turned ON
+                                    descentPumpActiveStartTime = now;
+                                }
+                                // Add time since last check if it was already on
+                                totalDescentPumpRunTimeThisRoutine += (now - descentPumpActiveStartTime); 
+                                descentPumpActiveStartTime = now; // Reset start time for next segment calculation
+                            } else {
+                                descentPumpActiveStartTime = 0; // Pump is OFF
+                            }
+                            
+                            // SAFETY CHECK: Max descent pump duration
+                            if (totalDescentPumpRunTimeThisRoutine >= MAX_TOTAL_DESCENT_PUMP_TIME) {
+                                Serial.printf("EMERGENCY: Total descent pump run time %lu ms exceeded limit %lu ms. Initiating emergency ascent.\n", totalDescentPumpRunTimeThisRoutine, MAX_TOTAL_DESCENT_PUMP_TIME);
+                                pumpAscend(); 
                                 descentPumpActiveStartTime = 0; 
-                                Serial.printf("ROUTINE: Descend too fast (%.2f m/s > %.2f). Pump OFF.\n", currentVelocity, maxDescentVelocity);
-                                pumpActionStatus = "R:Descend-TooFast";
-                            } else { 
-                                pumpDescend(); 
-                                // descentPumpActiveStartTime is handled at the top of R_DESCENDING
-                                pumpActionStatus = "R:Descend-Normal";
+                                routineState = R_EMERGENCY_ASCENT;
+                                routineStateStartTime = now; 
+                                pumpActionStatus = "R:EmergencyAscent-Start";
+                                break; 
                             }
-                        }
-                        break;
 
-                    case R_COLLECTING_DATA:
-                        if (!routineActive) { pumpOff(); routineState = R_IDLE; pumpActionStatus = "R:IdleAbortCollect"; break; }
-                        descentPumpActiveStartTime = 0; // Ensure descent pump timer is not running
-                        pumpActionStatus = "R:HoldDepth";
-                        // ... (pump logic for holding depth) ...
-                        if (currentDepth > TARGET_DEPTH + ROUTINE_DEPTH_TOLERANCE) {
-                            pumpAscend(); pumpActionStatus = "R:HoldDepth-AdjustUp";
-                        } else if (currentDepth < TARGET_DEPTH - ROUTINE_DEPTH_TOLERANCE) {
-                            // Note: This descent is for adjustment. If it can be prolonged, it might need its own safety timer.
-                            // For now, it does not contribute to totalDescentPumpRunTimeThisRoutine.
-                            pumpDescend(); pumpActionStatus = "R:HoldDepth-AdjustDown";
-                        } else {
-                            pumpOff(); pumpActionStatus = "R:HoldDepth-Stable";
-                        }
+                            pumpActionStatus = "R:Descend-VelCtrl";
+                            if (currentDepth >= (TARGET_DEPTH - ROUTINE_TARGET_APPROACH_THRESHOLD )) {
+                                pumpAscend();
+                                descentPumpActiveStartTime = 0; 
+                                routineState = R_COLLECTING_DATA;
+                                routineStateStartTime = now;
+                                packetsCollectedAtTarget = 0; 
+                                Serial.printf("ROUTINE: Approach target. State -> R_COLLECTING_DATA. Depth: %.2f\n", currentDepth);
+                                pumpActionStatus = "R:ApproachTarget";
+                            } else { 
+                                if (currentVelocity > maxDescentVelocity && currentVelocity > 0.01) { 
+                                    pumpAscend(); 
+                                    descentPumpActiveStartTime = 0; 
+                                    Serial.printf("ROUTINE: Descend too fast (%.2f m/s > %.2f). Pump OFF.\n", currentVelocity, maxDescentVelocity);
+                                    pumpActionStatus = "R:Descend-TooFast";
+                                } else { 
+                                    pumpDescend(); 
+                                    // descentPumpActiveStartTime is handled at the top of R_DESCENDING
+                                    pumpActionStatus = "R:Descend-Normal";
+                                }
+                            }
+                            break;
+                        case R_COLLECTING_DATA:
+                            if (!routineActive) { pumpOff(); routineState = R_IDLE; pumpActionStatus = "R:IdleAbortCollect"; break; }
+                            descentPumpActiveStartTime = 0; // Ensure descent pump timer is not running
 
-                        if (packetsCollectedAtTarget >= PACKETS_AT_TARGET_GOAL || (now - routineStateStartTime >= routineWaitTime)) {
-                            // ... (serial prints) ...
+                            // --- CONDITION 1: Float is too deep ---
+                            if (currentDepth > TARGET_DEPTH + HOLD_DEPTH_DEADBAND) {
+                                // We need to ascend.
+                                // If we are already moving upwards (negative velocity), turn the pump off to avoid overshooting.
+                                if (currentVelocity < -0.01) {
+                                    pumpOff();
+                                    pumpActionStatus = "R:Hold-CoastingUp";
+                                } else {
+                                    // Otherwise, we are sinking or stable, so we need to activate the ascend pump.
+                                    pumpAscend();
+                                    pumpActionStatus = "R:Hold-CorrectingUp";
+                                }
+                            }
+                            // --- CONDITION 2: Float is too shallow ---
+                            else if (currentDepth < TARGET_DEPTH - HOLD_DEPTH_DEADBAND) {
+                                // We need to descend.
+                                // If we are already moving downwards (positive velocity), turn the pump off to avoid overshooting.
+                                if (currentVelocity > 0.01) {
+                                    pumpOff();
+                                    pumpActionStatus = "R:Hold-CoastingDown";
+                                } else {
+                                    // Otherwise, we are rising or stable, so we need to activate the descend pump.
+                                    pumpDescend();
+                                    pumpActionStatus = "R:Hold-CorrectingDown";
+                                }
+                            }
+                            // --- CONDITION 3: Float is inside the deadband ---
+                            else {
+                                // We are at the target. Turn pumps off to hold position stably.
+                                pumpOff();
+                                pumpActionStatus = "R:Hold-Stable";
+                            }
+
+                            if (packetsCollectedAtTarget >= PACKETS_AT_TARGET_GOAL || (now - routineStateStartTime >= routineWaitTime)) {
+                                Serial.printf("ROUTINE: Data collection complete (Packets: %d, Time: %lu s). Ascending.\n", packetsCollectedAtTarget, (now - routineStateStartTime) / 1000);
+                                pumpAscend(); 
+                                routineState = R_ASCENDING;
+                                routineStateStartTime = now;
+                                previousTime = 0; previousDepth = 0; 
+                                pumpActionStatus = "R:StartAscent";
+                            }
+                            break;
+
+                        case R_ASCENDING:
+                            if (!routineActive) { pumpOff(); routineState = R_IDLE; pumpActionStatus = "R:IdleAbortAscend"; break; }
+                            descentPumpActiveStartTime = 0; 
+                            pumpActionStatus = "R:Ascend-VelCtrl";
+                            if (currentDepth <= 0.1) { 
+                                pumpOff(); 
+                                Serial.println("ROUTINE: Reached surface.");
+                                routineJustCompletedLedActive = true; 
+                                ledRoutineCompleteStart = now;
+
+                                if (totalDescentPumpRunTimeThisRoutine > 0) {
+                                    Serial.println("Initiating ballast neutralization.");
+                                    if (totalDescentPumpRunTimeThisRoutine > DESCENT_TIMER_COMPENSATION_OFFSET_MS) {
+                                        ascentNeutralizationTargetDuration = totalDescentPumpRunTimeThisRoutine - DESCENT_TIMER_COMPENSATION_OFFSET_MS;
+                                    } else {
+                                        ascentNeutralizationTargetDuration = 0;
+                                    }
+                                    Serial.printf("Compensated ascentNeutralizationTargetDuration: %lu ms (from %lu ms)\n", ascentNeutralizationTargetDuration, totalDescentPumpRunTimeThisRoutine);
+                                    routineState = R_NEUTRALIZING_BALLAST;
+                                    neutralizationStateStartTime = now;
+                                    pumpActionStatus = "R:StartNeutralize";
+                                } else {
+                                    Serial.println("ROUTINE: Complete (no neutralization needed).");
+                                    routineActive = false; 
+                                    routineState = R_IDLE;
+                                    totalDescentPumpRunTimeThisRoutine = 0; 
+                                    pumpActionStatus = "R:CompleteNoNeutralize";
+                                }
+                            } else {
+                                // ... (velocity control for ascent) ...
+                                if (currentVelocity < -maxAscentVelocity && currentVelocity < -0.01) { 
+                                    pumpDescend(); pumpActionStatus = "R:Ascend-TooFast";
+                                } else { 
+                                    pumpAscend(); pumpActionStatus = "R:Ascend-Normal";
+                                }
+                            }
+                            break;
+                        
+                        case R_EMERGENCY_ASCENT:
+                            descentPumpActiveStartTime = 0; 
+                            pumpActionStatus = "R:EmergencyAscent-Active";
                             pumpAscend(); 
-                            routineState = R_ASCENDING;
-                            routineStateStartTime = now;
-                            previousTime = 0; previousDepth = 0; 
-                            pumpActionStatus = "R:StartAscent";
-                        }
-                        break;
 
-                    case R_ASCENDING:
-                        if (!routineActive) { pumpOff(); routineState = R_IDLE; pumpActionStatus = "R:IdleAbortAscend"; break; }
-                        descentPumpActiveStartTime = 0; 
-                        pumpActionStatus = "R:Ascend-VelCtrl";
-                        if (currentDepth <= 0.1) { 
-                            pumpOff(); 
-                            Serial.println("ROUTINE: Reached surface.");
-                            routineJustCompletedLedActive = true; 
-                            ledRoutineCompleteStart = now;
+                            if (currentDepth <= 0.2) { 
+                                pumpOff();
+                                Serial.println("ROUTINE: Emergency ascent to safe depth complete.");
 
-                            if (totalDescentPumpRunTimeThisRoutine > 0) {
-                                Serial.println("Initiating ballast neutralization.");
-                                if (totalDescentPumpRunTimeThisRoutine > DESCENT_TIMER_COMPENSATION_OFFSET_MS) {
-                                    ascentNeutralizationTargetDuration = totalDescentPumpRunTimeThisRoutine - DESCENT_TIMER_COMPENSATION_OFFSET_MS;
+                                if (totalDescentPumpRunTimeThisRoutine > 0) {
+                                    Serial.println("Initiating ballast neutralization post-emergency.");
+                                    if (totalDescentPumpRunTimeThisRoutine > DESCENT_TIMER_COMPENSATION_OFFSET_MS) {
+                                        ascentNeutralizationTargetDuration = totalDescentPumpRunTimeThisRoutine - DESCENT_TIMER_COMPENSATION_OFFSET_MS;
+                                    } else {
+                                        ascentNeutralizationTargetDuration = 0;
+                                    }
+                                    Serial.printf("Compensated ascentNeutralizationTargetDuration: %lu ms (from %lu ms)\n", ascentNeutralizationTargetDuration, totalDescentPumpRunTimeThisRoutine);
+                                    routineState = R_NEUTRALIZING_BALLAST;
+                                    neutralizationStateStartTime = now;
+                                    pumpActionStatus = "R:EmergencyNeutralize";
                                 } else {
-                                    ascentNeutralizationTargetDuration = 0;
+                                    Serial.println("ROUTINE: Emergency complete (no neutralization needed).");
+                                    routineActive = false; 
+                                    routineState = R_IDLE; 
+                                    totalDescentPumpRunTimeThisRoutine = 0; 
+                                    pumpActionStatus = "R:EmergencyCompleteNoNeutralize";
                                 }
-                                Serial.printf("Compensated ascentNeutralizationTargetDuration: %lu ms (from %lu ms)\n", ascentNeutralizationTargetDuration, totalDescentPumpRunTimeThisRoutine);
-                                routineState = R_NEUTRALIZING_BALLAST;
-                                neutralizationStateStartTime = now;
-                                pumpActionStatus = "R:StartNeutralize";
-                            } else {
-                                Serial.println("ROUTINE: Complete (no neutralization needed).");
-                                routineActive = false; 
-                                routineState = R_IDLE;
-                                totalDescentPumpRunTimeThisRoutine = 0; 
-                                pumpActionStatus = "R:CompleteNoNeutralize";
                             }
-                        } else {
-                            // ... (velocity control for ascent) ...
-                            if (currentVelocity < -maxAscentVelocity && currentVelocity < -0.01) { 
-                                pumpOff(); pumpActionStatus = "R:Ascend-TooFast";
-                            } else { 
-                                pumpAscend(); pumpActionStatus = "R:Ascend-Normal";
-                            }
-                        }
-                        break;
-                    
-                    case R_EMERGENCY_ASCENT:
-                        descentPumpActiveStartTime = 0; 
-                        pumpActionStatus = "R:EmergencyAscent-Active";
-                        pumpAscend(); 
+                            break;
 
-                        if (currentDepth <= 0.2) { 
-                            pumpOff();
-                            Serial.println("ROUTINE: Emergency ascent to safe depth complete.");
-
-                            if (totalDescentPumpRunTimeThisRoutine > 0) {
-                                Serial.println("Initiating ballast neutralization post-emergency.");
-                                if (totalDescentPumpRunTimeThisRoutine > DESCENT_TIMER_COMPENSATION_OFFSET_MS) {
-                                    ascentNeutralizationTargetDuration = totalDescentPumpRunTimeThisRoutine - DESCENT_TIMER_COMPENSATION_OFFSET_MS;
-                                } else {
-                                    ascentNeutralizationTargetDuration = 0;
-                                }
-                                Serial.printf("Compensated ascentNeutralizationTargetDuration: %lu ms (from %lu ms)\n", ascentNeutralizationTargetDuration, totalDescentPumpRunTimeThisRoutine);
-                                routineState = R_NEUTRALIZING_BALLAST;
-                                neutralizationStateStartTime = now;
-                                pumpActionStatus = "R:EmergencyNeutralize";
+                        case R_NEUTRALIZING_BALLAST:
+                            pumpActionStatus = "R:Neutralizing";
+                            descentPumpActiveStartTime = 0; // Not descending
+                            if (ascentNeutralizationTargetDuration > 0 && (now - neutralizationStateStartTime < ascentNeutralizationTargetDuration)) {
+                                pumpAscend();
                             } else {
-                                Serial.println("ROUTINE: Emergency complete (no neutralization needed).");
-                                routineActive = false; 
+                                pumpOff();
+                                Serial.println("ROUTINE: Ballast neutralization complete.");
                                 routineState = R_IDLE; 
-                                totalDescentPumpRunTimeThisRoutine = 0; 
-                                pumpActionStatus = "R:EmergencyCompleteNoNeutralize";
+                                routineActive = false; // Mark routine as fully ended now
+                                totalDescentPumpRunTimeThisRoutine = 0; // Reset after use
+                                ascentNeutralizationTargetDuration = 0;
+                                pumpActionStatus = "R:NeutralizeComplete";
+                                // If a stop signal triggered this, hasStarted is still true.
+                                // The float is now idle and safe. A subsequent stop signal would do an immediate full stop.
                             }
-                        }
-                        break;
+                            break;
 
-                    case R_NEUTRALIZING_BALLAST:
-                        pumpActionStatus = "R:Neutralizing";
-                        descentPumpActiveStartTime = 0; // Not descending
-                        if (ascentNeutralizationTargetDuration > 0 && (now - neutralizationStateStartTime < ascentNeutralizationTargetDuration)) {
-                            pumpAscend();
-                        } else {
+                        case R_IDLE: 
+                            // If routineActive is true here, it's an anomaly or means it was just set false by another state.
+                            if (routineActive) {
+                                // This case might be hit if routineActive was just set to false by a completing state in the same loop cycle.
+                                // Serial.println("Warning: In R_IDLE but routineActive is true. Forcing pump off.");
+                                // routineActive = false; // Ensure it's false
+                            }
+                            pumpOff(); // Ensure pumps are off in idle
+                            descentPumpActiveStartTime = 0;
+                            // totalDescentPumpRunTimeThisRoutine should be 0 if truly idle.
+                            if (digitalRead(PUMP_DESC_PIN) == HIGH || digitalRead(PUMP_ASC_PIN) == HIGH) { // Manual override check
+                                // This part is tricky if manual commands are allowed while hasStarted=true but routineActive=false
+                                // For now, assume R_IDLE means pumps should be off unless manually commanded by HTTP
+                            }
+                            if (pumpActionStatus != "R:NeutralizeComplete" && pumpActionStatus != "R:CompleteNoNeutralize" && pumpActionStatus != "R:EmergencyCompleteNoNeutralize") {
+                            // Avoid overwriting final status messages from completed routines
+                            if (digitalRead(PUMP_DESC_PIN) == HIGH) pumpActionStatus = "M:DescendActiveInIdle"; // Should not happen with current logic
+                            else if (digitalRead(PUMP_ASC_PIN) == HIGH) pumpActionStatus = "M:AscendActiveInIdle"; // Should not happen
+                            else pumpActionStatus = "M:Idle/Off";
+                            }
+                            break;
+                        default:
+                            Serial.println("ERROR: Unknown routine state!");
                             pumpOff();
-                            Serial.println("ROUTINE: Ballast neutralization complete.");
-                            routineState = R_IDLE; 
-                            routineActive = false; // Mark routine as fully ended now
-                            totalDescentPumpRunTimeThisRoutine = 0; // Reset after use
-                            ascentNeutralizationTargetDuration = 0;
-                            pumpActionStatus = "R:NeutralizeComplete";
-                            // If a stop signal triggered this, hasStarted is still true.
-                            // The float is now idle and safe. A subsequent stop signal would do an immediate full stop.
-                        }
-                        break;
-
-                    case R_IDLE:
-                        // In IDLE state, pump control is manual. The state machine does not control the pumps.
-                        // Pumps are turned off upon entering IDLE from a routine state.
-                        // Manual commands via HTTP will work without being overridden here.
-                        descentPumpActiveStartTime = 0; // No routine descent is active.
-
-                        // Update pumpActionStatus to reflect manual control state, but don't overwrite
-                        // the final status message from a routine that just completed.
-                        if (pumpActionStatus != "R:NeutralizeComplete" &&
-                            pumpActionStatus != "R:CompleteNoNeutralize" &&
-                            pumpActionStatus != "R:EmergencyCompleteNoNeutralize" &&
-                            pumpActionStatus != "M:StoppedBySignal") {
-
-                           if (digitalRead(PUMP_DESC_PIN) == HIGH) {
-                               pumpActionStatus = "M:Descend";
-                           } else if (digitalRead(PUMP_ASC_PIN) == HIGH) {
-                               pumpActionStatus = "M:Ascend";
-                           } else {
-                               pumpActionStatus = "M:Idle/Off";
-                           }
-                        }
-                        break;
-                    default:
-                        Serial.println("ERROR: Unknown routine state!");
+                            routineActive = false;
+                            routineState = R_IDLE;
+                            pumpActionStatus = "R:ErrorUnknownState";
+                            break;
+                    }
                 }
-
                 // Update previousDepth *after* velocity calculation for the current cycle
                 previousDepth = currentDepth; 
 
@@ -705,7 +842,19 @@ void TaskSensorAndSending(void *) {
                     float pressureForData = sensor.pressure(); 
                     unsigned long elapsed = now - startTime;
 
-                    Measurement m = {elapsed, currentDepth, pressureForData, COMPANY_NUMBER, currentVelocity, pumpActionStatus};
+                    Measurement m; // Create a new measurement struct
+                    m.timeSinceStart = elapsed;
+                    m.depth = currentDepth;
+                    m.pressure = pressureForData;
+                    m.velocity = currentVelocity;
+
+                    // MODIFIED: Safely copy string data into the char arrays
+                    strncpy(m.companyNum, COMPANY_NUMBER.c_str(), sizeof(m.companyNum));
+                    m.companyNum[sizeof(m.companyNum) - 1] = '\0'; // Ensure null-termination
+
+                    strncpy(m.pumpStatus, pumpActionStatus.c_str(), sizeof(m.pumpStatus));
+                    m.pumpStatus[sizeof(m.pumpStatus) - 1] = '\0'; // Ensure null-termination
+                    
                     if (!measurementQueue.push(&m)) {
                         Serial.println("WARNING: Queue full - data point lost!");
                     } else {
@@ -783,7 +932,7 @@ void TaskSensorAndSending(void *) {
                 }
             } 
         }
-
+        
         // LED Status Logic
         if (routineJustCompletedLedActive) {
             if (now - ledRoutineCompleteStart < LED_ROUTINE_COMPLETE_DURATION) {
@@ -880,7 +1029,15 @@ void setup() {
     server.on("/status", HTTP_GET, handleStatus);
     server.on("/set_company_number", HTTP_GET, handleSetCompanyNumber);
     server.on("/recalibrate_depth", HTTP_GET, handleRecalibrateDepth); // Added new handler
-
+    server.on("/set_max_ascent_vel", HTTP_GET, handleSetMaxAscentVelocity);
+    server.on("/set_max_descent_vel", HTTP_GET, handleSetMaxDescentVelocity);
+    server.on("/set_max_pump_time", HTTP_GET, handleSetMaxDescentPumpTime);
+    // ADDED: New handlers for modular parameters
+    server.on("/set_packets_goal", HTTP_GET, handleSetPacketsGoal);
+    server.on("/set_depth_tolerance", HTTP_GET, handleSetDepthTolerance);
+    server.on("/set_hold_deadband", HTTP_GET, handleSetHoldDeadband);
+    server.on("/set_read_interval", HTTP_GET, handleSetReadInterval);
+    server.on("/set_send_interval", HTTP_GET, handleSetSendInterval);
     server.begin();
     Serial.println("HTTP server started");
 

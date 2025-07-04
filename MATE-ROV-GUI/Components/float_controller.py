@@ -191,7 +191,7 @@ class FloatController(QWidget):
         # ... (IP input and Connect button layout - unchanged) ...
         ip_layout = QHBoxLayout()
         ip_label = QLabel("Float IP:")
-        self.ip_input = QLineEdit("192.168.1.226")
+        self.ip_input = QLineEdit("192.168.50.78")
         connect_btn = QPushButton("Connect to Float Status")
         connect_btn.clicked.connect(self.connect_to_float_status)
         ip_layout.addWidget(ip_label)
@@ -298,14 +298,78 @@ class FloatController(QWidget):
         wait_form.addRow("Wait Time (seconds):", self.wait_time_input)
         set_wait_btn = QPushButton("Set Wait Time"); set_wait_btn.clicked.connect(self.set_wait_time)
         wait_group.setLayout(wait_form); param_layout.addWidget(wait_group); param_layout.addWidget(set_wait_btn)
-        
+                
         company_group = QGroupBox("Company Settings")
         company_form = QFormLayout()
-        self.company_number_input = QSpinBox(); self.company_number_input.setRange(1, 99999); self.company_number_input.setSingleStep(1)
-        self.company_number_input.valueChanged.connect(self.parameter_editing_started)
+        self.company_number_input = QLineEdit()  # CHANGED from QSpinBox to QLineEdit
+        self.company_number_input.setMaxLength(32)  # Optional: limit length
+        self.company_number_input.textChanged.connect(self.parameter_editing_started)
         company_form.addRow("Company Number:", self.company_number_input)
         set_company_btn = QPushButton("Set Company Number"); set_company_btn.clicked.connect(self.set_company_number)
         company_group.setLayout(company_form); param_layout.addWidget(company_group); param_layout.addWidget(set_company_btn)
+        
+        # New Group for Velocity and Safety Parameters
+        adv_group = QGroupBox("Velocity & Safety Limits")
+        adv_form = QFormLayout()
+
+        self.max_descent_vel_input = QDoubleSpinBox()
+        self.max_descent_vel_input.setRange(0.01, 1.0); self.max_descent_vel_input.setDecimals(3); self.max_descent_vel_input.setSingleStep(0.005)
+        self.max_descent_vel_input.valueChanged.connect(self.parameter_editing_started)
+        adv_form.addRow("Max Descent Velocity (m/s):", self.max_descent_vel_input)
+
+        self.max_ascent_vel_input = QDoubleSpinBox()
+        self.max_ascent_vel_input.setRange(0.01, 1.0); self.max_ascent_vel_input.setDecimals(3); self.max_ascent_vel_input.setSingleStep(0.005)
+        self.max_ascent_vel_input.valueChanged.connect(self.parameter_editing_started)
+        adv_form.addRow("Max Ascent Velocity (m/s):", self.max_ascent_vel_input)
+
+        self.max_pump_time_input = QSpinBox()
+        self.max_pump_time_input.setRange(10, 300); self.max_pump_time_input.setSingleStep(5)
+        self.max_pump_time_input.valueChanged.connect(self.parameter_editing_started)
+        adv_form.addRow("Max Descent Pump Time (s):", self.max_pump_time_input)
+
+        adv_group.setLayout(adv_form)
+        param_layout.addWidget(adv_group)
+
+        adv_btn_layout = QHBoxLayout()
+        set_vel_btn = QPushButton("Set Velocity Limits"); set_vel_btn.clicked.connect(self.set_velocity_limits)
+        set_pump_time_btn = QPushButton("Set Max Pump Time"); set_pump_time_btn.clicked.connect(self.set_max_pump_time)
+        adv_btn_layout.addWidget(set_vel_btn)
+        adv_btn_layout.addWidget(set_pump_time_btn)
+        param_layout.addLayout(adv_btn_layout)
+        # --- NEW GROUP FOR ADVANCED ROUTINE & DATA PARAMETERS ---
+        adv_routine_group = QGroupBox("Advanced Routine & Data Parameters")
+        adv_routine_form = QFormLayout()
+
+        self.packets_goal_input = QSpinBox()
+        self.packets_goal_input.setRange(1, 100); self.packets_goal_input.setSingleStep(1)
+        self.packets_goal_input.valueChanged.connect(self.parameter_editing_started)
+        adv_routine_form.addRow("Packets to Collect at Target:", self.packets_goal_input)
+
+        self.depth_tolerance_input = QDoubleSpinBox()
+        self.depth_tolerance_input.setRange(0.01, 1.0); self.depth_tolerance_input.setDecimals(3); self.depth_tolerance_input.setSingleStep(0.01)
+        self.depth_tolerance_input.valueChanged.connect(self.parameter_editing_started)
+        adv_routine_form.addRow("Collection Depth Tolerance (m):", self.depth_tolerance_input)
+
+        self.hold_deadband_input = QDoubleSpinBox()
+        self.hold_deadband_input.setRange(0.01, 0.5); self.hold_deadband_input.setDecimals(3); self.hold_deadband_input.setSingleStep(0.005)
+        self.hold_deadband_input.valueChanged.connect(self.parameter_editing_started)
+        adv_routine_form.addRow("Hold Depth Deadband (m):", self.hold_deadband_input)
+
+        self.read_interval_input = QSpinBox()
+        self.read_interval_input.setRange(100, 10000); self.read_interval_input.setSingleStep(100)
+        self.read_interval_input.valueChanged.connect(self.parameter_editing_started)
+        adv_routine_form.addRow("Data Read Interval (ms):", self.read_interval_input)
+
+        self.send_interval_input = QSpinBox()
+        self.send_interval_input.setRange(500, 20000); self.send_interval_input.setSingleStep(500)
+        self.send_interval_input.valueChanged.connect(self.parameter_editing_started)
+        adv_routine_form.addRow("Data Send Interval (ms):", self.send_interval_input)
+
+        adv_routine_group.setLayout(adv_routine_form)
+        param_layout.addWidget(adv_routine_group)
+
+        set_adv_routine_btn = QPushButton("Set Advanced Routine Parameters"); set_adv_routine_btn.clicked.connect(self.set_advanced_routine_params)
+        param_layout.addWidget(set_adv_routine_btn)
         param_layout.addStretch(); param_tab.setLayout(param_layout); tabs.addTab(param_tab, "Parameters")
 
         # Dashboard tab
@@ -652,7 +716,7 @@ class FloatController(QWidget):
 
         # Update Dashboard Info Panels
         if not status_data: return
-        self.company_number_label.setText(str(status_data.get('company_number', '--')))
+        self.company_number_label.setText(str(status_data.get('company_number', '--')))  # Already string, but keep as str()
         uptime_seconds = status_data.get('uptime_seconds')
         if uptime_seconds is not None:
             self.float_time_label.setText(f"{uptime_seconds:.1f} s")
@@ -702,9 +766,34 @@ class FloatController(QWidget):
     def update_parameter_fields(self): # Uses self.latest_status_data
         if not self.latest_status_data: return
         try:
-            if 'company_number' in self.latest_status_data: self.company_number_input.setValue(self.latest_status_data['company_number'])
+            if 'company_number' in self.latest_status_data: self.company_number_input.setText(str(self.latest_status_data['company_number']))  # CHANGED
             if 'depth' in self.latest_status_data and 'target' in self.latest_status_data['depth']: self.target_depth_input.setValue(self.latest_status_data['depth']['target'])
             if 'routine' in self.latest_status_data and 'wait_time_seconds_config' in self.latest_status_data['routine']: self.wait_time_input.setValue(self.latest_status_data['routine']['wait_time_seconds_config'])
+            # Update new fields from status
+            if 'velocity' in self.latest_status_data:
+                if 'max_descent_config' in self.latest_status_data['velocity']:
+                    self.max_descent_vel_input.setValue(self.latest_status_data['velocity']['max_descent_config'])
+                if 'max_ascent_config' in self.latest_status_data['velocity']:
+                    self.max_ascent_vel_input.setValue(self.latest_status_data['velocity']['max_ascent_config'])
+                 # Update from new status fields
+            if 'pump' in self.latest_status_data and 'max_descent_time_config' in self.latest_status_data['pump']:
+                self.max_pump_time_input.setValue(self.latest_status_data['pump']['max_descent_time_config'])
+            
+            if 'routine' in self.latest_status_data:
+                if 'packets_goal_at_target' in self.latest_status_data['routine']:
+                    self.packets_goal_input.setValue(self.latest_status_data['routine']['packets_goal_at_target'])
+                if 'hold_depth_deadband_m' in self.latest_status_data['routine']:
+                    self.hold_deadband_input.setValue(self.latest_status_data['routine']['hold_depth_deadband_m'])
+
+            if 'depth' in self.latest_status_data and 'target_tolerance' in self.latest_status_data['depth']:
+                self.depth_tolerance_input.setValue(self.latest_status_data['depth']['target_tolerance'])
+
+            if 'queue' in self.latest_status_data:
+                if 'read_interval_ms' in self.latest_status_data['queue']:
+                    self.read_interval_input.setValue(self.latest_status_data['queue']['read_interval_ms'])
+                if 'send_interval_ms' in self.latest_status_data['queue']:
+                    self.send_interval_input.setValue(self.latest_status_data['queue']['send_interval_ms'])
+
         except Exception as e: print(f"Error updating parameter fields: {e}"); traceback.print_exc()
 
     def reset_editing_flag(self): self.editing_fields = False
@@ -790,7 +879,31 @@ class FloatController(QWidget):
 
     def set_target_depth(self): self._send_parameter_update("/set_target_depth", {'depth': self.target_depth_input.value()}, "Target depth updated", "setting target depth")
     def set_wait_time(self): self._send_parameter_update("/set_wait_time", {'seconds': self.wait_time_input.value()}, "Wait time updated", "setting wait time")
-    def set_company_number(self): self._send_parameter_update("/set_company_number", {'value': self.company_number_input.value()}, "Company number updated", "setting company number")
+    def set_velocity_limits(self):
+        # This function can set both at once, or you can have separate ones.
+        # For simplicity, we'll call the handlers one after another.
+        self._send_parameter_update("/set_max_descent_vel", {'velocity': self.max_descent_vel_input.value()}, "Max descent velocity updated.", "setting descent velocity")
+        # A small delay might be good if the ESP32 is slow, but usually not needed.
+        self._send_parameter_update("/set_max_ascent_vel", {'velocity': self.max_ascent_vel_input.value()}, "Max ascent velocity updated.", "setting ascent velocity")
+
+    def set_max_pump_time(self):
+        self._send_parameter_update("/set_max_pump_time", {'seconds': self.max_pump_time_input.value()}, "Max descent pump time updated.", "setting max pump time")
+    
+    def set_advanced_routine_params(self):
+        # Send all advanced routine parameters.
+        self._send_parameter_update("/set_packets_goal", {'count': self.packets_goal_input.value()}, "Packets goal updated.", "setting packets goal")
+        self._send_parameter_update("/set_depth_tolerance", {'meters': self.depth_tolerance_input.value()}, "Depth tolerance updated.", "setting depth tolerance")
+        self._send_parameter_update("/set_hold_deadband", {'meters': self.hold_deadband_input.value()}, "Hold deadband updated.", "setting hold deadband")
+        self._send_parameter_update("/set_read_interval", {'ms': self.read_interval_input.value()}, "Read interval updated.", "setting read interval")
+        self._send_parameter_update("/set_send_interval", {'ms': self.send_interval_input.value()}, "Send interval updated.", "setting send interval")
+
+    # 3. In set_company_number(), send the string value:
+    def set_company_number(self):
+        value = self.company_number_input.text().strip()  # CHANGED
+        if not value:
+            QMessageBox.warning(self, "Error", "Company number cannot be empty.")
+            return
+        self._send_parameter_update("/set_company_number", {'value': value}, "Company number updated", "setting company number")
 
     # save_to_coordinates_json can be adapted if needed for the new self.logged_data_points structure
 

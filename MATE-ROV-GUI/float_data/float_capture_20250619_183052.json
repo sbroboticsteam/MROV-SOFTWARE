@@ -1,0 +1,605 @@
+[
+  {
+    "float_time_since_start": 591.458,
+    "depth": 27.07966,
+    "velocity": 0.00537,
+    "pressure": 989.41,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:30:57.323426",
+    "gui_time_since_capture_start": 4.574716
+  },
+  {
+    "float_time_since_start": 595.507,
+    "depth": 27.07907,
+    "velocity": 0.004312,
+    "pressure": 989.35,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:31:02.364310",
+    "gui_time_since_capture_start": 9.6156
+  },
+  {
+    "float_time_since_start": 599.555,
+    "depth": 27.07966,
+    "velocity": 0,
+    "pressure": 989.41,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:31:07.475383",
+    "gui_time_since_capture_start": 14.726673
+  },
+  {
+    "float_time_since_start": 603.603,
+    "depth": 27.07976,
+    "velocity": 0.001078,
+    "pressure": 989.42,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:31:12.425850",
+    "gui_time_since_capture_start": 19.67714
+  },
+  {
+    "float_time_since_start": 607.651,
+    "depth": 27.07946,
+    "velocity": -0.002156,
+    "pressure": 989.39,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:31:17.511087",
+    "gui_time_since_capture_start": 24.762377
+  },
+  {
+    "float_time_since_start": 611.698,
+    "depth": 27.07946,
+    "velocity": 0.003213,
+    "pressure": 989.39,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:31:22.469504",
+    "gui_time_since_capture_start": 29.720794
+  },
+  {
+    "float_time_since_start": 615.746,
+    "depth": 27.08115,
+    "velocity": 0.003234,
+    "pressure": 989.56,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:31:27.570576",
+    "gui_time_since_capture_start": 34.821866
+  },
+  {
+    "float_time_since_start": 619.794,
+    "depth": 27.08115,
+    "velocity": 0,
+    "pressure": 989.56,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:31:32.523359",
+    "gui_time_since_capture_start": 39.774649
+  },
+  {
+    "float_time_since_start": 623.842,
+    "depth": 27.08105,
+    "velocity": -0.002156,
+    "pressure": 989.55,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:31:37.679821",
+    "gui_time_since_capture_start": 44.931111
+  },
+  {
+    "float_time_since_start": 627.891,
+    "depth": 27.08144,
+    "velocity": 0.004312,
+    "pressure": 989.59,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:31:42.633812",
+    "gui_time_since_capture_start": 49.885102
+  },
+  {
+    "float_time_since_start": 631.94,
+    "depth": 27.08125,
+    "velocity": 0,
+    "pressure": 989.57,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:31:47.674960",
+    "gui_time_since_capture_start": 54.92625
+  },
+  {
+    "float_time_since_start": 635.989,
+    "depth": 27.08144,
+    "velocity": 0.001078,
+    "pressure": 989.59,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:31:52.725760",
+    "gui_time_since_capture_start": 59.97705
+  },
+  {
+    "float_time_since_start": 640.037,
+    "depth": 27.08164,
+    "velocity": 0.001078,
+    "pressure": 989.61,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:31:57.776958",
+    "gui_time_since_capture_start": 65.028248
+  },
+  {
+    "float_time_since_start": 644.086,
+    "depth": 27.08164,
+    "velocity": -0.004312,
+    "pressure": 989.61,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:32:02.870778",
+    "gui_time_since_capture_start": 70.122068
+  },
+  {
+    "float_time_since_start": 648.134,
+    "depth": 27.08125,
+    "velocity": -0.00537,
+    "pressure": 989.57,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:32:07.816289",
+    "gui_time_since_capture_start": 75.067579
+  },
+  {
+    "float_time_since_start": 652.182,
+    "depth": 27.08134,
+    "velocity": -0.001078,
+    "pressure": 989.58,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:32:13.006165",
+    "gui_time_since_capture_start": 80.257455
+  },
+  {
+    "float_time_since_start": 656.23,
+    "depth": 27.08095,
+    "velocity": -0.004312,
+    "pressure": 989.54,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:32:17.866546",
+    "gui_time_since_capture_start": 85.117836
+  },
+  {
+    "float_time_since_start": 660.278,
+    "depth": 27.08115,
+    "velocity": 0.004312,
+    "pressure": 989.56,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:32:22.914433",
+    "gui_time_since_capture_start": 90.165723
+  },
+  {
+    "float_time_since_start": 664.326,
+    "depth": 27.08035,
+    "velocity": -0.006468,
+    "pressure": 989.48,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:32:28.059371",
+    "gui_time_since_capture_start": 95.310661
+  },
+  {
+    "float_time_since_start": 668.375,
+    "depth": 27.08075,
+    "velocity": 0,
+    "pressure": 989.52,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:32:33.007174",
+    "gui_time_since_capture_start": 100.258464
+  },
+  {
+    "float_time_since_start": 672.423,
+    "depth": 27.08035,
+    "velocity": 0,
+    "pressure": 989.48,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:32:38.061500",
+    "gui_time_since_capture_start": 105.31279
+  },
+  {
+    "float_time_since_start": 676.473,
+    "depth": 27.07986,
+    "velocity": -0.006468,
+    "pressure": 989.43,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:32:43.114149",
+    "gui_time_since_capture_start": 110.365439
+  },
+  {
+    "float_time_since_start": 680.52,
+    "depth": 27.07966,
+    "velocity": -0.003234,
+    "pressure": 989.41,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:32:48.155573",
+    "gui_time_since_capture_start": 115.406863
+  },
+  {
+    "float_time_since_start": 684.568,
+    "depth": 27.07996,
+    "velocity": 0,
+    "pressure": 989.44,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:32:53.189420",
+    "gui_time_since_capture_start": 120.44071
+  },
+  {
+    "float_time_since_start": 688.616,
+    "depth": 27.07956,
+    "velocity": 0,
+    "pressure": 989.4,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:32:58.230438",
+    "gui_time_since_capture_start": 125.481728
+  },
+  {
+    "float_time_since_start": 692.664,
+    "depth": 27.07966,
+    "velocity": 0.001078,
+    "pressure": 989.41,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:33:03.275861",
+    "gui_time_since_capture_start": 130.527151
+  },
+  {
+    "float_time_since_start": 696.712,
+    "depth": 27.07926,
+    "velocity": 0,
+    "pressure": 989.37,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:33:08.317403",
+    "gui_time_since_capture_start": 135.568693
+  },
+  {
+    "float_time_since_start": 700.76,
+    "depth": 27.07887,
+    "velocity": -0.002156,
+    "pressure": 989.33,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:33:13.369151",
+    "gui_time_since_capture_start": 140.620441
+  },
+  {
+    "float_time_since_start": 704.809,
+    "depth": 27.07907,
+    "velocity": -0.002135,
+    "pressure": 989.35,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:33:18.418463",
+    "gui_time_since_capture_start": 145.669753
+  },
+  {
+    "float_time_since_start": 708.857,
+    "depth": 27.07887,
+    "velocity": -0.004292,
+    "pressure": 989.33,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:33:23.559711",
+    "gui_time_since_capture_start": 150.811001
+  },
+  {
+    "float_time_since_start": 712.905,
+    "depth": 27.07926,
+    "velocity": 0.004292,
+    "pressure": 989.37,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:33:28.520798",
+    "gui_time_since_capture_start": 155.772088
+  },
+  {
+    "float_time_since_start": 716.954,
+    "depth": 27.07897,
+    "velocity": 0,
+    "pressure": 989.34,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:33:33.560925",
+    "gui_time_since_capture_start": 160.812215
+  },
+  {
+    "float_time_since_start": 721.002,
+    "depth": 27.07887,
+    "velocity": -0.001078,
+    "pressure": 989.33,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:33:38.714180",
+    "gui_time_since_capture_start": 165.96547
+  },
+  {
+    "float_time_since_start": 725.05,
+    "depth": 27.07916,
+    "velocity": -0.003213,
+    "pressure": 989.36,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:33:43.674051",
+    "gui_time_since_capture_start": 170.925341
+  },
+  {
+    "float_time_since_start": 729.098,
+    "depth": 27.07966,
+    "velocity": -0.00539,
+    "pressure": 989.41,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:33:48.717667",
+    "gui_time_since_capture_start": 175.968957
+  },
+  {
+    "float_time_since_start": 733.146,
+    "depth": 27.08055,
+    "velocity": 0.00539,
+    "pressure": 989.5,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:33:53.768129",
+    "gui_time_since_capture_start": 181.019419
+  },
+  {
+    "float_time_since_start": 737.195,
+    "depth": 27.08015,
+    "velocity": -0.002156,
+    "pressure": 989.46,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:33:58.886342",
+    "gui_time_since_capture_start": 186.137632
+  },
+  {
+    "float_time_since_start": 741.243,
+    "depth": 27.08085,
+    "velocity": 0.002156,
+    "pressure": 989.53,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:34:03.842925",
+    "gui_time_since_capture_start": 191.094215
+  },
+  {
+    "float_time_since_start": 745.291,
+    "depth": 27.08085,
+    "velocity": 0.001078,
+    "pressure": 989.53,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:34:08.879534",
+    "gui_time_since_capture_start": 196.130824
+  },
+  {
+    "float_time_since_start": 352.292,
+    "depth": 27.1965,
+    "velocity": 0.044159,
+    "pressure": 1001.2,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:34:13.914725",
+    "gui_time_since_capture_start": 201.166015
+  },
+  {
+    "float_time_since_start": 749.61,
+    "depth": 27.08095,
+    "velocity": 0,
+    "pressure": 989.54,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:34:18.970704",
+    "gui_time_since_capture_start": 206.221994
+  },
+  {
+    "float_time_since_start": 356.327,
+    "depth": 27.20878,
+    "velocity": -0.061388,
+    "pressure": 1002.44,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:34:24.080723",
+    "gui_time_since_capture_start": 211.332013
+  },
+  {
+    "float_time_since_start": 758.112,
+    "depth": 27.08204,
+    "velocity": 7.8e-05,
+    "pressure": 989.65,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:34:29.093999",
+    "gui_time_since_capture_start": 216.345289
+  },
+  {
+    "float_time_since_start": 360.48,
+    "depth": 27.07689,
+    "velocity": -0.000501,
+    "pressure": 989.13,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:34:34.111224",
+    "gui_time_since_capture_start": 221.362514
+  },
+  {
+    "float_time_since_start": 763.209,
+    "depth": 27.08273,
+    "velocity": 0.000136,
+    "pressure": 989.72,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:34:39.064822",
+    "gui_time_since_capture_start": 226.316112
+  },
+  {
+    "float_time_since_start": 3.988,
+    "depth": 0.000198,
+    "velocity": 0.005386,
+    "pressure": 989.82,
+    "pump_status": "M:Stopped",
+    "gui_received_timestamp_abs": "2025-06-19T18:35:38.531996",
+    "gui_time_since_capture_start": 285.783286
+  },
+  {
+    "float_time_since_start": 8.02,
+    "depth": -0.000495,
+    "velocity": 0,
+    "pressure": 989.75,
+    "pump_status": "M:Stopped",
+    "gui_received_timestamp_abs": "2025-06-19T18:35:43.570943",
+    "gui_time_since_capture_start": 290.822233
+  },
+  {
+    "float_time_since_start": 12.044,
+    "depth": -0.000793,
+    "velocity": -0.002154,
+    "pressure": 989.72,
+    "pump_status": "M:Stopped",
+    "gui_received_timestamp_abs": "2025-06-19T18:35:48.606574",
+    "gui_time_since_capture_start": 295.857864
+  },
+  {
+    "float_time_since_start": 16.076,
+    "depth": -0.000793,
+    "velocity": -0.004309,
+    "pressure": 989.72,
+    "pump_status": "M:Stopped",
+    "gui_received_timestamp_abs": "2025-06-19T18:35:53.651079",
+    "gui_time_since_capture_start": 300.902369
+  },
+  {
+    "float_time_since_start": 20.107,
+    "depth": -0.000297,
+    "velocity": 0.001077,
+    "pressure": 989.77,
+    "pump_status": "M:Stopped",
+    "gui_received_timestamp_abs": "2025-06-19T18:35:58.693111",
+    "gui_time_since_capture_start": 305.944401
+  },
+  {
+    "float_time_since_start": 24.155,
+    "depth": -0.000595,
+    "velocity": 0.003231,
+    "pressure": 989.74,
+    "pump_status": "M:Stopped",
+    "gui_received_timestamp_abs": "2025-06-19T18:36:03.812758",
+    "gui_time_since_capture_start": 311.064048
+  },
+  {
+    "float_time_since_start": 28.178,
+    "depth": -0.000991,
+    "velocity": 0.002154,
+    "pressure": 989.7,
+    "pump_status": "M:Stopped",
+    "gui_received_timestamp_abs": "2025-06-19T18:36:08.830519",
+    "gui_time_since_capture_start": 316.081809
+  },
+  {
+    "float_time_since_start": 32.198,
+    "depth": -0.000892,
+    "velocity": -0.001077,
+    "pressure": 989.71,
+    "pump_status": "M:Stopped",
+    "gui_received_timestamp_abs": "2025-06-19T18:36:13.775631",
+    "gui_time_since_capture_start": 321.026921
+  },
+  {
+    "float_time_since_start": 36.2,
+    "depth": -0.000991,
+    "velocity": 0.003231,
+    "pressure": 989.7,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:36:18.829035",
+    "gui_time_since_capture_start": 326.080325
+  },
+  {
+    "float_time_since_start": 40.232,
+    "depth": -0.001486,
+    "velocity": -0.002154,
+    "pressure": 989.65,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:36:23.985711",
+    "gui_time_since_capture_start": 331.237001
+  },
+  {
+    "float_time_since_start": 44.28,
+    "depth": -0.001586,
+    "velocity": 0.001077,
+    "pressure": 989.64,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:36:29.004348",
+    "gui_time_since_capture_start": 336.255638
+  },
+  {
+    "float_time_since_start": 48.314,
+    "depth": -0.002081,
+    "velocity": -0.002154,
+    "pressure": 989.59,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:36:33.957945",
+    "gui_time_since_capture_start": 341.209235
+  },
+  {
+    "float_time_since_start": 52.368,
+    "depth": -0.002477,
+    "velocity": 0.001077,
+    "pressure": 989.55,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:36:39.040046",
+    "gui_time_since_capture_start": 346.291336
+  },
+  {
+    "float_time_since_start": 56.379,
+    "depth": -0.002775,
+    "velocity": -0.003231,
+    "pressure": 989.52,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:36:44.158022",
+    "gui_time_since_capture_start": 351.409312
+  },
+  {
+    "float_time_since_start": 60.41,
+    "depth": -0.003072,
+    "velocity": -0.002154,
+    "pressure": 989.49,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:36:49.176428",
+    "gui_time_since_capture_start": 356.427718
+  },
+  {
+    "float_time_since_start": 64.458,
+    "depth": -0.00327,
+    "velocity": -0.001077,
+    "pressure": 989.47,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:36:54.195328",
+    "gui_time_since_capture_start": 361.446618
+  },
+  {
+    "float_time_since_start": 68.531,
+    "depth": -0.003072,
+    "velocity": -0.003231,
+    "pressure": 989.49,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:36:59.210795",
+    "gui_time_since_capture_start": 366.462085
+  },
+  {
+    "float_time_since_start": 72.54,
+    "depth": -0.002775,
+    "velocity": 0.008617,
+    "pressure": 989.52,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:37:04.231717",
+    "gui_time_since_capture_start": 371.483007
+  },
+  {
+    "float_time_since_start": 76.55,
+    "depth": -0.00327,
+    "velocity": -0.003231,
+    "pressure": 989.47,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:37:09.249445",
+    "gui_time_since_capture_start": 376.500735
+  },
+  {
+    "float_time_since_start": 80.56,
+    "depth": -0.003468,
+    "velocity": -0.005386,
+    "pressure": 989.45,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:37:14.266908",
+    "gui_time_since_capture_start": 381.518198
+  },
+  {
+    "float_time_since_start": 84.608,
+    "depth": -0.003369,
+    "velocity": -0.006463,
+    "pressure": 989.46,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:37:19.224915",
+    "gui_time_since_capture_start": 386.476205
+  },
+  {
+    "float_time_since_start": 88.608,
+    "depth": -0.002973,
+    "velocity": 0.001077,
+    "pressure": 989.5,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:37:24.298928",
+    "gui_time_since_capture_start": 391.550218
+  }
+]

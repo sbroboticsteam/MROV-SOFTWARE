@@ -1,0 +1,109 @@
+{
+  "name": "GUITS",
+  "pages": [
+    {
+      "name": "Dual Camera Layout",
+      "widgets": [
+        {
+          "type": "USB Camera 1",
+          "geometry": [
+            1933,
+            6,
+            850,
+            1186
+          ]
+        },
+        {
+          "type": "USB Camera 2",
+          "geometry": [
+            2783,
+            5,
+            851,
+            1187
+          ]
+        },
+        {
+          "type": "Speed Panel",
+          "geometry": [
+            1792,
+            376,
+            350,
+            250
+          ]
+        },
+        {
+          "type": "Controller Sender",
+          "geometry": [
+            424,
+            1172,
+            400,
+            300
+          ]
+        },
+        {
+          "type": "360 Camera",
+          "geometry": [
+            17,
+            2,
+            1879,
+            844
+          ]
+        },
+        {
+          "type": "Controller Sender",
+          "geometry": [
+            24,
+            1172,
+            400,
+            300
+          ]
+        },
+        {
+          "type": "Leak Sensor",
+          "geometry": [
+            419,
+            1167,
+            1246,
+            329
+          ]
+        },
+        {
+          "type": "Controller Sender",
+          "geometry": [
+            1923,
+            1209,
+            332,
+            229
+          ]
+        },
+        {
+          "type": "Controller Sender",
+          "geometry": [
+            20,
+            1165,
+            400,
+            300
+          ]
+        },
+        {
+          "type": "Float Controller",
+          "geometry": [
+            3633,
+            5,
+            846,
+            1187
+          ]
+        },
+        {
+          "type": "Leak Sensor",
+          "geometry": [
+            2253,
+            1210,
+            1160,
+            302
+          ]
+        }
+      ]
+    }
+  ]
+}

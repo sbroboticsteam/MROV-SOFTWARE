@@ -1,0 +1,182 @@
+[
+  {
+    "float_time_since_start": 40.37,
+    "depth": 0.001486,
+    "velocity": -0.003231,
+    "pressure": 1021.9,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T20:08:23.299022",
+    "gui_time_since_capture_start": 4.982408
+  },
+  {
+    "float_time_since_start": 44.394,
+    "depth": 0.001486,
+    "velocity": 0.001077,
+    "pressure": 1021.9,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T20:08:28.349495",
+    "gui_time_since_capture_start": 10.032881
+  },
+  {
+    "float_time_since_start": 48.433,
+    "depth": 0.001189,
+    "velocity": 0,
+    "pressure": 1021.87,
+    "pump_status": "R:Descend-Normal",
+    "gui_received_timestamp_abs": "2025-06-19T20:08:33.404156",
+    "gui_time_since_capture_start": 15.087542
+  },
+  {
+    "float_time_since_start": 52.488,
+    "depth": 0.002874,
+    "velocity": 0.002154,
+    "pressure": 1022.04,
+    "pump_status": "R:Descend-Normal",
+    "gui_received_timestamp_abs": "2025-06-19T20:08:38.556751",
+    "gui_time_since_capture_start": 20.240137
+  },
+  {
+    "float_time_since_start": 56.523,
+    "depth": 0.004162,
+    "velocity": 0.001077,
+    "pressure": 1022.17,
+    "pump_status": "R:Descend-Normal",
+    "gui_received_timestamp_abs": "2025-06-19T20:08:43.513990",
+    "gui_time_since_capture_start": 25.197376
+  },
+  {
+    "float_time_since_start": 60.572,
+    "depth": 0.006045,
+    "velocity": 0.002154,
+    "pressure": 1022.36,
+    "pump_status": "R:Descend-Normal",
+    "gui_received_timestamp_abs": "2025-06-19T20:08:48.559134",
+    "gui_time_since_capture_start": 30.24252
+  },
+  {
+    "float_time_since_start": 72.702,
+    "depth": 0.009811,
+    "velocity": 0.003231,
+    "pressure": 1022.74,
+    "pump_status": "R:Descend-Normal",
+    "gui_received_timestamp_abs": "2025-06-19T20:09:33.237935",
+    "gui_time_since_capture_start": 74.921321
+  },
+  {
+    "float_time_since_start": 76.737,
+    "depth": 0.01427,
+    "velocity": 0.002154,
+    "pressure": 1023.19,
+    "pump_status": "R:Descend-Normal",
+    "gui_received_timestamp_abs": "2025-06-19T20:09:37.948646",
+    "gui_time_since_capture_start": 79.632032
+  },
+  {
+    "float_time_since_start": 80.785,
+    "depth": 0.261816,
+    "velocity": 0.098021,
+    "pressure": 1048.17,
+    "pump_status": "R:Descend-TooFast",
+    "gui_received_timestamp_abs": "2025-06-19T20:09:43.071814",
+    "gui_time_since_capture_start": 84.7552
+  },
+  {
+    "float_time_since_start": 64.615,
+    "depth": 0.006243,
+    "velocity": -0.004309,
+    "pressure": 1022.38,
+    "pump_status": "R:Descend-Normal",
+    "gui_received_timestamp_abs": "2025-06-19T20:09:48.017212",
+    "gui_time_since_capture_start": 89.700598
+  },
+  {
+    "float_time_since_start": 85.974,
+    "depth": 0.69963,
+    "velocity": 0.084069,
+    "pressure": 1092.35,
+    "pump_status": "R:Descend-TooFast",
+    "gui_received_timestamp_abs": "2025-06-19T20:09:53.061574",
+    "gui_time_since_capture_start": 94.74496
+  },
+  {
+    "float_time_since_start": 68.667,
+    "depth": 0.008225,
+    "velocity": 0.005386,
+    "pressure": 1022.58,
+    "pump_status": "R:Descend-Normal",
+    "gui_received_timestamp_abs": "2025-06-19T20:09:58.223317",
+    "gui_time_since_capture_start": 99.906703
+  },
+  {
+    "float_time_since_start": 89.977,
+    "depth": 0.653153,
+    "velocity": -0.046317,
+    "pressure": 1087.66,
+    "pump_status": "R:Descend-Normal",
+    "gui_received_timestamp_abs": "2025-06-19T20:10:03.173857",
+    "gui_time_since_capture_start": 104.857243
+  },
+  {
+    "float_time_since_start": 94.025,
+    "depth": 0.50193,
+    "velocity": -0.004308,
+    "pressure": 1072.4,
+    "pump_status": "R:Descend-Normal",
+    "gui_received_timestamp_abs": "2025-06-19T20:10:08.212120",
+    "gui_time_since_capture_start": 109.895506
+  },
+  {
+    "float_time_since_start": 98.073,
+    "depth": 0.703892,
+    "velocity": 0.084018,
+    "pressure": 1092.78,
+    "pump_status": "R:Descend-TooFast",
+    "gui_received_timestamp_abs": "2025-06-19T20:10:13.276138",
+    "gui_time_since_capture_start": 114.959524
+  },
+  {
+    "float_time_since_start": 102.121,
+    "depth": 1.020707,
+    "velocity": 0.050625,
+    "pressure": 1124.75,
+    "pump_status": "R:Descend-TooFast",
+    "gui_received_timestamp_abs": "2025-06-19T20:10:18.316946",
+    "gui_time_since_capture_start": 120.000332
+  },
+  {
+    "float_time_since_start": 106.169,
+    "depth": 1.081058,
+    "velocity": 0,
+    "pressure": 1130.84,
+    "pump_status": "R:EmergencyAscent-Active",
+    "gui_received_timestamp_abs": "2025-06-19T20:10:23.733053",
+    "gui_time_since_capture_start": 125.416439
+  },
+  {
+    "float_time_since_start": 110.217,
+    "depth": 1.030518,
+    "velocity": -0.046318,
+    "pressure": 1125.74,
+    "pump_status": "R:EmergencyAscent-Active",
+    "gui_received_timestamp_abs": "2025-06-19T20:10:28.402736",
+    "gui_time_since_capture_start": 130.086122
+  },
+  {
+    "float_time_since_start": 114.265,
+    "depth": 0.606578,
+    "velocity": -0.161573,
+    "pressure": 1082.96,
+    "pump_status": "R:EmergencyAscent-Active",
+    "gui_received_timestamp_abs": "2025-06-19T20:10:33.446595",
+    "gui_time_since_capture_start": 135.129981
+  },
+  {
+    "float_time_since_start": 118.323,
+    "depth": 0.043999,
+    "velocity": 0.056012,
+    "pressure": 1026.19,
+    "pump_status": "R:Neutralizing",
+    "gui_received_timestamp_abs": "2025-06-19T20:10:38.490976",
+    "gui_time_since_capture_start": 140.174362
+  }
+]

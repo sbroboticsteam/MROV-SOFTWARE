@@ -1,0 +1,245 @@
+[
+  {
+    "float_time_since_start": 76.792,
+    "depth": 0.30314,
+    "velocity": -0.00754,
+    "pressure": 1020.36,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:42:24.263431",
+    "gui_time_since_capture_start": 1.809466
+  },
+  {
+    "float_time_since_start": 80.917,
+    "depth": 0.30096,
+    "velocity": 0.030312,
+    "pressure": 1020.14,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:42:29.346083",
+    "gui_time_since_capture_start": 6.892118
+  },
+  {
+    "float_time_since_start": 84.967,
+    "depth": 0.311266,
+    "velocity": -0.011849,
+    "pressure": 1021.18,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:42:34.401562",
+    "gui_time_since_capture_start": 11.947597
+  },
+  {
+    "float_time_since_start": 89.007,
+    "depth": 0.305915,
+    "velocity": -0.002155,
+    "pressure": 1020.64,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:42:39.451282",
+    "gui_time_since_capture_start": 16.997317
+  },
+  {
+    "float_time_since_start": 93.089,
+    "depth": 0.306212,
+    "velocity": 0.003232,
+    "pressure": 1020.67,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:42:44.487734",
+    "gui_time_since_capture_start": 22.033769
+  },
+  {
+    "float_time_since_start": 97.121,
+    "depth": 0.312059,
+    "velocity": -0.026929,
+    "pressure": 1021.26,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:42:49.533827",
+    "gui_time_since_capture_start": 27.079862
+  },
+  {
+    "float_time_since_start": 0.126,
+    "depth": 9.9e-05,
+    "velocity": 0,
+    "pressure": 990.38,
+    "pump_status": "SensorErr",
+    "gui_received_timestamp_abs": "2025-06-19T18:48:24.772402",
+    "gui_time_since_capture_start": 362.318437
+  },
+  {
+    "float_time_since_start": 4.137,
+    "depth": -0.000297,
+    "velocity": -0.00754,
+    "pressure": 990.34,
+    "pump_status": "SensorErr",
+    "gui_received_timestamp_abs": "2025-06-19T18:48:29.725841",
+    "gui_time_since_capture_start": 367.271876
+  },
+  {
+    "float_time_since_start": 8.169,
+    "depth": -0.000297,
+    "velocity": -0.002154,
+    "pressure": 990.34,
+    "pump_status": "SensorErr",
+    "gui_received_timestamp_abs": "2025-06-19T18:48:34.777763",
+    "gui_time_since_capture_start": 372.323798
+  },
+  {
+    "float_time_since_start": 12.204,
+    "depth": -0.000297,
+    "velocity": -0.001077,
+    "pressure": 990.34,
+    "pump_status": "SensorErr",
+    "gui_received_timestamp_abs": "2025-06-19T18:48:40.167804",
+    "gui_time_since_capture_start": 377.713839
+  },
+  {
+    "float_time_since_start": 16.22,
+    "depth": -0.000198,
+    "velocity": 0.005386,
+    "pressure": 990.35,
+    "pump_status": "SensorErr",
+    "gui_received_timestamp_abs": "2025-06-19T18:48:44.852677",
+    "gui_time_since_capture_start": 382.398712
+  },
+  {
+    "float_time_since_start": 20.268,
+    "depth": -0.000495,
+    "velocity": 0,
+    "pressure": 990.32,
+    "pump_status": "SensorErr",
+    "gui_received_timestamp_abs": "2025-06-19T18:48:49.894602",
+    "gui_time_since_capture_start": 387.440637
+  },
+  {
+    "float_time_since_start": 24.304,
+    "depth": -0.000694,
+    "velocity": 0.001077,
+    "pressure": 990.3,
+    "pump_status": "SensorErr",
+    "gui_received_timestamp_abs": "2025-06-19T18:48:55.035548",
+    "gui_time_since_capture_start": 392.581583
+  },
+  {
+    "float_time_since_start": 28.337,
+    "depth": -0.000495,
+    "velocity": 0.004309,
+    "pressure": 990.32,
+    "pump_status": "SensorErr",
+    "gui_received_timestamp_abs": "2025-06-19T18:48:59.997330",
+    "gui_time_since_capture_start": 397.543365
+  },
+  {
+    "float_time_since_start": 32.372,
+    "depth": -0.001982,
+    "velocity": -0.005386,
+    "pressure": 990.17,
+    "pump_status": "SensorErr",
+    "gui_received_timestamp_abs": "2025-06-19T18:49:05.117401",
+    "gui_time_since_capture_start": 402.663436
+  },
+  {
+    "float_time_since_start": 36.415,
+    "depth": -0.001883,
+    "velocity": -0.001077,
+    "pressure": 990.18,
+    "pump_status": "SensorErr",
+    "gui_received_timestamp_abs": "2025-06-19T18:49:10.076225",
+    "gui_time_since_capture_start": 407.62226
+  },
+  {
+    "float_time_since_start": 40.463,
+    "depth": 0.000297,
+    "velocity": -0.004309,
+    "pressure": 990.4,
+    "pump_status": "SensorErr",
+    "gui_received_timestamp_abs": "2025-06-19T18:49:15.116871",
+    "gui_time_since_capture_start": 412.662906
+  },
+  {
+    "float_time_since_start": 44.483,
+    "depth": -0.000297,
+    "velocity": -0.001077,
+    "pressure": 990.34,
+    "pump_status": "SensorErr",
+    "gui_received_timestamp_abs": "2025-06-19T18:49:20.169967",
+    "gui_time_since_capture_start": 417.716002
+  },
+  {
+    "float_time_since_start": 48.515,
+    "depth": 0.000396,
+    "velocity": 0.005386,
+    "pressure": 990.41,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:49:25.224630",
+    "gui_time_since_capture_start": 422.770665
+  },
+  {
+    "float_time_since_start": 52.549,
+    "depth": 0.000198,
+    "velocity": 0.003231,
+    "pressure": 990.39,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:49:30.307583",
+    "gui_time_since_capture_start": 427.853618
+  },
+  {
+    "float_time_since_start": 56.592,
+    "depth": -9.9e-05,
+    "velocity": 0.003231,
+    "pressure": 990.36,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:49:35.352611",
+    "gui_time_since_capture_start": 432.898646
+  },
+  {
+    "float_time_since_start": 60.639,
+    "depth": -0.000495,
+    "velocity": -0.009694,
+    "pressure": 990.32,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:49:40.392607",
+    "gui_time_since_capture_start": 437.938642
+  },
+  {
+    "float_time_since_start": 64.681,
+    "depth": -0.000396,
+    "velocity": -0.004309,
+    "pressure": 990.33,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:49:45.446035",
+    "gui_time_since_capture_start": 442.99207
+  },
+  {
+    "float_time_since_start": 68.751,
+    "depth": -0.004063,
+    "velocity": -0.004309,
+    "pressure": 989.96,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:49:50.582396",
+    "gui_time_since_capture_start": 448.128431
+  },
+  {
+    "float_time_since_start": 72.783,
+    "depth": -0.009216,
+    "velocity": -0.005386,
+    "pressure": 989.44,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:49:55.507505",
+    "gui_time_since_capture_start": 453.05354
+  },
+  {
+    "float_time_since_start": 76.814,
+    "depth": -0.009117,
+    "velocity": 0,
+    "pressure": 989.45,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:50:00.618099",
+    "gui_time_since_capture_start": 458.164134
+  },
+  {
+    "float_time_since_start": 80.862,
+    "depth": -0.009117,
+    "velocity": 0.001077,
+    "pressure": 989.45,
+    "pump_status": "M:Idle/Off",
+    "gui_received_timestamp_abs": "2025-06-19T18:50:05.564563",
+    "gui_time_since_capture_start": 463.110598
+  }
+]
