@@ -118,7 +118,7 @@ class ChassisControl:
         # Use named PID controllers for better logging
         self.pidX = PID_Controller(0, 0, 0, 0).set_name("X")
         self.pidY = PID_Controller(0, 0, 0, 0).set_name("Y")
-        self.pidZ = PID_Controller(0, 0, 0, 0).set_name("Z")
+        self.pidZ = PID_Controller(15, 0, 0, 0).set_name("Z")
         self.pidRoll = PID_Controller(0.09, 0, 0, 0).set_name("Roll")
         self.pidPitch = PID_Controller(0.15, 0, 0, 0).set_name ("Pitch")
         self.pidYaw = PID_Controller(0, 0, 0, 0).set_name("Yaw")
@@ -218,6 +218,8 @@ class ChassisControl:
         powerY = self.pidY.PID_Power(imuData[1], self.y_target)
         powerZ = self.pidZ.PID_Power(imuData[2], self.z_target)
         
+        logger.info(f"*** POWER Z IS THIS {powerZ:.2f} ***")
+        
         # For stability, try to keep roll and pitch at 0
         powerRoll = self.pidRoll.PID_Power(imuData[3], self.roll_target)  # Always target level
         powerPitch = -self.pidPitch.PID_Power(imuData[4], self.pitch_target) 
@@ -226,5 +228,7 @@ class ChassisControl:
         powerYaw = self.pidYaw.PID_Power(imuData[5], self.yaw_target)
         
         power = [powerX, powerY, powerZ, powerRoll, powerPitch, powerYaw]
-        rotated = self.rotateVectors(power)
-        return rotated
+        # rotated = self.rotateVectors(power)
+        # return rotated
+        
+        return power

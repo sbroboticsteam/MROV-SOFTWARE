@@ -33,8 +33,8 @@ class Servo:
         self.current_pulse = pw
         time.sleep(0.001) # Small delay to help register changes
         
-    def move_smoothly(self, target_pulse, steps=20, delay=0.03):
-        """Move the servo gradually to a target position
+    def move_smoothly(self, target_pulse, steps=30, delay=0.02):
+        """Move the servo gradually to a target position with an ease-out curve.
         
         Args:
             target_pulse: Target pulse width in microseconds
@@ -43,21 +43,34 @@ class Servo:
         """
         target_pulse = max(self.min_pulse, min(self.max_pulse, target_pulse))
         
-        # If we're already at or very close to target, do nothing
+        # If we're already at or very close to target, just set it and return
         if abs(self.current_pulse - target_pulse) < 10:
+            self._set_pulse_width(target_pulse)
             return
             
         start_pulse = self.current_pulse
         pulse_diff = target_pulse - start_pulse
-        step_size = pulse_diff / steps
         
         logger.debug(f"{self.name}: Moving smoothly from {start_pulse}µs to {target_pulse}µs in {steps} steps")
         
-        # Move in small steps
+        # Move in small steps with an ease-out curve
         for i in range(1, steps + 1):
-            next_pulse = int(start_pulse + (step_size * i))
-            self._set_pulse_width(next_pulse)
-            time.sleep(delay)  # Delay between movements
+            progress = i / steps
+            # Quadratic ease-out function: starts fast, ends slow
+            ease_progress = 1 - (1 - progress) ** 2
+            
+            next_pulse = int(start_pulse + (pulse_diff * ease_progress))
+            
+            # Avoid sending the same pulse width repeatedly if rounding causes it
+            if next_pulse != self.current_pulse:
+                self._set_pulse_width(next_pulse)
+                
+            time.sleep(delay)
+            
+        # Ensure the final position is exactly the target
+        if self.current_pulse != target_pulse:
+            self._set_pulse_width(target_pulse)
+        
         
 
 # Add this new class for 360-degree continuous rotation servos
@@ -123,8 +136,9 @@ class ArmState(Enum):
     """State enum for arm positions"""
     STOWED = 0      # Arm in storage/travel position (X button)
     FULLY_OUT = 1   # Arm fully extended straight out (Y button)
-    FULLY_DOWN = 2  # Arm fully down (Right Bumper)
+    OUT_45 = 2  # Arm fully down (Right Bumper)
     OUT_DOWN = 3    # Arm out with elbow down (Left Bumper)
+    FULLY_DOWN = 4
 
 # --------------------------- Arm Control Class ---------------------------
 class Arm:
@@ -134,27 +148,31 @@ class Arm:
     # Modified to handle continuous rotation claw
     POSITIONS = {
         ArmState.STOWED: {
-            "wrist": 900,     # Vertical
+            "wrist": 1000,     # Vertical
             "elbow": 1900,    # Down position (~1940μs)
-            "shoulder": 1620, # Extended out (~1681μs)
-            "claw":2000   # Start with claw open when extended
+            "shoulder": 1700, # Extended out (~1681μs)
+            "claw":1500   # Start with claw open when extended
         },
         ArmState.FULLY_OUT: {
-            "elbow": 1460,    # Down position (~1940μs)
-            "shoulder": 1425, # Extended out (~1681μs)
+            "elbow": 675,    # Down position (~1940μs)
+            "shoulder": 1500, # Extended out (~1681μs)
         },
-        # ArmState.FULLY_DOWN: {
-        #     "wrist": 0,     # Vertical
-        #     "elbow": 0,    # Down position (~1500μs)
-        #     "shoulder": 0,  # Down position (~1186μs)
-        #     # "claw_state": "open"   # Start with claw open when down
-        # },
+        ArmState.OUT_45: {
+            "elbow": 1147,    
+            "shoulder": 1500,  
+        },
         ArmState.OUT_DOWN: {
-            "elbow": 1900,    # Down position (~1940μs)
-            "shoulder": 1425, # Extended out (~1681μs)t
+            "elbow": 1619,    # Down position (~1940μs)
+            "shoulder": 1500, # Extended out (~1681μs)
             # "claw_state": "open"   # Start with claw open in this position
-        }
+        },
+        ArmState.FULLY_DOWN: {
+            "elbow": 1619,    
+            "shoulder": 900,
+            "claw": 1500
+        },
     }
+    '''old shoulder limit: 1463'''
     
     def __init__(self, pca):
         """Initialize the arm with all servos"""
@@ -163,17 +181,17 @@ class Arm:
         
         # Create servo objects with correct channel assignments and names
         self.servos = {
-            "wrist": Servo(5, pca, min_pulse=900, max_pulse=1800, name="Wrist"),
-            "elbow": Servo(2, pca, min_pulse=900, max_pulse=2100, name="Elbow"),
-            "shoulder": Servo(4, pca, min_pulse=900, max_pulse=2100, name="Shoulder"),
-            "claw": Servo(3, pca, min_pulse=1630, max_pulse=2050, name="Claw")
+            "wrist": Servo(4, pca, min_pulse=1000, max_pulse=2800, name="Wrist"),
+            "elbow": Servo(3, pca, min_pulse=675, max_pulse=1619, name="Elbow"),
+            "shoulder": Servo(2, pca, min_pulse= 900, max_pulse=1900, name="Shoulder"),
+            "claw": Servo(5, pca, min_pulse=1200, max_pulse=1700, name="Claw")
         }
         
         # # Create continuous rotation servo for claw
         # self.claw = ContinuousServo(1, pca, min_pulse=500, max_pulse=2500, name="Claw", stop_pulse=1536)
         
         # Store the current wrist angle for rotation control
-        self.current_wrist_pulse = 1500  # Start at neutral/vertical
+        self.current_wrist_pulse = 1020  # Start at neutral/vertical
         
         # Initialize to the specified position
         self.set_state(ArmState.FULLY_OUT)
@@ -211,13 +229,19 @@ class Arm:
                 pulse = positions[servo_name]
                 
                 # Skip wrist adjustment if already at target pulse
+                logger.info(f"WRIST IS THIS {pulse} pulse")
+                logger.info(f"WRIST IS THIS CURRENT {self.current_wrist_pulse} pulse")
                 if servo_name == "wrist" and abs(self.current_wrist_pulse - pulse) < 50:
                     continue
                     
-                # Use smooth movement
-                logger.info(f"Moving {servo_name} smoothly to {pulse}µs")
-                self.servos[servo_name].move_smoothly(pulse, steps=30, delay=0.02)
-                
+                if servo_name == "wrist" and state == ArmState.STOWED:
+                    logger.info(f"Applying extra-smooth movement for {servo_name} to {pulse}µs")
+                    self.servos[servo_name].move_smoothly(pulse, steps=60, delay=0.025)
+                else:
+                    # Use standard smooth movement for all other cases
+                    logger.info(f"Moving {servo_name} smoothly to {pulse}µs")
+                    self.servos[servo_name].move_smoothly(pulse, steps=30, delay=0.02)
+                    
                 # Update current wrist pulse if we're adjusting it
                 if servo_name == "wrist":
                     self.current_wrist_pulse = pulse
@@ -258,7 +282,7 @@ class Arm:
 
     def open_claw(self):
         """Open the claw (rotate in opening direction) smoothly"""
-        self.servos["claw"].move_smoothly(1850, steps=20, delay=0.03)  
+        self.servos["claw"].move_smoothly(1700, steps=20, delay=0.03)  
         logger.info("Claw opening smoothly")
         
     def close_claw(self):
@@ -273,7 +297,7 @@ class Arm:
         self.servos["claw"].move_smoothly(1500, steps=20, delay=0.03)
         logger.info("Claw stopped")
     # +++++++++++++++++++++++++++++++++
-    
+
 
     def adjust_claw(self, direction, step=0.18):
         """
@@ -298,27 +322,46 @@ class Arm:
             # Apply the pulse width directly
             wrist_servo._set_pulse_width(new_pulse)
             logger.info(f"Wrist adjusted to {new_pulse}μs")
-        
+
     def adjust_wrist(self, direction, step=0.18):
-        """
-        Adjust wrist rotation using continuous rotation approach
-        direction: -1 for left, 1 for right
-        step: speed factor (0-1.0)
-        """
-        # Get reference to wrist servo
-        wrist_servo = self.servos.get("wrist")
-        if wrist_servo:
-            # Get current pulse or use neutral
-            current_pulse = getattr(wrist_servo, 'current_pulse', 1500)
+            """
+            Adjust wrist rotation with an assisted "soft landing" at the minimum limit.
+            direction: -1 for left/down, 1 for right/up
+            """
+            wrist_servo = self.servos.get("wrist")
+            if not wrist_servo:
+                return
+
+            current_pulse = self.current_wrist_pulse
+            pulse_step = 50  # The size of a single manual adjustment step in µs
+            potential_new_pulse = current_pulse + (direction * pulse_step)
+
+            # --- ASSISTED MOVEMENT LOGIC ---
+            # If the user is trying to move down (direction is negative) AND
+            # they are currently at or above 1000µs AND
+            # their next move would cross below the 1000µs threshold...
+            if direction < 0 and current_pulse >= 1000 and potential_new_pulse < 1000:
+                logger.info("Manual control approaching limit. Engaging assisted stow for wrist.")
+                
+                # ...then take over and perform the extra-gentle, automated move
+                # to the final, safe stowed position.
+                final_stow_pulse = wrist_servo.min_pulse
+                wrist_servo.move_smoothly(final_stow_pulse, steps=60, delay=0.025)
+                
+                # Update the state and exit the function for this turn.
+                self.current_wrist_pulse = final_stow_pulse
+                return
+
+            # --- NORMAL MANUAL CONTROL ---
+            # For all other cases (moving up from 910, or moving anywhere above 1000),
+            # perform a standard manual adjustment.
             
-            # Calculate new pulse width (pulse increases with positive speed)
-            # Each 50μs step is approximately 5 degrees of movement
-            new_pulse = current_pulse + (direction * 50)  
-            new_pulse = max(900, min(1800, new_pulse))  # Limit range
-            
-            # Apply the pulse width directly, with fewer steps for manual control
-            wrist_servo.move_smoothly(new_pulse, steps=5, delay=0.01)
-            logger.info(f"Wrist adjusted to {new_pulse}μs")
+            # Clamp the new pulse to the servo's defined safe limits
+            new_pulse = max(wrist_servo.min_pulse, min(wrist_servo.max_pulse, potential_new_pulse))
+
+            # Apply the small, smooth manual step
+            wrist_servo.move_smoothly(new_pulse, steps=3, delay=0.01)
+            logger.info(f"Wrist adjusted to {new_pulse}µs")
             
             # Update the current wrist pulse
             self.current_wrist_pulse = new_pulse

@@ -86,10 +86,10 @@ class ROV:
         # Initialize Ethernet Manager for network communication
         # In the __init__ method of the ROV class, update the EthernetManager initialization
         self.ethernet = EthernetManager(
-            control_ip='192.168.1.237',  # ROV's IP
+            control_ip='192.168.50.41',  # ROV's IP
             control_port=4891,           # Control port
             camera_port=8000,            # Camera stream port
-            telemetry_ip='192.168.1.94', # Your laptop's IP 
+            telemetry_ip='192.168.50.142', # Your laptop's IP 
             telemetry_port=8001          # Dedicated telemetry port
         )
         self.ethernet.set_control_callback(self.process_command)
@@ -445,7 +445,8 @@ class ROV:
                 # logger.debug(f"Combined Vector: [{', '.join([f'{x:.2f}' for x in vectorret])}]")
                 
                 # Convert PID corrections to motor adjustments
-                rotateVector = self.chassis_control.rotateVectors(controller)
+                # rotateVector = self.chassis_control.rotateVectors(controller)
+                # rotateVectorret = self.chassis_control.addVectors(rotateVector, pid_corrections)
                 self.final_motor_states = self.chassis_control.arcadeDrive6(vectorret)
                 # logger.debug(f"Final Motor Values: [{', '.join([f'{x:.2f}' for x in self.final_motor_states])}]")
                 
@@ -596,8 +597,8 @@ class ROV:
                         elif target == 'rb': prev_rb = 1
             
             # Process button inputs for arm control - each check is independent
-            if a_button == 1:
-                self.arm.open_claw()
+            if a_button == 1 and prev_a == 0:  # Removed state check
+                self.arm.set_state(ArmState.FULLY_DOWN)
                 command_processed = True
             # B button now used exclusively for thruster initialization
             if b_button == 1:
@@ -621,7 +622,7 @@ class ROV:
             # For state-changing buttons, now using if instead of elif
             # and removing the state check which causes issues with remapping
             if x_button == 1 and prev_x == 0:  # Removed state check
-                # self.arm.set_state(ArmState.STOWED)
+                self.arm.set_state(ArmState.OUT_45)
                 command_processed = True
             if y_button == 1 and prev_y == 0:  # Removed state check
                 self.arm.set_state(ArmState.STOWED)
@@ -637,18 +638,18 @@ class ROV:
             dpad_y = controller.get('dpad_y', 0)
             prev_dpad_y = self.prev_button_states.get('dpad_y', 0)
             prev_dpad_x = self.prev_button_states.get('dpad_x', 0)
-            if dpad_x == -1:  # Left on D-pad
+            if dpad_x == 1:  # Left on D-pad
                 self.arm.adjust_wrist(-1, step=0.2)
                 command_processed = True
-            if dpad_x == 1:  # Right on D-pad
+            if dpad_x == -1:  # Right on D-pad
                 self.arm.adjust_wrist(1, step=0.3)
                 command_processed = True
 
 
-            if dpad_y == -1:  # Down on D-pad - close claw while held
+            if dpad_y == 1:  # Down on D-pad - close claw while held
                 self.arm.adjust_claw(-1, step=0.2)
                 command_processed = True
-            elif dpad_y == 1:  # Up on D-pad - open claw while held
+            elif dpad_y == -1:  # Up on D-pad - open claw while held
                 self.arm.adjust_claw(1, step=0.3)
                 command_processed = True
 

@@ -16,7 +16,7 @@ logger = logging.getLogger("ROV")
 # --------------------------- Ethernet Manager Class ---------------------------
 class EthernetManager:
     """Manages all network communications for the ROV using UDP"""
-    def __init__(self, control_ip: str = '192.168.1.237', control_port: int = 4891, camera_port: int = 8000,telemetry_ip: str = '192.168.1.94', telemetry_port: int = 8001):
+    def __init__(self, control_ip: str = '192.168.50.41', control_port: int = 4891, camera_port: int = 8000,telemetry_ip: str = '192.168.50.142', telemetry_port: int = 8001):
         self.control_ip = control_ip
         self.control_port = control_port
         self.camera_port = camera_port  # Add camera port
@@ -204,9 +204,10 @@ class EthernetManager:
                     zed_port = config.get('zed_port', 5000)
                     usb0_port = config.get('usb0_port', 5004)
                     usb2_port = config.get('usb2_port', 5005)
+                    camera_360_port = config.get('camera_360_port', 5001)
                     
                     # Start the requested streams
-                    success = self.start_camera_streams(client_ip, zed_port, usb0_port, usb2_port)
+                    success = self.start_camera_streams(client_ip, zed_port, usb0_port, usb2_port, camera_360_port)
                     
                     # Send a response
                     if success:
@@ -227,7 +228,7 @@ class EthernetManager:
         finally:
             client_socket.close()
     
-    def start_camera_streams(self, client_ip, zed_port, usb0_port, usb2_port) -> bool:
+    def start_camera_streams(self, client_ip, zed_port, usb0_port, usb2_port, camera_360_port) -> bool:
         """Start the camera streams pointing to the client"""
         try:
             logger.info(f"Starting camera streams to {client_ip}")
@@ -241,7 +242,7 @@ class EthernetManager:
                     f"host={client_ip}", f"port={zed_port}", "sync=false", "async=false"
                 ],
                 [
-                    "gst-launch-1.0", "-v", "v4l2src", "device=/dev/video0", "!",
+                    "gst-launch-1.0", "-v", "v4l2src", "device=/dev/video4", "!",
                     "image/jpeg,width=640,height=480,framerate=30/1", "!", "jpegparse", "!",
                     "rtpjpegpay", "pt=26", "!", "udpsink",
                     f"host={client_ip}", f"port={usb0_port}", "sync=false", "async=false"
@@ -251,6 +252,14 @@ class EthernetManager:
                     "image/jpeg,width=640,height=480,framerate=30/1", "!", "jpegparse", "!",
                     "rtpjpegpay", "pt=26", "!", "udpsink",
                     f"host={client_ip}", f"port={usb2_port}", "sync=false", "async=false"
+                ],
+                [
+                    "gst-launch-1.0", "v4l2src", "device=/dev/video0", "!",
+                    "video/x-h264,width=1920,height=960,framerate=30/1", "!",
+                    "h264parse", "!", "avdec_h264", "!", "videoconvert", "!",
+                    "x264enc", "bitrate=4000", "speed-preset=ultrafast", "tune=zerolatency", "!",
+                    "h264parse", "!", "rtph264pay", "config-interval=1", "pt=96", "!",
+                    "udpsink", f"host={client_ip}", f"port={camera_360_port}", "sync=false", "async=false"
                 ]
             ]
             
@@ -322,9 +331,26 @@ class EthernetManager:
     def close(self):
         """Close all network connections"""
         self.telemetry_running = False
+        self.running = False  # Add this line to signal threads to stop
+        
+        # Stop all stream processes first
+        self.stop_camera_streams()
+        
         if hasattr(self, 'telemetry_socket'):
             try:
                 self.telemetry_socket.close()
+            except:
+                pass
+                
+        if hasattr(self, 'control_socket'):
+            try:
+                self.control_socket.close()
+            except:
+                pass
+                
+        if hasattr(self, 'camera_socket'):
+            try:
+                self.camera_socket.close()
             except:
                 pass
     def shutdown(self) -> None:

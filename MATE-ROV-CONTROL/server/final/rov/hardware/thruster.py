@@ -21,7 +21,7 @@ class Thruster:
         self.name = name
         self.STOP_PULSE = 1500
         self.MIN_PULSE = 1100  # Reverse max pulse
-        self.MAX_PULSE = 1700 # Forward max pulse
+        self.MAX_PULSE = 1600 # Forward max pulse
         self.FORWARD_MIN = 1525  # Minimum pulse to start forward motion
         self.REVERSE_MAX = 1475  # Maximum pulse to start reverse motion
         self.current_pulse = self.STOP_PULSE
@@ -36,7 +36,7 @@ class Thruster:
     def initialize(self) -> None:
         """Initialize ESC with neutral signal."""
         self._set_pulse_width(self.STOP_PULSE)
-        sleep(2)
+        sleep(0.1)
         logger.info(f"Thruster {self.name} on channel {self.channel} initialized")
 
     def set_speed(self, speed: float) -> None:
